@@ -42,21 +42,21 @@ LOGGING = {
 }
 
 
-def configure_logging() -> None:
+def configure_logging(override_level: str = None) -> None:
     """
-    Configures logging for the application based on the LOG_CONFIG environment variable.
+    Configures logging for the application based on override or LOG_CONFIG env variable.
 
     This function copies the base LOGGING configuration and adjusts console handler's
     log level according to the environment:
         - 'production': sets console log level to WARNING.
         - 'debug': sets console log level to DEBUG.
-        - 'development' or unset: sets console log level to INFO.
+        - 'development': sets console log level to INFO.
 
     The file handler is always set to DEBUG level. The logger 'equity_aggregator' is set
     to DEBUG level.
 
     Args:
-        None
+        override_level (str, optional): Override the environment log level.
 
     Returns:
         None
@@ -66,8 +66,8 @@ def configure_logging() -> None:
     # Resolve the log file path
     config["handlers"]["file"]["filename"] = _resolve_log_file()
 
-    # Determine the log configuration (default to 'development')
-    env = os.getenv("LOG_CONFIG", "development").lower()
+    # Determine the log configuration (use override or env var, default to 'production')
+    env = (override_level or os.getenv("LOG_CONFIG", "production")).lower()
 
     console_level = {
         "production": "WARNING",

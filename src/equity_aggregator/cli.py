@@ -1,7 +1,6 @@
 # equity_aggregator/cli.py
 
 import argparse
-import asyncio
 import sys
 
 from .domain import download_canonical_equities as download
@@ -12,19 +11,19 @@ from .storage import export_canonical_equities as export
 
 def run_command(fn: callable) -> None:
     """
-    Executes an asynchronous command function using asyncio.
+    Executes a command function with exception handling.
 
-    Runs the provided coroutine function and handles exceptions by printing
+    Runs the provided function and handles exceptions by printing
     the error to stderr and exiting with status code 1.
 
     Args:
-        fn (callable): An asynchronous function to execute.
+        fn (callable): A function to execute.
 
     Returns:
         None
     """
     try:
-        asyncio.run(fn())
+        fn()
     except Exception as exc:
         print(f"{exc.__class__.__name__}: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
@@ -47,6 +46,25 @@ def main() -> None:
         prog="equity-aggregator",
         description="Aggregate, download, and export canonical equity data",
         epilog="Use 'equity-aggregator <command> --help' for command-specific options",
+    )
+
+    # add global logging options
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging (INFO level)",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging (DEBUG level)",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Quiet mode - only show warnings and errors",
     )
 
     # add required subcommands
@@ -87,15 +105,24 @@ def main() -> None:
     # read args from command line
     args = parser.parse_args()
 
+    # determine log level from flags
+    log_level = None
+    if args.debug:
+        log_level = "debug"
+    elif args.verbose:
+        log_level = "development"
+    elif args.quiet:
+        log_level = "production"
+
     # configure logging
-    configure_logging()
+    configure_logging(log_level)
 
     if args.cmd == "seed":
         run_command(seed)
         return
 
     if args.cmd == "export":
-        export()
+        run_command(export)
         return
 
     if args.cmd == "download":

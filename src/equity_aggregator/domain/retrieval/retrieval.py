@@ -76,7 +76,7 @@ def retrieve_canonical_equities() -> list[CanonicalEquity]:
         rebuilt table.
     """
     # Download the canonical equities JSONL file from GitHub
-    asyncio.run(download_canonical_equities())
+    download_canonical_equities()
 
     # Rebuild the canonical equities table from the downloaded JSONL file
     rebuild_canonical_equities_from_jsonl_gz()
@@ -84,7 +84,7 @@ def retrieve_canonical_equities() -> list[CanonicalEquity]:
     return load_canonical_equities()
 
 
-async def download_canonical_equities(
+def download_canonical_equities(
     client: AsyncClient | None = None,
 ) -> None:
     """
@@ -99,15 +99,19 @@ async def download_canonical_equities(
     Returns:
         None
     """
-    _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
-    dest_path = _DATA_STORE_PATH / "canonical_equities.jsonl.gz"
 
-    async with _open_client(client) as session:
-        release = await _get_release_by_tag(session, _OWNER, _REPO, _TAG)
+    async def _async_download() -> None:
+        _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
+        dest_path = _DATA_STORE_PATH / "canonical_equities.jsonl.gz"
 
-        url = _asset_browser_url(release, "canonical_equities.jsonl.gz")
+        async with _open_client(client) as session:
+            release = await _get_release_by_tag(session, _OWNER, _REPO, _TAG)
 
-        await _stream_download(session, url, dest_path)
+            url = _asset_browser_url(release, "canonical_equities.jsonl.gz")
+
+            await _stream_download(session, url, dest_path)
+
+    asyncio.run(_async_download())
 
 
 @asynccontextmanager

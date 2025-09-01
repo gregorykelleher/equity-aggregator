@@ -22,27 +22,30 @@ class _OpenFigiClient(Protocol):
     """
     Protocol for OpenFIGI client implementations.
 
-    Defines the expected interface for an OpenFIGI client.
+    Defines the interface for connecting to the OpenFIGI service and mapping
+    reference data using a pandas DataFrame.
 
     Methods
     -------
-    connect() -> None
-        Establishes a connection to the OpenFIGI service. May raise an exception
-        if connection fails.
+    connect() -> object
+        Establishes a connection to the OpenFIGI service.
 
     map(df: pd.DataFrame) -> pd.DataFrame
-        Maps reference data using the provided DataFrame and returns a new
-        DataFrame containing the identification results.
+        Maps reference data using the provided DataFrame and returns a DataFrame
+        with mapped results.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The input DataFrame containing reference data queries (e.g. ISINs, tickers).
+    Args
+    ----
+    df : pd.DataFrame
+        Input DataFrame containing reference data to be mapped.
 
-        Returns
-        -------
-        pd.DataFrame
-            The mapped results returned from the OpenFIGI service.
+    Returns
+    -------
+    object
+        The connection object to the OpenFIGI service (from connect()).
+
+    pd.DataFrame
+        DataFrame containing mapped reference data (from map()).
     """
 
     def connect(self) -> object: ...

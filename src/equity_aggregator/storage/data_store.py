@@ -148,6 +148,30 @@ def save_canonical_equities(canonical_equities: Iterable[CanonicalEquity]) -> No
         )
 
 
+def _validate_canonical_equities_exist(conn: sqlite3.Connection) -> None:
+    """
+    Validates that the canonical equities table exists and contains data.
+
+    Args:
+        conn (sqlite3.Connection): Database connection to validate against.
+
+    Raises:
+        FileNotFoundError: If no canonical equities table or data exists.
+    """
+    try:
+        result = conn.execute(
+            f"SELECT 1 FROM {_CANONICAL_EQUITIES_TABLE} LIMIT 1",
+        ).fetchone()
+
+    except sqlite3.OperationalError:
+        result = None
+
+    if not result:
+        raise FileNotFoundError(
+            "No canonical equities found. Run 'seed' or 'download' first.",
+        )
+
+
 def export_canonical_equities() -> None:
     """
     Export canonical equities as newline-delimited JSON (NDJSON), compressed with gzip.
@@ -160,10 +184,12 @@ def export_canonical_equities() -> None:
 
     Returns:
         None
+
+    Raises:
+        FileNotFoundError: If no database exists or no canonical equities are found.
     """
-    # TODO: Add condition to only export equities if there's a pre-existing database
     with _connect() as conn:
-        _init_canonical_equities_table(conn)
+        _validate_canonical_equities_exist(conn)
 
         cursor = conn.execute(
             (
@@ -172,6 +198,7 @@ def export_canonical_equities() -> None:
             ),
         )
 
+        _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
         with gzip.open(
             _DATA_STORE_PATH / _CANONICAL_JSONL_ASSET,
             mode="wt",
@@ -179,7 +206,6 @@ def export_canonical_equities() -> None:
             compresslevel=9,
         ) as gz:
             for (payload_str,) in cursor:
-                # payload is already JSON text; write as-is and terminate with newline
                 gz.write(payload_str)
                 gz.write("\n")
 
