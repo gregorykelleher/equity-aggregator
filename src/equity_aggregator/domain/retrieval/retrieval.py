@@ -1,6 +1,7 @@
 # retrieval/retrieval.py
 
 import asyncio
+import logging
 import os
 from collections.abc import AsyncIterable
 from contextlib import asynccontextmanager
@@ -30,6 +31,8 @@ _HEADERS = {
     "X-GitHub-Api-Version": "2022-11-28",
 }
 
+logger = logging.getLogger(__name__)
+
 
 def retrieve_canonical_equity(share_class_figi: str) -> CanonicalEquity:
     """
@@ -53,6 +56,7 @@ def retrieve_canonical_equity(share_class_figi: str) -> CanonicalEquity:
     db_path = _DATA_STORE_PATH / "data_store.db"
 
     if not db_path.exists():
+        logger.info("Database not found, downloading canonical equities")
         retrieve_canonical_equities()
 
     equity = load_canonical_equity(share_class_figi)
@@ -75,24 +79,24 @@ def retrieve_canonical_equities() -> list[CanonicalEquity]:
         list[CanonicalEquity]: A list of CanonicalEquity objects loaded from the
         rebuilt table.
     """
-    # Download the canonical equities JSONL file from GitHub
+    # Download the canonical equities JSONL file from GitHub and rebuild database
     download_canonical_equities()
 
-    # Rebuild the canonical equities table from the downloaded JSONL file
-    rebuild_canonical_equities_from_jsonl_gz()
-
-    return load_canonical_equities()
+    equities = load_canonical_equities()
+    logger.info("Successfully retrieved %d canonical equities", len(equities))
+    return equities
 
 
 def download_canonical_equities(
     client: AsyncClient | None = None,
 ) -> None:
     """
-    Download the 'data_store.db' release asset from a release tag URL.
+    Download the canonical equities JSONL file from GitHub and rebuild the database.
+
+    Downloads the latest canonical_equities.jsonl.gz file from the GitHub release,
+    then rebuilds the local SQLite database from the downloaded file.
 
     Args:
-        release_tag_url (str): GitHub release tag URL (e.g.,
-            'https://github.com/{owner}/{repo}/releases/tag/{tag}').
         client (AsyncClient | None, optional): Optional HTTP client. If None, creates
             a new client session.
 
@@ -108,10 +112,14 @@ def download_canonical_equities(
             release = await _get_release_by_tag(session, _OWNER, _REPO, _TAG)
 
             url = _asset_browser_url(release, "canonical_equities.jsonl.gz")
+            logger.info("Downloading canonical equities from GitHub release")
 
             await _stream_download(session, url, dest_path)
 
     asyncio.run(_async_download())
+
+    # Rebuild the database from the downloaded JSONL file
+    rebuild_canonical_equities_from_jsonl_gz()
 
 
 @asynccontextmanager

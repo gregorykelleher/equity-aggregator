@@ -2,6 +2,7 @@
 
 import gzip
 import json
+import logging
 import os
 import pickle
 import sqlite3
@@ -12,12 +13,15 @@ from pathlib import Path
 
 from equity_aggregator.schemas import CanonicalEquity
 
+logger = logging.getLogger(__name__)
+
 _DATA_STORE_PATH: Path = Path(os.getenv("_DATA_STORE_DIR", "data/data_store/"))
 
 _CANONICAL_EQUITIES_TABLE = "canonical_equities"
 _CANONICAL_JSONL_ASSET = "canonical_equities.jsonl.gz"
 
 _CACHE_TABLE = "object_cache"
+_METADATA_TABLE = "data_metadata"
 
 
 @contextmanager
@@ -73,6 +77,29 @@ def _init_canonical_equities_table(conn: sqlite3.Connection) -> None:
     )
 
 
+def _init_metadata_table(conn: sqlite3.Connection) -> None:
+    """
+    Initialises the metadata table for tracking data freshness.
+
+    Creates a table with the name specified by the variable `_METADATA_TABLE`
+    if it does not already exist. The table tracks when different data sources
+    were last updated.
+
+    Args:
+        conn (sqlite3.Connection): The SQLite database connection to use for table
+            creation.
+
+    Returns:
+        None
+    """
+    conn.execute(f"""
+        CREATE TABLE IF NOT EXISTS {_METADATA_TABLE} (
+            table_name TEXT PRIMARY KEY,
+            last_updated INTEGER NOT NULL
+        )
+    """)
+
+
 def _init_cache_table(conn: sqlite3.Connection) -> None:
     """
     Initialises the cache table in the provided SQLite database connection.
@@ -123,13 +150,92 @@ def _serialise_equity(canonical_equity: CanonicalEquity) -> tuple[str, str]:
     return figi, json_data
 
 
+def _update_canonical_equities_timestamp(conn: sqlite3.Connection) -> None:
+    """
+    Updates the last_updated timestamp for canonical equities table.
+
+    Args:
+        conn (sqlite3.Connection): The SQLite database connection to use.
+
+    Returns:
+        None
+    """
+    _init_metadata_table(conn)
+    conn.execute(
+        (
+            f"INSERT OR REPLACE INTO {_METADATA_TABLE} "
+            "(table_name, last_updated) VALUES (?, ?)"
+        ),
+        (
+            _CANONICAL_EQUITIES_TABLE,
+            int(time.time()),
+        ),
+    )
+
+
+def _get_canonical_equities_age_seconds(conn: sqlite3.Connection) -> int | None:
+    """
+    Gets the age in seconds of the canonical equities data.
+
+    Args:
+        conn (sqlite3.Connection): The SQLite database connection to use.
+
+    Returns:
+        int | None: Age in seconds, or None if no timestamp exists.
+    """
+    _init_metadata_table(conn)
+    row = conn.execute(
+        f"SELECT last_updated FROM {_METADATA_TABLE} WHERE table_name = ?",
+        (_CANONICAL_EQUITIES_TABLE,),
+    ).fetchone()
+    return int(time.time()) - row[0] if row else None
+
+
+def _is_database_stale() -> bool:
+    """
+    Check if the local database is stale based on TTL configuration.
+
+    Returns:
+        bool: True if database is stale or doesn't exist, False if fresh.
+    """
+    ttl = _ttl_seconds()
+    if ttl == 0:  # TTL disabled
+        return False
+
+    db_path = _DATA_STORE_PATH / "data_store.db"
+    if not db_path.exists():
+        return True
+
+    with _connect() as conn:
+        age = _get_canonical_equities_age_seconds(conn)
+        return age is None or age > ttl
+
+
+def ensure_fresh_database(refresh_fn: callable = None) -> bool:
+    """
+    Ensure the database is fresh, refreshing if stale and refresh function provided.
+
+    Args:
+        refresh_fn (callable, optional): Function to call if database is stale.
+            Should download/refresh the database (e.g., download_canonical_equities).
+
+    Returns:
+        bool: True if refresh was performed, False if database was already fresh.
+    """
+    if _is_database_stale() and refresh_fn:
+        logger.info("Database is stale, refreshing...")
+        refresh_fn()
+        return True
+    return False
+
+
 def save_canonical_equities(canonical_equities: Iterable[CanonicalEquity]) -> None:
     """
     Saves a collection of CanonicalEquity objects to the database.
 
     Each equity is serialised and inserted or replaced in the database table. The
     function ensures the database connection is established and initialised before
-    performing the operation.
+    performing the operation. Updates the last_updated timestamp for freshness tracking.
 
     Args:
         equities (Iterable[CanonicalEquity]): An iterable of CanonicalEquity objects to
@@ -138,6 +244,10 @@ def save_canonical_equities(canonical_equities: Iterable[CanonicalEquity]) -> No
     Returns:
         None
     """
+    canonical_equities = list(canonical_equities)
+
+    logger.info("Saving %d canonical equities to database", len(canonical_equities))
+
     with _connect() as conn:
         _init_canonical_equities_table(conn)
 
@@ -146,6 +256,9 @@ def save_canonical_equities(canonical_equities: Iterable[CanonicalEquity]) -> No
             "(share_class_figi, payload) VALUES (?, ?)",
             map(_serialise_equity, canonical_equities),
         )
+
+        # Update freshness timestamp
+        _update_canonical_equities_timestamp(conn)
 
 
 def _validate_canonical_equities_exist(conn: sqlite3.Connection) -> None:
@@ -172,7 +285,7 @@ def _validate_canonical_equities_exist(conn: sqlite3.Connection) -> None:
         )
 
 
-def export_canonical_equities() -> None:
+def export_canonical_equities(refresh_fn: callable = None) -> None:
     """
     Export canonical equities as newline-delimited JSON (NDJSON), compressed with gzip.
 
@@ -180,7 +293,7 @@ def export_canonical_equities() -> None:
     column. Output is ordered by share_class_figi for deterministic results.
 
     Args:
-        None
+        refresh_fn (callable, optional): Function to refresh database if stale.
 
     Returns:
         None
@@ -188,6 +301,19 @@ def export_canonical_equities() -> None:
     Raises:
         FileNotFoundError: If no database exists or no canonical equities are found.
     """
+
+    # Check if database file exists - if not, fail early
+    db_path = _DATA_STORE_PATH / "data_store.db"
+    if not db_path.exists():
+        raise FileNotFoundError(
+            "No canonical equities found. Run 'seed' or 'download' first.",
+        )
+
+    # Ensure database is fresh before export (only if it exists)
+    ensure_fresh_database(refresh_fn)
+
+    logger.info("Exporting canonical equities to JSONL")
+
     with _connect() as conn:
         _validate_canonical_equities_exist(conn)
 
@@ -226,10 +352,15 @@ def rebuild_canonical_equities_from_jsonl_gz() -> None:
     src_path = _DATA_STORE_PATH / _CANONICAL_JSONL_ASSET
     dest_path = _DATA_STORE_PATH / "data_store.db"
 
+    logger.info("Rebuilding database from %s", src_path)
+
     with sqlite3.connect(dest_path, isolation_level=None) as conn:
         _rebuild_canonical_equities_schema(conn)
         _rebuild_canonical_equities_table(conn, src_path)
+        _update_canonical_equities_timestamp(conn)
         conn.execute("VACUUM")  # Optimise database
+
+    logger.info("Database rebuild completed successfully")
 
 
 def _rebuild_canonical_equities_schema(conn: sqlite3.Connection) -> None:
@@ -333,7 +464,7 @@ def load_canonical_equity(share_class_figi: str) -> CanonicalEquity | None:
         return CanonicalEquity.model_validate_json(row[0]) if row and row[0] else None
 
 
-def load_canonical_equities() -> list[CanonicalEquity]:
+def load_canonical_equities(refresh_fn: callable = None) -> list[CanonicalEquity]:
     """
     Loads and rehydrates all CanonicalEquity objects from the database.
 
@@ -342,11 +473,14 @@ def load_canonical_equities() -> list[CanonicalEquity]:
     returns a list of CanonicalEquity instances.
 
     Args:
-        None
+        refresh_fn (callable, optional): Function to refresh database if stale.
 
     Returns:
         list[CanonicalEquity]: List of all rehydrated CanonicalEquity objects.
     """
+    # Ensure database is fresh before loading
+    ensure_fresh_database(refresh_fn)
+
     return [
         CanonicalEquity.model_validate_json(payload)
         for payload in _iter_canonical_equity_json_payloads()

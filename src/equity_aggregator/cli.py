@@ -122,7 +122,7 @@ def main() -> None:
         return
 
     if args.cmd == "export":
-        run_command(export)
+        run_command(lambda: export(download))
         return
 
     if args.cmd == "download":
