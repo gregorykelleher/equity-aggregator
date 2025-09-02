@@ -64,7 +64,7 @@ def _update(
 
     Args:
         equity (RawEquity): The equity object to update.
-        metadata (IdentificationMetadata): A tuple containing
+        id_metadata (IdentificationMetadata): A tuple containing
             (name, symbol, figi) values. Each value may be None.
 
     Returns:
