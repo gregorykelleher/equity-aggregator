@@ -421,9 +421,9 @@ async def test_map_or_none_calls_map_and_returns_df_from_sequence() -> None:
                 [{"query_number": 0, "shareClassFIGI": "BBG000BLNNH6", "ticker": "A"}],
             )
 
-    result = await _map_or_none([RawEquity(name="A", symbol="A")], _Echo())
+    actual = await _map_or_none([RawEquity(name="A", symbol="A")], _Echo())
 
-    assert isinstance(result, pd.DataFrame)
+    assert isinstance(actual, pd.DataFrame)
 
 
 async def test_map_or_none_accepts_dataframe_input() -> None:

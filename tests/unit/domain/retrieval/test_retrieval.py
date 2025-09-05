@@ -1,5 +1,7 @@
-# tests/unit/retrieval/test_retrieval.py
+# retrieval/test_retrieval.py
 
+import gzip
+import json
 from collections.abc import AsyncGenerator
 
 import httpx
@@ -14,6 +16,8 @@ from equity_aggregator.domain.retrieval.retrieval import (
     _open_client,
     _stream_download,
     _write_chunks_to_file,
+    download_canonical_equities,
+    retrieve_canonical_equity,
 )
 
 pytestmark = pytest.mark.unit
@@ -32,6 +36,44 @@ class _Stream(httpx.AsyncByteStream):
 
     def __aiter__(self) -> None:
         return self.aiter_bytes()
+
+
+def _mock_github_client(content: bytes = b"") -> httpx.AsyncClient:
+    """
+    Creates a mock httpx.AsyncClient simulating GitHub release and asset download.
+
+    This mock client intercepts requests to GitHub release endpoints and returns a
+    predefined JSON response containing a single asset. For all other requests, it
+    returns the provided content compressed with gzip, simulating the download of a
+    release asset.
+
+    Args:
+        content (bytes, optional): The raw bytes to be compressed and returned as the
+            asset content. Defaults to an empty bytes object.
+
+    Returns:
+        httpx.AsyncClient: An asynchronous HTTP client with a mock transport handler
+            for testing GitHub release and asset download flows.
+    """
+    """Create mock client that returns GitHub release with content."""
+    gz = gzip.compress(content)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "releases" in str(request.url):
+            return httpx.Response(
+                200,
+                json={
+                    "assets": [
+                        {
+                            "name": "canonical_equities.jsonl.gz",
+                            "browser_download_url": "https://x/f",
+                        },
+                    ],
+                },
+            )
+        return httpx.Response(200, content=gz, headers={"Content-Length": str(len(gz))})
+
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
 
 async def test_write_chunks_to_file_writes_all_bytes() -> None:
@@ -157,6 +199,7 @@ async def test_get_release_by_tag_success() -> None:
         return httpx.Response(200, json={"assets": []})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
     release = await _get_release_by_tag(client, "o", "r", "t")
     assert release == {"assets": []}
 
@@ -204,3 +247,75 @@ def test_asset_browser_url_raises_when_missing() -> None:
 
     with pytest.raises(FileNotFoundError):
         _asset_browser_url(release, "a.gz")
+
+
+def test_download_canonical_equities_raises_on_missing_asset() -> None:
+    """
+    ARRANGE: Mock client with release but missing asset
+    ACT:     Call download_canonical_equities
+    ASSERT:  FileNotFoundError raised
+    """
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"assets": []})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    with pytest.raises(FileNotFoundError):
+        download_canonical_equities(client)
+
+
+def test_retrieve_canonical_equity_raises_lookup_error_when_not_found() -> None:
+    """
+    ARRANGE: Database exists but doesn't contain target FIGI
+    ACT:     Call retrieve_canonical_equity with non-existent FIGI
+    ASSERT:  Raises LookupError
+    """
+    # Create database with some data
+    download_canonical_equities(_mock_github_client())
+
+    with pytest.raises(LookupError):
+        retrieve_canonical_equity("BBG000NOTFOUND")
+
+
+def test_retrieve_canonical_equity_returns_found_equity() -> None:
+    """
+    ARRANGE: Database exists with target equity
+    ACT:     Call retrieve_canonical_equity with existing FIGI
+    ASSERT:  Returns the equity
+    """
+    equity_data = {
+        "identity": {
+            "share_class_figi": "BBG000B9XRY4",
+            "name": "Test Equity",
+            "ticker": "TEST",
+            "symbol": "TEST",
+        },
+        "pricing": {"currency": "USD", "price": 100.0},
+        "financials": {"market_cap": 1000000.0},
+    }
+    jsonl_bytes = json.dumps(equity_data).encode() + b"\n"
+
+    # Create database with the equity
+    download_canonical_equities(_mock_github_client(jsonl_bytes))
+
+    actual = retrieve_canonical_equity("BBG000B9XRY4")
+
+    assert actual.identity.share_class_figi == "BBG000B9XRY4"
+
+
+def test_download_canonical_equities_rebuilds_database() -> None:
+    """
+    ARRANGE: Mock client with empty JSONL
+    ACT:     download_canonical_equities
+    ASSERT:  Database file exists after rebuild
+    """
+    asset_path = _DATA_STORE_PATH / "canonical_equities.jsonl.gz"
+    db_path = _DATA_STORE_PATH / "data_store.db"
+
+    asset_path.unlink(missing_ok=True)
+    db_path.unlink(missing_ok=True)
+
+    download_canonical_equities(_mock_github_client())
+
+    assert db_path.exists()

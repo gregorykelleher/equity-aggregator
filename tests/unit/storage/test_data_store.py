@@ -180,6 +180,6 @@ def test_get_data_store_path_returns_configured_path() -> None:
     ACT:     get_data_store_path
     ASSERT:  returns DATA_STORE_PATH
     """
-    result = get_data_store_path()
+    actual = get_data_store_path()
 
-    assert result == DATA_STORE_PATH
+    assert actual == DATA_STORE_PATH

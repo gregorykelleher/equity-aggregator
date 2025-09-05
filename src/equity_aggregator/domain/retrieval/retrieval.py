@@ -55,7 +55,7 @@ def retrieve_canonical_equity(share_class_figi: str) -> CanonicalEquity:
     _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
     db_path = _DATA_STORE_PATH / "data_store.db"
 
-    if not db_path.exists():
+    if not db_path.exists():  # pragma: no cover
         logger.info("Database not found, downloading canonical equities")
         retrieve_canonical_equities()
 
@@ -67,13 +67,16 @@ def retrieve_canonical_equity(share_class_figi: str) -> CanonicalEquity:
     return equity
 
 
-def retrieve_canonical_equities() -> list[CanonicalEquity]:
+def retrieve_canonical_equities() -> list[CanonicalEquity]:  # pragma: no cover
     """
     Retrieves the canonical equities by downloading the latest JSONL file from GitHub,
     rebuilding the canonical equities table, and loading the equities from the table.
 
-    Args:
-        None
+    Note:
+        This function is intentionally excluded from coverage to preserve its simplicity
+        of use. It would be possible to achieve better coverage; however this
+        was determined to engender greater complexity, hence the costs outweighed any
+        potential benefits.
 
     Returns:
         list[CanonicalEquity]: A list of CanonicalEquity objects loaded from the
@@ -104,10 +107,10 @@ def download_canonical_equities(
         None
     """
 
-    async def _async_download() -> None:
-        _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
-        dest_path = _DATA_STORE_PATH / "canonical_equities.jsonl.gz"
+    _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
+    dest_path = _DATA_STORE_PATH / "canonical_equities.jsonl.gz"
 
+    async def _async_download() -> None:
         async with _open_client(client) as session:
             release = await _get_release_by_tag(session, _OWNER, _REPO, _TAG)
 

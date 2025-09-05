@@ -200,6 +200,6 @@ def test_validate_table_exists_with_data_handles_invalid_table() -> None:
     ASSERT:  returns False
     """
     with connect() as conn:
-        result = validate_table_exists_with_data(conn, "nonexistent_table")
+        actual = validate_table_exists_with_data(conn, "nonexistent_table")
 
-    assert result is False
+    assert actual is False
