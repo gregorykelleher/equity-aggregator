@@ -36,6 +36,7 @@ def _add_logging_options(parser: argparse.ArgumentParser) -> None:
         help="Enable verbose logging (INFO level)",
     )
     parser.add_argument(
+        "-d",
         "--debug",
         action="store_true",
         help="Enable debug logging (DEBUG level)",
@@ -65,17 +66,17 @@ def _add_subcommands(parser: argparse.ArgumentParser) -> None:
     # add seed subcommand
     sub.add_parser(
         "seed",
-        help="Aggregate equity data from authoritative sources",
+        help="Aggregate enriched canonical equity data sourced from data feeds",
         description="Execute the full aggregation pipeline to collect equity "
         "data from authoritative feeds (Euronext, LSE, SEC, XETRA), enrich "
-        "it with supplementary data, and store as canonical equities",
+        "it with data from enrichment feeds, and store as canonical equities",
     )
 
     # add export subcommand
     sub.add_parser(
         "export",
-        help="Export canonical equity data to compressed JSONL format",
-        description="Export processed canonical equity data from the database "
+        help="Export local canonical equity data to compressed JSONL format",
+        description="Export local canonical equity data from the database "
         "as gzip-compressed newline-delimited JSON (NDJSON) for distribution",
     )
 
