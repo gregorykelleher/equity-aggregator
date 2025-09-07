@@ -57,7 +57,6 @@ source = ["src"]
 branch = true
 data_file = "data/.coverage"
 omit = [
-  "*/cli/*",
   "*/__init__.py",
   "*/__main__.py",
   "*/logging_config.py"
