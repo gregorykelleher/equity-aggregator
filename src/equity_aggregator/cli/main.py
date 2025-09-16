@@ -1,5 +1,8 @@
 # cli/main.py
 
+import os
+import signal
+
 from equity_aggregator.logging_config import configure_logging
 
 from .config import determine_log_level
@@ -26,6 +29,9 @@ def main() -> None:
     Raises:
         SystemExit: When command execution fails or invalid arguments provided.
     """
+    # Immediate force exit on Ctrl+C
+    signal.signal(signal.SIGINT, lambda s, f: os._exit(130))
+
     # Create the argument parser with all CLI options and subcommands
     parser = create_parser()
 

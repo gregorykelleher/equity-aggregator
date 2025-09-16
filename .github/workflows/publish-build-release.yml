@@ -47,6 +47,7 @@ jobs:
         env:
           UV_ENV_FILE: ".env"
         run: |
+          rm -rf data
           mkdir -p data
           uv run equity-aggregator --verbose seed
           uv run equity-aggregator export

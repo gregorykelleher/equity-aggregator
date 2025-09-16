@@ -29,27 +29,22 @@ async def aggregate_canonical_equities() -> list[CanonicalEquity]:
     Returns:
         list[RawEquity]: Unique, fully enriched canonical equities.
     """
-    try:
-        # resolve the stream of raw equities
-        stream = resolve()
+    # resolve the stream of raw equities
+    stream = resolve()
 
-        # arrange the pipeline stages
-        transforms = (
-            parse,
-            convert,
-            identify,
-            deduplicate,
-            enrich,
-            canonicalise,
-        )
+    # arrange the pipeline stages
+    transforms = (
+        parse,
+        convert,
+        identify,
+        deduplicate,
+        enrich,
+        canonicalise,
+    )
 
-        # pipe stream through each transform sequentially
-        for stage in transforms:
-            stream = stage(stream)
+    # pipe stream through each transform sequentially
+    for stage in transforms:
+        stream = stage(stream)
 
-        # materialise and return the stream
-        return [equity async for equity in stream]
-
-    except SystemExit as exc:
-        logger.warning("Pipeline aborted: %s", exc)
-        return []
+    # materialise and return the stream
+    return [equity async for equity in stream]
