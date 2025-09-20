@@ -1,6 +1,7 @@
 # cli/test_dispatcher.py
 
 import sys
+from argparse import Namespace
 from io import StringIO
 
 import pytest
@@ -68,72 +69,78 @@ def test_run_command_prints_error_to_stderr() -> None:
 
 def test_dispatch_command_unknown_command() -> None:
     """
-    ARRANGE: unknown command string
+    ARRANGE: unknown command in Namespace
     ACT:     dispatch_command
     ASSERT:  raises ValueError with appropriate message
     """
+    args = Namespace(cmd="unknown")
     with pytest.raises(ValueError) as exc_info:
-        dispatch_command("unknown")
+        dispatch_command(args)
 
     assert "Unknown command: unknown" in str(exc_info.value)
 
 
 def test_dispatch_command_empty_string() -> None:
     """
-    ARRANGE: empty command string
+    ARRANGE: empty command string in Namespace
     ACT:     dispatch_command
     ASSERT:  raises ValueError with appropriate message
     """
+    args = Namespace(cmd="")
     with pytest.raises(ValueError) as exc_info:
-        dispatch_command("")
+        dispatch_command(args)
 
     assert "Unknown command: " in str(exc_info.value)
 
 
 def test_dispatch_command_none_value() -> None:
     """
-    ARRANGE: None command value
+    ARRANGE: None command value in Namespace
     ACT:     dispatch_command
     ASSERT:  raises ValueError with appropriate message
     """
+    args = Namespace(cmd=None)
     with pytest.raises(ValueError) as exc_info:
-        dispatch_command(None)
+        dispatch_command(args)
 
     assert "Unknown command: None" in str(exc_info.value)
 
 
 def test_dispatch_command_case_sensitive() -> None:
     """
-    ARRANGE: uppercase command string
+    ARRANGE: uppercase command string in Namespace
     ACT:     dispatch_command
     ASSERT:  raises ValueError (commands are case-sensitive)
     """
+    args = Namespace(cmd="SEED")
     with pytest.raises(ValueError) as exc_info:
-        dispatch_command("SEED")
+        dispatch_command(args)
 
     assert "Unknown command: SEED" in str(exc_info.value)
 
 
 def test_dispatch_command_whitespace_handling() -> None:
     """
-    ARRANGE: command string with whitespace
+    ARRANGE: command string with whitespace in Namespace
     ACT:     dispatch_command
     ASSERT:  raises ValueError (whitespace not stripped)
     """
+    args = Namespace(cmd=" seed ")
     with pytest.raises(ValueError) as exc_info:
-        dispatch_command(" seed ")
+        dispatch_command(args)
 
     assert "Unknown command:  seed " in str(exc_info.value)
 
 
 def test_dispatch_command_seed_handler_execution() -> None:
     """
-    ARRANGE: seed command
+    ARRANGE: seed command in Namespace
     ACT:     dispatch_command
     ASSERT:  handler is found and executed (does not raise ValueError)
     """
+    args = Namespace(cmd="seed")
     try:
-        dispatch_command("seed")
+        dispatch_command(args)
     except ValueError:
         pytest.fail("dispatch_command should not raise ValueError for valid command")
     except (SystemExit, Exception):
@@ -142,12 +149,13 @@ def test_dispatch_command_seed_handler_execution() -> None:
 
 def test_dispatch_command_export_handler_execution() -> None:
     """
-    ARRANGE: export command
+    ARRANGE: export command in Namespace with output_dir
     ACT:     dispatch_command
     ASSERT:  handler is found and executed (does not raise ValueError)
     """
+    args = Namespace(cmd="export", output_dir="/tmp/test")
     try:
-        dispatch_command("export")
+        dispatch_command(args)
     except ValueError:
         pytest.fail("dispatch_command should not raise ValueError for valid command")
     except (SystemExit, Exception):
@@ -156,12 +164,13 @@ def test_dispatch_command_export_handler_execution() -> None:
 
 def test_dispatch_command_download_handler_execution() -> None:
     """
-    ARRANGE: download command
+    ARRANGE: download command in Namespace
     ACT:     dispatch_command
     ASSERT:  handler is found and executed (does not raise ValueError)
     """
+    args = Namespace(cmd="download")
     try:
-        dispatch_command("download")
+        dispatch_command(args)
     except ValueError:
         pytest.fail("dispatch_command should not raise ValueError for valid command")
     except (SystemExit, Exception):

@@ -115,13 +115,14 @@ The `download` command retrieves the latest pre-processed canonical equity datas
 
 #### Export Command
 
-The `export` command extracts canonical equity data from the local database and exports it as compressed JSONL (JSON Lines) format. It reads all canonical equities from the local database and exports the data to `canonical_equities.jsonl.gz` in compressed format.
+The `export` command extracts canonical equity data from the local database and exports it as compressed JSONL (JSON Lines) format. It reads all canonical equities from the local database and exports the data to `canonical_equities.jsonl.gz` in the specified output directory.
 
 This creates a portable, standardised dataset suitable for analysis, sharing, or backup while preserving all equity metadata and financial metrics in structured JSON format.
 
 ```bash
-# Export aggregated data to compressed JSON
-equity-aggregator export
+# Export aggregated data to compressed JSON in specified directory
+equity-aggregator export --output-dir ~/Downloads
+equity-aggregator export --output-dir /path/to/export/location
 ```
 
 #### Seed Command
@@ -297,7 +298,7 @@ cp .env_example .env
   - Retrieve from: [Intrinio](https://intrinio.com/)
   - Provides supplementary equity enrichment data
 
-- `GITHUB_TOKEN` - For increased GitHub API rate limits (optional)
+- `GITHUB_TOKEN` - For increased GitHub API rate limits
   - Retrieve from: [GitHub Settings](https://github.com/settings/tokens)
   - Increases release download rate limits from 60/hour to 5,000/hour
   - No special scopes required for public repositories
@@ -400,7 +401,7 @@ docker compose exec equity-aggregator bash
 
 ### Project Structure
 
-The codebase follows clean architecture principles with clear separation between domain logic, adapters, and infrastructure:
+The codebase is organised following best practices, ensuring a clear separation between core domain logic, external adapters, and infrastructure components:
 
 ```
 equity-aggregator/
@@ -418,6 +419,26 @@ equity-aggregator/
 ├── docker-compose.yml               # Container configuration
 └── pyproject.toml                   # Project metadata and dependencies
 ```
+
+### Data Transformation Pipeline
+
+The aggregation pipeline consists of six sequential transformation stages, each with a specific responsibility:
+
+1. **Parse**: Extract and validate raw equity data from authorative feed data
+2. **Convert**: Normalise currency values to USD reference currency using live exchange rates
+3. **Identify**: Attach authoritative identification metadata (i.e. Share Class FIGI) via OpenFIGI API integration
+4. **Deduplicate**: Merge duplicate equity records predicated on Share Class FIGI
+5. **Enrich**: Supplement core data with additional market metrics sourced from enrichment feeds
+6. **Canonicalise**: Transform enriched data into the final canonical equity schema
+
+### Clean Architecture Layers
+
+The codebase adheres to clean architecture principles with distinct layers:
+
+- **Domain Layer** (`domain/`): Contains core business logic, pipeline orchestration, and transformation rules independent of external dependencies
+- **Adapter Layer** (`adapters/`): Implements interfaces for external systems including data feeds, APIs, and third-party services
+- **Infrastructure Layer** (`storage/`, `cli/`): Handles system concerns, regarding database operations and command-line tooling
+- **Schema Layer** (`schemas/`): Defines data contracts and validation rules using Pydantic models for type safety
 
 ## Disclaimer
 

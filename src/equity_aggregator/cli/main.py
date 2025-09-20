@@ -45,4 +45,4 @@ def main() -> None:
     configure_logging(log_level)
 
     # Dispatch execution to the appropriate command handler
-    dispatch_command(args.cmd)
+    dispatch_command(args)

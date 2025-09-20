@@ -1,6 +1,7 @@
 # cli/dispatcher.py
 
 import sys
+from argparse import Namespace
 
 from equity_aggregator.domain import download_canonical_equities as download
 from equity_aggregator.domain import seed_canonical_equities as seed
@@ -24,24 +25,24 @@ def run_command(fn: callable) -> None:
         raise SystemExit(1) from None
 
 
-def dispatch_command(command: str) -> None:
+def dispatch_command(args: Namespace) -> None:
     """
     Dispatch execution to the appropriate command handler.
 
     Args:
-        command: The command name to execute.
+        args: Parsed command line arguments from argparse.
 
     Raises:
         ValueError: If the command is not recognised.
     """
     commands = {
         "seed": lambda: run_command(seed),
-        "export": lambda: run_command(lambda: export(download)),
+        "export": lambda: run_command(lambda: export(args.output_dir, download)),
         "download": lambda: run_command(download),
     }
 
-    handler = commands.get(command)
+    handler = commands.get(args.cmd)
     if handler:
         handler()
     else:
-        raise ValueError(f"Unknown command: {command}")
+        raise ValueError(f"Unknown command: {args.cmd}")

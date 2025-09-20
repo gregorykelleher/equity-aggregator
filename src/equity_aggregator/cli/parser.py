@@ -78,6 +78,10 @@ def _add_subcommands(parser: argparse.ArgumentParser) -> None:
         help="export local canonical equity data to compressed JSONL format",
         description="export local canonical equity data from the database "
         "as gzip-compressed newline-delimited JSON (NDJSON) for distribution",
+    ).add_argument(
+        "--output-dir",
+        required=True,
+        help="directory where canonical_equities.jsonl.gz will be created",
     )
 
     # add download subcommand

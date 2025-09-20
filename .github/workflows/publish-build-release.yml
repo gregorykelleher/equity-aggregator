@@ -49,9 +49,9 @@ jobs:
           UV_ENV_FILE: ".env"
         run: |
           rm -rf data
-          mkdir -p data
+          mkdir -p data/data_store
           uv run equity-aggregator --verbose seed
-          uv run equity-aggregator export
+          uv run equity-aggregator export --output-dir ./data/data_store
 
       - name: Publish Latest Canonical Equities Release
         uses: softprops/action-gh-release@v2

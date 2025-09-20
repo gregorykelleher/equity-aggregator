@@ -89,7 +89,7 @@ def test_export_canonical_equities_sorted() -> None:
 
     save_canonical_equities(dummy_equities)
 
-    export_canonical_equities()
+    export_canonical_equities(str(DATA_STORE_PATH))
 
     dest_path = DATA_STORE_PATH / CANONICAL_JSONL_ASSET
 
@@ -120,7 +120,7 @@ def test_rebuild_canonical_equities_from_jsonl_gz_rebuilds_table() -> None:
 
     save_canonical_equities(dummy_equities)
 
-    export_canonical_equities()
+    export_canonical_equities(str(DATA_STORE_PATH))
 
     rebuild_canonical_equities_from_jsonl_gz()
 
@@ -166,7 +166,7 @@ def test_export_then_read_back_jsonl_gz() -> None:
 
     dest_path = DATA_STORE_PATH / CANONICAL_JSONL_ASSET
 
-    export_canonical_equities()
+    export_canonical_equities(str(DATA_STORE_PATH))
 
     parsed = _read_ndjson_gz(dest_path)
 
@@ -190,7 +190,7 @@ def test_export_canonical_equities_raises_when_no_database() -> None:
         db_path.unlink()
 
     with pytest.raises(FileNotFoundError, match="No canonical equities found"):
-        export_canonical_equities()
+        export_canonical_equities(str(DATA_STORE_PATH))
 
 
 def test_validate_table_exists_with_data_handles_invalid_table() -> None:

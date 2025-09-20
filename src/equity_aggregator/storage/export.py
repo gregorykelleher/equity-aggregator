@@ -19,7 +19,7 @@ from .metadata import ensure_fresh_database, update_canonical_equities_timestamp
 logger = logging.getLogger(__name__)
 
 
-def export_canonical_equities(refresh_fn: callable = None) -> None:
+def export_canonical_equities(output_dir: str, refresh_fn: callable = None) -> None:
     """
     Export canonical equities as newline-delimited JSON (NDJSON), compressed with gzip.
 
@@ -27,6 +27,7 @@ def export_canonical_equities(refresh_fn: callable = None) -> None:
     column. Output is ordered by share_class_figi for deterministic results.
 
     Args:
+        output_dir (str): Directory where canonical_equities.jsonl.gz will be created.
         refresh_fn (callable, optional): Function to refresh database if stale.
 
     Returns:
@@ -58,9 +59,10 @@ def export_canonical_equities(refresh_fn: callable = None) -> None:
             ),
         )
 
-        DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
         with gzip.open(
-            DATA_STORE_PATH / CANONICAL_JSONL_ASSET,
+            output_path / CANONICAL_JSONL_ASSET,
             mode="wt",
             encoding="utf-8",
             compresslevel=9,
