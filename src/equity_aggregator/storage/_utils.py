@@ -8,17 +8,19 @@ from pathlib import Path
 
 from platformdirs import user_data_dir
 
+# Table names
+CANONICAL_EQUITIES_TABLE = "canonical_equities"
+CANONICAL_JSONL_ASSET = "canonical_equities.jsonl.gz"
+CACHE_TABLE = "object_cache"
+METADATA_TABLE = "data_metadata"
 
-# Configuration constants
-def _get_data_store_path() -> Path:
+
+def get_data_store_path() -> Path:
     """
     Get the path to the data store directory.
 
     Checks for an override in the DATA_STORE_DIR environment variable.
     If not set, defaults to the user data directory for this application.
-
-    Args:
-        None
 
     Returns:
         Path: Path to the data store directory.
@@ -28,13 +30,7 @@ def _get_data_store_path() -> Path:
     return Path(user_data_dir("equity-aggregator", "equity-aggregator"))
 
 
-DATA_STORE_PATH: Path = _get_data_store_path()
-
-# Table names
-CANONICAL_EQUITIES_TABLE = "canonical_equities"
-CANONICAL_JSONL_ASSET = "canonical_equities.jsonl.gz"
-CACHE_TABLE = "object_cache"
-METADATA_TABLE = "data_metadata"
+DATA_STORE_PATH: Path = get_data_store_path()
 
 
 @contextmanager

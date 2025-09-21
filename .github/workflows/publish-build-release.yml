@@ -47,9 +47,11 @@ jobs:
       - name: Run Equity Aggregator
         env:
           UV_ENV_FILE: ".env"
+          DATA_STORE_DIR: "./data/data_store"
+          LOG_DIR: "./data/logs"
         run: |
           rm -rf data
-          mkdir -p data/data_store
+          mkdir -p data/data_store data/logs
           uv run equity-aggregator --verbose seed
           uv run equity-aggregator export --output-dir ./data/data_store
 

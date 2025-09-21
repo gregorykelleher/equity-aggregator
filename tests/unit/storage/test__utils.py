@@ -7,8 +7,8 @@ import tempfile
 import pytest
 
 from equity_aggregator.storage._utils import (
-    _get_data_store_path,
     connect,
+    get_data_store_path,
     ttl_seconds,
     validate_table_exists_with_data,
 )
@@ -155,14 +155,14 @@ def test_connect_creates_database_connection() -> None:
 def test_get_data_store_path_with_override() -> None:
     """
     ARRANGE: Set DATA_STORE_DIR environment variable
-    ACT:     _get_data_store_path
+    ACT:     get_data_store_path
     ASSERT:  Returns override path
     """
     original = os.environ.get("DATA_STORE_DIR")
     os.environ["DATA_STORE_DIR"] = "/custom/path"
 
     try:
-        actual = _get_data_store_path()
+        actual = get_data_store_path()
         assert str(actual) == "/custom/path"
     finally:
         if original is not None:
@@ -174,7 +174,7 @@ def test_get_data_store_path_with_override() -> None:
 def test_get_data_store_path_default() -> None:
     """
     ARRANGE: Remove DATA_STORE_DIR environment variable
-    ACT:     _get_data_store_path
+    ACT:     get_data_store_path
     ASSERT:  Returns user_data_dir path
     """
     original = os.environ.get("DATA_STORE_DIR")
@@ -182,7 +182,7 @@ def test_get_data_store_path_default() -> None:
         del os.environ["DATA_STORE_DIR"]
 
     try:
-        actual = _get_data_store_path()
+        actual = get_data_store_path()
         assert "equity-aggregator" in str(actual)
     finally:
         if original is not None:

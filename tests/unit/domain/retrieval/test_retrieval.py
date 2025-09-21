@@ -13,7 +13,6 @@ from equity_aggregator.domain.retrieval.retrieval import (
     _asset_browser_url,
     _download_to_temp,
     _finalise_download,
-    _get_data_store_path,
     _get_github_headers,
     _get_release_by_tag,
     _open_client,
@@ -22,6 +21,7 @@ from equity_aggregator.domain.retrieval.retrieval import (
     download_canonical_equities,
     retrieve_canonical_equity,
 )
+from equity_aggregator.storage import get_data_store_path
 
 pytestmark = pytest.mark.unit
 
@@ -364,14 +364,14 @@ def test_get_github_headers_with_token() -> None:
 def test_get_data_store_path_with_override() -> None:
     """
     ARRANGE: Set DATA_STORE_DIR environment variable
-    ACT:     _get_data_store_path
+    ACT:     get_data_store_path
     ASSERT:  Returns override path
     """
     original = os.environ.get("DATA_STORE_DIR")
     os.environ["DATA_STORE_DIR"] = "/custom/path"
 
     try:
-        actual = _get_data_store_path()
+        actual = get_data_store_path()
         assert str(actual) == "/custom/path"
     finally:
         if original is not None:
@@ -383,7 +383,7 @@ def test_get_data_store_path_with_override() -> None:
 def test_get_data_store_path_default() -> None:
     """
     ARRANGE: Remove DATA_STORE_DIR environment variable
-    ACT:     _get_data_store_path
+    ACT:     get_data_store_path
     ASSERT:  Returns user_data_dir path
     """
     original = os.environ.get("DATA_STORE_DIR")
@@ -391,7 +391,7 @@ def test_get_data_store_path_default() -> None:
         del os.environ["DATA_STORE_DIR"]
 
     try:
-        actual = _get_data_store_path()
+        actual = get_data_store_path()
         assert "equity-aggregator" in str(actual)
     finally:
         if original is not None:
