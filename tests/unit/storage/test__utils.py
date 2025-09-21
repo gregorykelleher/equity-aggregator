@@ -3,13 +3,12 @@
 import os
 import sqlite3
 import tempfile
-from pathlib import Path
 
 import pytest
 
 from equity_aggregator.storage._utils import (
+    _get_data_store_path,
     connect,
-    get_data_store_path,
     ttl_seconds,
     validate_table_exists_with_data,
 )
@@ -30,8 +29,8 @@ def test_ttl_seconds_returns_default_when_env_not_set() -> None:
         del os.environ["CACHE_TTL_MINUTES"]
 
     try:
-        result = ttl_seconds()
-        assert result == default_seconds
+        actual = ttl_seconds()
+        assert actual == default_seconds
     finally:
         if original_value is not None:
             os.environ["CACHE_TTL_MINUTES"] = original_value
@@ -48,8 +47,8 @@ def test_ttl_seconds_converts_minutes_to_seconds() -> None:
     os.environ["CACHE_TTL_MINUTES"] = "30"
 
     try:
-        result = ttl_seconds()
-        assert result == expected_seconds
+        actual = ttl_seconds()
+        assert actual == expected_seconds
     finally:
         if original_value is None:
             os.environ.pop("CACHE_TTL_MINUTES", None)
@@ -67,8 +66,8 @@ def test_ttl_seconds_handles_zero_minutes() -> None:
     os.environ["CACHE_TTL_MINUTES"] = "0"
 
     try:
-        result = ttl_seconds()
-        assert result == 0
+        actual = ttl_seconds()
+        assert actual == 0
     finally:
         if original_value is None:
             os.environ.pop("CACHE_TTL_MINUTES", None)
@@ -95,17 +94,6 @@ def test_ttl_seconds_raises_on_negative_value() -> None:
             os.environ["CACHE_TTL_MINUTES"] = original_value
 
 
-def test_get_data_store_path_returns_path_object() -> None:
-    """
-    ARRANGE: Default configuration
-    ACT:     get_data_store_path
-    ASSERT:  returns Path instance
-    """
-    result = get_data_store_path()
-
-    assert isinstance(result, Path)
-
-
 def test_validate_table_exists_with_data_returns_false_for_missing_table() -> None:
     """
     ARRANGE: Database connection with no tables
@@ -115,10 +103,10 @@ def test_validate_table_exists_with_data_returns_false_for_missing_table() -> No
     with tempfile.NamedTemporaryFile() as tmp_file:
         conn = sqlite3.connect(tmp_file.name)
 
-        result = validate_table_exists_with_data(conn, "missing_table")
+        actual = validate_table_exists_with_data(conn, "missing_table")
 
         conn.close()
-        assert result is False
+        assert actual is False
 
 
 def test_validate_table_exists_with_data_returns_false_for_empty_table() -> None:
@@ -131,10 +119,10 @@ def test_validate_table_exists_with_data_returns_false_for_empty_table() -> None
         conn = sqlite3.connect(tmp_file.name)
         conn.execute("CREATE TABLE test_table (id INTEGER)")
 
-        result = validate_table_exists_with_data(conn, "test_table")
+        actual = validate_table_exists_with_data(conn, "test_table")
 
         conn.close()
-        assert result is False
+        assert actual is False
 
 
 def test_validate_table_exists_with_data_returns_true_for_table_with_data() -> None:
@@ -148,10 +136,10 @@ def test_validate_table_exists_with_data_returns_true_for_table_with_data() -> N
         conn.execute("CREATE TABLE test_table (id INTEGER)")
         conn.execute("INSERT INTO test_table (id) VALUES (1)")
 
-        result = validate_table_exists_with_data(conn, "test_table")
+        actual = validate_table_exists_with_data(conn, "test_table")
 
         conn.close()
-        assert result is True
+        assert actual is True
 
 
 def test_connect_creates_database_connection() -> None:
@@ -162,3 +150,40 @@ def test_connect_creates_database_connection() -> None:
     """
     with connect() as conn:
         assert isinstance(conn, sqlite3.Connection)
+
+
+def test_get_data_store_path_with_override() -> None:
+    """
+    ARRANGE: Set DATA_STORE_DIR environment variable
+    ACT:     _get_data_store_path
+    ASSERT:  Returns override path
+    """
+    original = os.environ.get("DATA_STORE_DIR")
+    os.environ["DATA_STORE_DIR"] = "/custom/path"
+
+    try:
+        actual = _get_data_store_path()
+        assert str(actual) == "/custom/path"
+    finally:
+        if original is not None:
+            os.environ["DATA_STORE_DIR"] = original
+        elif "DATA_STORE_DIR" in os.environ:
+            del os.environ["DATA_STORE_DIR"]
+
+
+def test_get_data_store_path_default() -> None:
+    """
+    ARRANGE: Remove DATA_STORE_DIR environment variable
+    ACT:     _get_data_store_path
+    ASSERT:  Returns user_data_dir path
+    """
+    original = os.environ.get("DATA_STORE_DIR")
+    if "DATA_STORE_DIR" in os.environ:
+        del os.environ["DATA_STORE_DIR"]
+
+    try:
+        actual = _get_data_store_path()
+        assert "equity-aggregator" in str(actual)
+    finally:
+        if original is not None:
+            os.environ["DATA_STORE_DIR"] = original

@@ -6,8 +6,29 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from platformdirs import user_data_dir
+
+
 # Configuration constants
-DATA_STORE_PATH: Path = Path(os.getenv("_DATA_STORE_DIR", "data/data_store/"))
+def _get_data_store_path() -> Path:
+    """
+    Get the path to the data store directory.
+
+    Checks for an override in the DATA_STORE_DIR environment variable.
+    If not set, defaults to the user data directory for this application.
+
+    Args:
+        None
+
+    Returns:
+        Path: Path to the data store directory.
+    """
+    if override := os.getenv("DATA_STORE_DIR"):
+        return Path(override)
+    return Path(user_data_dir("equity-aggregator", "equity-aggregator"))
+
+
+DATA_STORE_PATH: Path = _get_data_store_path()
 
 # Table names
 CANONICAL_EQUITIES_TABLE = "canonical_equities"
@@ -62,16 +83,6 @@ def ttl_seconds() -> int:
     if ttl_min < 0:
         raise ValueError("CACHE_TTL_MINUTES must be ≥ 0")
     return ttl_min * 60
-
-
-def get_data_store_path() -> Path:
-    """
-    Get the configured data store directory path.
-
-    Returns:
-        Path: The data store directory path.
-    """
-    return DATA_STORE_PATH
 
 
 def validate_table_exists_with_data(conn: sqlite3.Connection, table_name: str) -> bool:

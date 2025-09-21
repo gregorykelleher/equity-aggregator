@@ -28,7 +28,7 @@ The testing infrastructure is configured in `tests/conftest.py`, which provides 
 
 #### Temporary Data Store
 - Creates isolated `data_store` directory in `.pytest_cache`
-- Sets `_DATA_STORE_DIR` environment variable
+- Sets `DATA_STORE_DIR` environment variable
 - Ensures test isolation from production data
 
 #### Fresh Database

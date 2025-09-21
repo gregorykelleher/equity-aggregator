@@ -3,6 +3,9 @@
 import logging.config
 import os
 from datetime import date
+from pathlib import Path
+
+from platformdirs import user_log_dir
 
 LOGGING = {
     "version": 1,
@@ -90,12 +93,20 @@ def _resolve_log_file() -> str:
     """
     Resolves the log file path for the current date and ensures log directory exists.
 
+    Checks for an override in the LOG_DIR environment variable.
+    If not set, defaults to the user log directory for this application.
+
     Args:
         None
 
     Returns:
         str: Absolute path to the log file for today's date.
     """
-    log_dir = os.getenv("LOG_DIR", "./data/logs")
-    os.makedirs(log_dir, exist_ok=True)
-    return os.path.join(log_dir, f"equity_aggregator_{date.today():%Y-%m-%d}.log")
+    if log_dir_override := os.getenv("LOG_DIR"):
+        log_dir = Path(log_dir_override)
+    else:
+        log_dir = Path(user_log_dir("equity-aggregator", "equity-aggregator"))
+
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / f"equity_aggregator_{date.today():%Y-%m-%d}.log"
+    return str(log_file)

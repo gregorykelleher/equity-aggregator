@@ -231,6 +231,22 @@ Market Cap: 3500000000000
 > [!NOTE]
 > Both functions work independently - `retrieve_canonical_equity()` automatically downloads data if needed, so there's no requirement to call `retrieve_canonical_equities()` first.
 
+### Data Storage
+
+Equity Aggregator automatically stores its database (i.e. `data_store.db`) in system-appropriate locations using platform-specific directories:
+
+- **macOS**: `~/Library/Application Support/equity-aggregator/`
+- **Windows**: `%APPDATA%\equity-aggregator\`
+- **Linux**: `~/.local/share/equity-aggregator/`
+
+Log files are also automatically written to the system-appropriate log directory:
+
+- **macOS**: `~/Library/Logs/equity-aggregator/`
+- **Windows**: `%LOCALAPPDATA%\equity-aggregator\Logs\`
+- **Linux**: `~/.local/state/equity-aggregator/`
+
+This ensures consistent integration with the host operating system's data and log management practices.
+
 ### Development Setup
 
 Follow these steps to set up the development environment for the Equity Aggregator application.

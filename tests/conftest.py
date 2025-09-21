@@ -12,7 +12,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     This function is automatically called by pytest before running tests. It creates a
     directory named 'data_store' inside the .pytest_cache folder and sets the
-    environment variable '_DATA_STORE_DIR' to the absolute path of this directory.
+    environment variable 'DATA_STORE_DIR' to the absolute path of this directory.
     This allows tests to access a temporary, isolated data store location.
 
     Args:
@@ -23,7 +23,7 @@ def pytest_configure(config: pytest.Config) -> None:
     """
     root = Path(config.cache.makedir("data_store").strpath)
 
-    os.environ["_DATA_STORE_DIR"] = root.as_posix()
+    os.environ["DATA_STORE_DIR"] = root.as_posix()
 
 
 @pytest.fixture
@@ -34,9 +34,9 @@ def data_sql_store_dir() -> Path:
 
     Returns:
         Path: The path to the temporary data sql store directory, as specified by the
-            '_DATA_STORE_DIR' environment variable.
+            'DATA_STORE_DIR' environment variable.
     """
-    return Path(os.environ["_DATA_STORE_DIR"])
+    return Path(os.environ["DATA_STORE_DIR"])
 
 
 @pytest.fixture(autouse=True)
@@ -54,6 +54,6 @@ def fresh_data_store() -> None:
     Returns:
         None
     """
-    db_file = Path(os.environ["_DATA_STORE_DIR"]) / "data_store.db"
+    db_file = Path(os.environ["DATA_STORE_DIR"]) / "data_store.db"
     if db_file.exists():
         db_file.unlink()

@@ -7,9 +7,7 @@ import pytest
 from equity_aggregator.schemas import CanonicalEquity, EquityFinancials, EquityIdentity
 from equity_aggregator.storage._utils import (
     CANONICAL_EQUITIES_TABLE,
-    DATA_STORE_PATH,
     connect,
-    get_data_store_path,
 )
 from equity_aggregator.storage.data_store import (
     _init_canonical_equities_table,
@@ -172,14 +170,3 @@ def test__iter_canonical_equity_json_payloads_skips_empty_payloads() -> None:
         )
 
     assert list(_iter_canonical_equity_json_payloads()) == []
-
-
-def test_get_data_store_path_returns_configured_path() -> None:
-    """
-    ARRANGE: none
-    ACT:     get_data_store_path
-    ASSERT:  returns DATA_STORE_PATH
-    """
-    actual = get_data_store_path()
-
-    assert actual == DATA_STORE_PATH

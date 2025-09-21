@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from httpx import AsyncClient, Response, codes
+from platformdirs import user_data_dir
 
 from equity_aggregator.adapters.data_sources._utils import make_client
 from equity_aggregator.schemas import CanonicalEquity
@@ -18,7 +19,27 @@ from equity_aggregator.storage import (
     rebuild_canonical_equities_from_jsonl_gz,
 )
 
-_DATA_STORE_PATH: Path = Path(os.getenv("_DATA_STORE_DIR", "data/data_store/"))
+
+# Configuration constants
+def _get_data_store_path() -> Path:
+    """
+    Get the path to the data store directory.
+
+    Checks for an override in the DATA_STORE_DIR environment variable.
+    If not set, defaults to the user data directory for this application.
+
+    Args:
+        None
+
+    Returns:
+        Path: Path to the data store directory.
+    """
+    if override := os.getenv("DATA_STORE_DIR"):
+        return Path(override)
+    return Path(user_data_dir("equity-aggregator", "equity-aggregator"))
+
+
+_DATA_STORE_PATH: Path = _get_data_store_path()
 
 _OWNER = "gregorykelleher"
 _REPO = "equity-aggregator"

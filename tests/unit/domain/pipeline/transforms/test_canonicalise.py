@@ -32,9 +32,9 @@ async def test_canonicalise_single_equity_yields_one_result() -> None:
         market_cap=2_500_000_000_000.0,
     )
 
-    result = [equity async for equity in canonicalise(_async_list([raw_equity]))]
+    actual = [equity async for equity in canonicalise(_async_list([raw_equity]))]
 
-    assert len(result) == 1
+    assert len(actual) == 1
 
 
 async def test_canonicalise_returns_canonical_equity_type() -> None:
@@ -53,9 +53,9 @@ async def test_canonicalise_returns_canonical_equity_type() -> None:
         market_cap=2_500_000_000_000.0,
     )
 
-    result = [equity async for equity in canonicalise(_async_list([raw_equity]))]
+    actual = [equity async for equity in canonicalise(_async_list([raw_equity]))]
 
-    assert isinstance(result[0], CanonicalEquity)
+    assert isinstance(actual[0], CanonicalEquity)
 
 
 async def test_canonicalise_preserves_figi_identity() -> None:
@@ -75,9 +75,9 @@ async def test_canonicalise_preserves_figi_identity() -> None:
         market_cap=800_000_000_000.0,
     )
 
-    result = [equity async for equity in canonicalise(_async_list([raw_equity]))]
+    actual = [equity async for equity in canonicalise(_async_list([raw_equity]))]
 
-    assert result[0].identity.share_class_figi == figi
+    assert actual[0].identity.share_class_figi == figi
 
 
 async def test_canonicalise_empty_stream_yields_no_results() -> None:
@@ -86,9 +86,9 @@ async def test_canonicalise_empty_stream_yields_no_results() -> None:
     ACT:     canonicalise
     ASSERT:  yields no results
     """
-    result = [equity async for equity in canonicalise(_async_list([]))]
+    actual = [equity async for equity in canonicalise(_async_list([]))]
 
-    assert len(result) == 0
+    assert len(actual) == 0
 
 
 async def test_canonicalise_multiple_equities_yields_correct_count() -> None:
@@ -119,6 +119,6 @@ async def test_canonicalise_multiple_equities_yields_correct_count() -> None:
         ),
     ]
 
-    result = [equity async for equity in canonicalise(_async_list(raw_equities))]
+    actual = [equity async for equity in canonicalise(_async_list(raw_equities))]
 
-    assert len(result) == expected_count
+    assert len(actual) == expected_count
