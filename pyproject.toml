@@ -1,7 +1,7 @@
 [project]
 name = "equity-aggregator"
-version = "0.1.0"
-description = "equity aggregator"
+version = "0.1.1"
+description = "Financial equity data aggregation toolkit"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
@@ -9,26 +9,32 @@ requires-python = ">=3.12.5"
 authors = [
     { name = "Gregory Kelleher", email = "gregory@gregorykelleher.com" }
 ]
+keywords = ["finance", "equity", "data", "aggregation", "financial-data"]
+classifiers = [
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
-    "logging>=0.4.9.6",
-    "typing>=3.10.0.0",
     "pydantic>=2.11.3",
     "rapidfuzz>=3.13.0",
     "httpx[http2]>=0.28.1",
-    "respx>=0.22.0",
     "openfigipy>=0.1.6",
+    "platformdirs>=4.0.0",
+]
+[dependency-groups]
+dev = [
     "pytest>=8.3.5",
     "pytest-env>=1.1.5",
     "pytest-asyncio>=1.0.0",
     "pytest-timeout>=2.4.0",
     "pytest-cov>=6.2.0",
-    "attrs>=25.3.0",
     "ruff>=0.8.0",
-    "platformdirs>=4.0.0",
 ]
-
 [project.urls]
 Homepage = "https://github.com/gregorykelleher/equity-aggregator"
+Repository = "https://github.com/gregorykelleher/equity-aggregator"
 
 [build-system]
 requires = ["hatchling"]
