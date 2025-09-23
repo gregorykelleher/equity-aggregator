@@ -277,6 +277,138 @@ def test_convert_both_price_and_market_cap() -> None:
     assert (actual.last_price, actual.market_cap) == (Decimal("2.00"), Decimal("3.00"))
 
 
+def test_convert_fifty_two_week_max() -> None:
+    """
+    ARRANGE: equity with 52-week max in EUR
+    ACT:     converter(equity)
+    ASSERT:  52-week max converted to USD
+    """
+    rates = {"EUR": Decimal("0.8")}  # 0.8 EUR per USD
+
+    convert = _build_usd_converter(rates)
+
+    equity = RawEquity(
+        name="WEEKLY",
+        symbol="WKL",
+        currency="EUR",
+        fifty_two_week_max=Decimal("16.00"),  # 16 EUR -> 20 USD
+    )
+
+    actual = convert(equity)
+
+    assert actual.fifty_two_week_max == Decimal("20.00")
+
+
+def test_convert_fifty_two_week_min() -> None:
+    """
+    ARRANGE: equity with 52-week min in EUR
+    ACT:     converter(equity)
+    ASSERT:  52-week min converted to USD
+    """
+    rates = {"EUR": Decimal("0.8")}  # 0.8 EUR per USD
+
+    convert = _build_usd_converter(rates)
+
+    equity = RawEquity(
+        name="WEEKLY",
+        symbol="WKL",
+        currency="EUR",
+        fifty_two_week_min=Decimal("4.00"),   # 4 EUR -> 5 USD
+    )
+
+    actual = convert(equity)
+
+    assert actual.fifty_two_week_min == Decimal("5.00")
+
+
+def test_fifty_two_week_ranges_trigger_conversion() -> None:
+    """
+    ARRANGE: equity with only 52-week ranges (no last_price or market_cap)
+    ACT:     converter(equity)
+    ASSERT:  conversion occurs (currency changed to USD)
+    """
+    rates = {"GBP": Decimal("0.5")}
+
+    convert = _build_usd_converter(rates)
+
+    equity = RawEquity(
+        name="ONLYRANGES",
+        symbol="OR",
+        currency="GBP",
+        fifty_two_week_max=Decimal("10.00"),
+    )
+
+    actual = convert(equity)
+
+    assert actual.currency == "USD"
+
+
+def test_convert_revenue() -> None:
+    """
+    ARRANGE: equity with revenue in EUR
+    ACT:     converter(equity)
+    ASSERT:  revenue converted to USD
+    """
+    rates = {"EUR": Decimal("0.8")}  # 0.8 EUR per USD
+
+    convert = _build_usd_converter(rates)
+
+    equity = RawEquity(
+        name="REVENUE",
+        symbol="REV",
+        currency="EUR",
+        revenue=Decimal("800.00"),  # 800 EUR -> 1000 USD
+    )
+
+    actual = convert(equity)
+
+    assert actual.revenue == Decimal("1000.00")
+
+
+def test_convert_trailing_eps() -> None:
+    """
+    ARRANGE: equity with trailing EPS in GBP
+    ACT:     converter(equity)
+    ASSERT:  trailing EPS converted to USD
+    """
+    rates = {"GBP": Decimal("0.5")}  # 0.5 GBP per USD
+
+    convert = _build_usd_converter(rates)
+
+    equity = RawEquity(
+        name="EARNINGS",
+        symbol="EPS",
+        currency="GBP",
+        trailing_eps=Decimal("2.50"),  # 2.50 GBP -> 5.00 USD
+    )
+
+    actual = convert(equity)
+
+    assert actual.trailing_eps == Decimal("5.00")
+
+
+def test_monetary_fields_trigger_conversion() -> None:
+    """
+    ARRANGE: equity with only revenue (no price or market cap)
+    ACT:     converter(equity)
+    ASSERT:  conversion occurs (currency changed to USD)
+    """
+    rates = {"CAD": Decimal("0.75")}
+
+    convert = _build_usd_converter(rates)
+
+    equity = RawEquity(
+        name="ONLYREVENUE",
+        symbol="OR",
+        currency="CAD",
+        revenue=Decimal("1000.00"),
+    )
+
+    actual = convert(equity)
+
+    assert actual.currency == "USD"
+
+
 def test_skip_when_no_price_and_no_market_cap() -> None:
     """
     ARRANGE: equity with no last_price and no market_cap

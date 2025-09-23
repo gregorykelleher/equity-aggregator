@@ -11,6 +11,21 @@ logger = logging.getLogger(__name__)
 
 type RawEquityConverter = Callable[[RawEquity], RawEquity]
 
+# All monetary fields that should be converted to USD
+_MONETARY_FIELDS = [
+    "last_price",
+    "market_cap",
+    "fifty_two_week_max",
+    "fifty_two_week_min",
+    "revenue_per_share",
+    "free_cash_flow",
+    "operating_cash_flow",
+    "total_debt",
+    "revenue",
+    "ebitda",
+    "trailing_eps",
+]
+
 
 def _build_usd_converter_loader() -> Callable[[], RawEquityConverter]:
     """
@@ -75,23 +90,26 @@ def _should_skip_conversion(equity: RawEquity) -> bool:
     """
     Determines whether the conversion process should be skipped for a given equity.
 
-    The function checks if both the last price and market cap are missing, if the
-    currency is not specified, or if the currency is already USD. In any of these
-    cases, conversion is deemed unnecessary and the function returns True.
+    The function checks if all price-related fields are missing, if the currency is
+    not specified, or if the currency is already USD. In any of these cases,
+    conversion is deemed unnecessary and the function returns True.
 
     Args:
-        equity (RawEquity): The equity object containing last price, market cap,
-            and currency information.
+        equity (RawEquity): The equity object containing price fields and currency
+            information.
 
     Returns:
         bool: True if conversion should be skipped, False otherwise.
     """
-    last_price = equity.last_price
-    market_cap = equity.market_cap
     currency = equity.currency
 
+    # Skip if no monetary fields present or currency is missing/already USD
+    has_any_monetary_field = any(
+        getattr(equity, field) is not None for field in _MONETARY_FIELDS
+    )
+
     return (
-        (last_price is None and market_cap is None)
+        not has_any_monetary_field
         or currency is None
         or currency == "USD"
     )
@@ -134,11 +152,10 @@ def _build_field_updates(equity: RawEquity, rate: Decimal) -> dict[str, Decimal]
     """
     updates: dict[str, Decimal] = {}
 
-    if equity.last_price is not None:
-        updates["last_price"] = _convert_to_usd(equity.last_price, rate)
-
-    if equity.market_cap is not None:
-        updates["market_cap"] = _convert_to_usd(equity.market_cap, rate)
+    for field_name in _MONETARY_FIELDS:
+        field_value = getattr(equity, field_name)
+        if field_value is not None:
+            updates[field_name] = _convert_to_usd(field_value, rate)
 
     return updates
 
