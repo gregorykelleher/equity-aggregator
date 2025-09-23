@@ -111,15 +111,15 @@ def test_to_query_record_falls_back_to_ticker() -> None:
     assert _to_query_record(equity)["idType"] == "TICKER"
 
 
-def test_to_query_record_sets_market_sec_des_equity() -> None:
+def test_to_query_record_sets_security_type_common_stock() -> None:
     """
     ARRANGE: any equity;
     ACT: to_query_record;
-    ASSERT: marketSecDes Equity
+    ASSERT: securityType Common Stock
     """
     equity = RawEquity(name="T", symbol="SYM")
 
-    assert _to_query_record(equity)["marketSecDes"] == "Equity"
+    assert _to_query_record(equity)["securityType"] == "Common Stock"
 
 
 def test_build_query_dataframe_preserves_length() -> None:

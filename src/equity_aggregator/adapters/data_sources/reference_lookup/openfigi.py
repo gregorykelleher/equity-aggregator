@@ -412,16 +412,32 @@ def _to_query_record(equity: RawEquity) -> dict[str, str]:
     """
     Converts a RawEquity object into a dictionary for querying OpenFIGI.
 
+    Specifically requests "Common Stock" securities to avoid duplicates from
+    depositary receipts (DRs), American depositary receipts (ADRs), and other
+    equity-like instruments that represent the same underlying company.
+
     Args:
         equity (RawEquity): The equity containing ISIN, CUSIP, or symbol.
 
     Returns:
-        dict[str, str]: A dict with idType, idValue, and marketSecDes.
+        dict[str, str]: A dict with idType, idValue, and securityType.
     """
     if equity.isin:
-        return {"idType": "ID_ISIN", "idValue": equity.isin, "marketSecDes": "Equity"}
+        return {
+            "idType": "ID_ISIN",
+            "idValue": equity.isin,
+            "securityType": "Common Stock",
+        }
 
     if equity.cusip:
-        return {"idType": "ID_CUSIP", "idValue": equity.cusip, "marketSecDes": "Equity"}
+        return {
+            "idType": "ID_CUSIP",
+            "idValue": equity.cusip,
+            "securityType": "Common Stock",
+        }
 
-    return {"idType": "TICKER", "idValue": equity.symbol, "marketSecDes": "Equity"}
+    return {
+        "idType": "TICKER",
+        "idValue": equity.symbol,
+        "securityType": "Common Stock",
+    }
