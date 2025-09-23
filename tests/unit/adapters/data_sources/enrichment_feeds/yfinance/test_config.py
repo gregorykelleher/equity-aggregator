@@ -1,9 +1,10 @@
 # yfinance/test_config.py
 
+import dataclasses
 import inspect
+from dataclasses import FrozenInstanceError
 
 import pytest
-from attr.exceptions import FrozenInstanceError
 
 from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.config import (
     FeedConfig,
@@ -29,7 +30,11 @@ def test_dataclass_is_frozen() -> None:
     ACT:     inspect `frozen` flag
     ASSERT:  dataclass is marked frozen (immutable)
     """
-    assert FeedConfig.__setattr__.__name__ == "_frozen_setattrs"
+    assert dataclasses.is_dataclass(FeedConfig)
+    # Check if the dataclass was created with frozen=True by testing mutation behavior
+    config = FeedConfig()
+    with pytest.raises(FrozenInstanceError):
+        config.search_url = "test"
 
 
 def test_mutation_raises() -> None:
