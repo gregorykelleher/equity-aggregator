@@ -10,7 +10,7 @@ from typing import Protocol
 import pandas as pd
 from openfigipy import OpenFigiClient
 
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 from equity_aggregator.storage import load_cache, save_cache
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,6 @@
 # yfinance/config.py
 
-
-from attr import dataclass
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
