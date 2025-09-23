@@ -108,11 +108,7 @@ def _should_skip_conversion(equity: RawEquity) -> bool:
         getattr(equity, field) is not None for field in _MONETARY_FIELDS
     )
 
-    return (
-        not has_any_monetary_field
-        or currency is None
-        or currency == "USD"
-    )
+    return not has_any_monetary_field or currency is None or currency == "USD"
 
 
 def _get_rate_for_currency(currency: str, rates: dict[str, Decimal]) -> Decimal:

@@ -55,6 +55,12 @@ jobs:
           uv run equity-aggregator --verbose seed
           uv run equity-aggregator export --output-dir ./data/data_store
 
+      - name: Get latest log file
+        id: latest_log
+        run: |
+          LATEST_LOG=$(ls -t data/logs/equity_aggregator_*.log | head -1)
+          echo "latest_log=$LATEST_LOG" >> $GITHUB_OUTPUT
+
       - name: Publish Latest Canonical Equities Release
         uses: softprops/action-gh-release@v2
         with:
@@ -66,4 +72,4 @@ jobs:
           generate_release_notes: false
           files: |
             data/data_store/canonical_equities.jsonl.gz
-            data/logs/equity_aggregator_*.log
+            ${{ steps.latest_log.outputs.latest_log }}
