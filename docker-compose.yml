@@ -9,5 +9,8 @@ services:
     environment:
       UV_ENV_FILE: ".env"
     volumes:
-      - ./data:/app/data
+      - equity_data:/app/data
       - ./.env:/app/.env:ro
+
+volumes:
+  equity_data:

@@ -411,7 +411,7 @@ docker compose exec equity-aggregator bash
 ```
 
 > [!NOTE]
-> The Docker container mounts the `data/` directory as a volume for persistent database storage.
+> The Docker setup uses named volumes for persistent database storage and automatically handles all directory creation and permissions.
 
 ## Architecture
 
