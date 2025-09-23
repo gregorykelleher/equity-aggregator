@@ -8,7 +8,6 @@ from .feeds import (
     XetraFeedData,
     YFinanceFeedData,
 )
-from .raw import RawEquity
 
 __all__ = [
     # canonical
@@ -22,6 +21,4 @@ __all__ = [
     "XetraFeedData",
     # enrichment feeds
     "YFinanceFeedData",
-    # raw
-    "RawEquity",
 ]

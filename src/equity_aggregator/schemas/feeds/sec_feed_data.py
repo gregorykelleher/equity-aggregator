@@ -77,9 +77,6 @@ def convert_cik_to_str(raw: dict) -> dict:
         dict: A new dictionary with CIK converted to 10-digit zero-padded string
             if present and not None. All other fields remain unchanged.
     """
-    if raw.get("cik") is None:
-        return raw
-
     # Convert integer CIK to 10-digit zero-padded string
     cik_value = raw.get("cik")
     updates = {"cik": str(cik_value).zfill(10)}

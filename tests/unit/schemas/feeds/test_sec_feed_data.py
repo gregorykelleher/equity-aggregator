@@ -17,6 +17,7 @@ def test_strips_extra_fields() -> None:
     raw = {
         "name": "Foo Inc",
         "symbol": "FOO",
+        "cik": "0000123456",
         "mics": ["XNYS"],
     }
 
@@ -34,6 +35,7 @@ def test_accepts_empty_list_mics() -> None:
     raw = {
         "name": "Foo Inc",
         "symbol": "FOO",
+        "cik": "0000123456",
         "mics": [],
     }
 
@@ -50,6 +52,7 @@ def test_missing_required_raises() -> None:
     """
     incomplete = {
         "symbol": "FOO",
+        "cik": "0000123456",
         "mics": ["XNYS"],
     }
 
@@ -66,6 +69,7 @@ def test_normalises_and_preserves_whitespace() -> None:
     raw = {
         "name": "  Padded Name  ",
         "symbol": " PAD ",
+        "cik": "0000123456",
         "mics": [" XNYS "],
     }
 
@@ -74,19 +78,19 @@ def test_normalises_and_preserves_whitespace() -> None:
     assert actual.name == "  Padded Name  "
 
 
-def test_cik_field_ignored() -> None:
+def test_cik_field_processed() -> None:
     """
-    ARRANGE: input contains 'cik' field
+    ARRANGE: input contains 'cik' field as integer
     ACT:     construct SecFeedData
-    ASSERT:  'cik' field is ignored on the model
+    ASSERT:  'cik' field is converted to zero-padded string
     """
     raw = {
         "name": "Foo Inc",
         "symbol": "FOO",
         "mics": ["XNYS"],
-        "cik": "0000123456",
+        "cik": 123456,
     }
 
     actual = SecFeedData(**raw)
 
-    assert not hasattr(actual, "cik")
+    assert actual.cik == "0000123456"
