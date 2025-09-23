@@ -10,7 +10,7 @@ from equity_aggregator.domain.pipeline.transforms.identify import (
     _update,
     identify,
 )
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 

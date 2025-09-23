@@ -5,7 +5,8 @@ from collections.abc import AsyncIterable
 import pytest
 
 from equity_aggregator.domain.pipeline.transforms.canonicalise import canonicalise
-from equity_aggregator.schemas import CanonicalEquity, RawEquity
+from equity_aggregator.schemas import CanonicalEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 

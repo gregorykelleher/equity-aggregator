@@ -11,9 +11,9 @@ from equity_aggregator.domain.pipeline.transforms.parse import parse
 from equity_aggregator.schemas import (
     EuronextFeedData,
     LseFeedData,
-    RawEquity,
     XetraFeedData,
 )
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 

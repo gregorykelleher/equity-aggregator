@@ -16,7 +16,7 @@ from equity_aggregator.domain.pipeline.transforms.enrich import (
     _safe_fetch,
     enrich,
 )
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 

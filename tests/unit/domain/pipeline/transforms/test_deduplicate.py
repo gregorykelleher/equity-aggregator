@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from equity_aggregator.domain.pipeline.transforms.deduplicate import deduplicate
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 

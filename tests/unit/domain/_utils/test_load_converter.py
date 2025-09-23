@@ -8,7 +8,7 @@ from equity_aggregator.domain._utils._load_converter import (
     _build_usd_converter,
     _convert_to_usd,
 )
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 

@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 
 from equity_aggregator.domain._utils._merge import merge
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 
