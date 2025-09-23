@@ -4,7 +4,7 @@ import logging
 from collections.abc import AsyncIterable
 
 from equity_aggregator.domain._utils import get_usd_converter
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
 

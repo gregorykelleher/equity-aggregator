@@ -10,12 +10,16 @@ from .runner import aggregate_canonical_equities
 logger = logging.getLogger(__name__)
 
 
-def seed_canonical_equities() -> None:
+def seed_canonical_equities() -> None:  # pragma: no cover
     """
     Runs the canonical equities aggregation pipeline and seeds the database.
 
     This function executes the aggregation pipeline to collect canonical equities,
     then saves them to the SQLite data store.
+
+    Note: This function is excluded from unit test coverage as it executes
+    the complete aggregation pipeline involving external API calls, database
+    operations, and async streaming transforms.
 
     Args:
         None

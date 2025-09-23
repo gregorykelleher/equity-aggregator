@@ -8,7 +8,8 @@ from typing import NamedTuple
 
 from equity_aggregator.adapters import open_yfinance_feed
 from equity_aggregator.domain._utils import get_usd_converter, merge
-from equity_aggregator.schemas import RawEquity, YFinanceFeedData
+from equity_aggregator.schemas import YFinanceFeedData
+from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
 

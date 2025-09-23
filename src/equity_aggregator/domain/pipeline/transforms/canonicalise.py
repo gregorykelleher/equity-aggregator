@@ -3,8 +3,8 @@
 import logging
 from collections.abc import AsyncIterable, AsyncIterator
 
-from equity_aggregator.schemas import RawEquity
 from equity_aggregator.schemas.canonical import CanonicalEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
 

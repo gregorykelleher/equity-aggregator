@@ -5,7 +5,7 @@ from collections.abc import Callable
 from decimal import Decimal
 
 from equity_aggregator.adapters import retrieve_conversion_rates
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
 

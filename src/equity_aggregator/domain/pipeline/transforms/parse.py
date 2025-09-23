@@ -4,7 +4,7 @@ import logging
 from collections.abc import AsyncIterable, Callable
 
 from equity_aggregator.domain.pipeline.resolve import FeedRecord
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
 

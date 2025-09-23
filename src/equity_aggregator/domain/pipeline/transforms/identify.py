@@ -4,7 +4,7 @@ import logging
 from collections.abc import AsyncIterable, AsyncIterator, Iterator, Sequence
 
 from equity_aggregator.adapters import fetch_equity_identification
-from equity_aggregator.schemas import RawEquity
+from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
 
