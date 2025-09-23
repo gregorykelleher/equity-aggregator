@@ -14,13 +14,15 @@ class SecFeedData(BaseModel):
     Args:
         name (str): Company name, mapped from "name".
         symbol (str): Equity symbol, mapped from "symbol".
+        cik (str): Central Index Key, converted from int to 10-digit zero-padded string.
         mics (list[str]): List of MIC codes; defaults to an empty list if missing.
 
     Returns:
-        EuronextFeedData: An instance with fields normalised for RawEquity validation.
+        SecFeedData: An instance with fields normalised for RawEquity validation.
     """
 
-    # Fields exactly match RawEquity’s signature
+    # Fields exactly match RawEquity's signature
+    cik: str
     name: str
     symbol: str
     mics: list[str]
@@ -37,12 +39,15 @@ class SecFeedData(BaseModel):
             dict[str, object]: A new dictionary with renamed keys suitable for the
                 RawEquity schema.
         """
+        # convert int CIK to string
+        raw = convert_cik_to_str(self)
+
         return {
-            "name": self.get("name"),
-            "symbol": self.get("symbol"),
-            "cik": self.get("cik"),
+            "cik": raw.get("cik"),
+            "name": raw.get("name"),
+            "symbol": raw.get("symbol"),
             # no CUSIP, ISIN or FIGI in SEC feed, so omitting from model
-            "mics": self.get("mics"),
+            "mics": raw.get("mics"),
             # no currency or last_price in SEC feed, so omitting from model
             # no more additional fields in SEC feed, so omitting from model
         }
@@ -53,3 +58,31 @@ class SecFeedData(BaseModel):
         # defer strict type validation to RawEquity
         strict=False,
     )
+
+
+def convert_cik_to_str(raw: dict) -> dict:
+    """
+    Normalise SEC CIK integer value to ensure compatibility with RawEquity schema.
+
+    The SEC API returns CIK values as integers, but the RawEquity schema expects
+    10-digit zero-padded string values for all CIK fields. This function converts
+    integer CIK values to properly formatted strings while preserving all other
+    fields unchanged.
+
+    Args:
+        raw (dict): A dictionary containing raw SEC feed data with potentially
+            integer CIK values.
+
+    Returns:
+        dict: A new dictionary with CIK converted to 10-digit zero-padded string
+            if present and not None. All other fields remain unchanged.
+    """
+    if raw.get("cik") is None:
+        return raw
+
+    # Convert integer CIK to 10-digit zero-padded string
+    cik_value = raw.get("cik")
+    updates = {"cik": str(cik_value).zfill(10)}
+
+    # Return new dict rather than mutating in place
+    return {**raw, **updates}
