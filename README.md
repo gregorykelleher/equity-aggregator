@@ -9,16 +9,18 @@
 
 ## Description
 
-Equity Aggregator is a financial data tool that collects and normalises raw equity data from authoritative sources (Euronext, LSE, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
+Equity Aggregator is a financial data tool that collects and normalises raw equity data from authoritative sources (LSE, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
 
-Altogether, this tool makes it possible to retrieve up-to-date information on over 9,500+ equities from ten countries worldwide:
+Altogether, this tool makes it possible to retrieve up-to-date information on over 7,500+ equities from ten countries worldwide:
 
 | Source | Country | Description |
 |----------|---------|-------------|
-| 🇪🇺&nbsp;Euronext | Europe | Pan-European stock exchange operating in Netherlands, France, Belgium, Portugal, Ireland, and Norway |
 | 🇬🇧 LSE | United Kingdom | London Stock Exchange |
 | 🇺🇸 SEC | United States | Securities and Exchange Commission |
 | 🇩🇪 XETRA | Germany | Deutsche Börse electronic trading platform |
+
+> [!NOTE]
+> **Euronext Data Source Discontinued**: Euronext data feeds are no longer supported due to implementation of bot protection mechanisms. European equity coverage is now provided through alternative data sources. For historical Euronext integration code, see the `legacy/euronext-integration` branch.
 
 ## What kind of Equity Data is available?
 
@@ -64,91 +66,9 @@ Equity Aggregator is available to download via `pip` as the `equity-aggregator` 
 pip install equity-aggregator
 ```
 
-### CLI Usage
+### Python API
 
-Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers three main commands:
-
-- **seed** - Aggregate and populate the local database with fresh equity data
-- **export** - Export the local canonical equity database to compressed JSONL format
-- **download** - Download the latest canonical equity data from remote repository
-
-Run `equity-aggregator --help` for more information:
-
-```bash
-usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,export,download} ...
-
-aggregate, download, and export canonical equity data
-
-options:
-  -h, --help            show this help message and exit
-  -v, --verbose         enable verbose logging (INFO level)
-  -d, --debug           enable debug logging (DEBUG level)
-  -q, --quiet           quiet mode - only show warnings and errors
-
-commands:
-  Available operations
-
-  {seed,export,download}
-    seed                aggregate enriched canonical equity data sourced from data feeds
-    export              export local canonical equity data to compressed JSONL format
-    download            download latest canonical equity data from remote repository
-
-Use 'equity-aggregator <command> --help' for help
-```
-
-#### Download Command
-
-The `download` command retrieves the latest pre-processed canonical equity dataset from GitHub Releases, eliminating the need to run the full aggregation pipeline via `seed` locally. This command:
-
-- Downloads compressed equity data (`canonical_equities.jsonl.gz`) from the latest nightly build
-- Automatically rebuilds the database locally from the downloaded data
-- Provides access to 9,500+ equities with immediate effect
-
-> [!TIP]
-> **Optional: Increase Rate Limits**
->
-> Set `GITHUB_TOKEN` to increase download limits from 60/hour to 5,000/hour:
-> ```bash
-> export GITHUB_TOKEN="your_personal_access_token_here"
-> ```
-> Create a token at [GitHub Settings](https://github.com/settings/tokens) - no special scopes needed. Recommended for frequent downloads or CI/CD pipelines.
-
-#### Export Command
-
-The `export` command extracts canonical equity data from the local database and exports it as compressed JSONL (JSON Lines) format. It reads all canonical equities from the local database and exports the data to `canonical_equities.jsonl.gz` in the specified output directory.
-
-This creates a portable, standardised dataset suitable for analysis, sharing, or backup while preserving all equity metadata and financial metrics in structured JSON format.
-
-```bash
-# Export aggregated data to compressed JSON in specified directory
-equity-aggregator export --output-dir ~/Downloads
-equity-aggregator export --output-dir /path/to/export/location
-```
-
-#### Seed Command
-
-The `seed` command executes the complete equity aggregation pipeline, collecting raw data from authoritative sources (Euronext, LSE, SEC, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
-
-This command requires that the following API keys are set prior:
-
-```bash
-export EXCHANGE_RATE_API_KEY="your_key_here"
-export OPENFIGI_API_KEY="your_key_here"
-```
-
-```bash
-# Run the main aggregation pipeline (requires API keys)
-equity-aggregator seed
-```
-
-> [!IMPORTANT]
-> Note that the `seed` command processes thousands of equities and is intentionally rate-limited to respect external API constraints. A full run typically takes 90 minutes depending on network conditions and API response times.
->
-> This is mitigated by the automated nightly CI pipeline that runs `seed` and publishes the latest canonical equity dataset. Users can download this pre-built data using `equity-aggregator download` instead of running the full aggregation pipeline locally.
-
-### Python API Integration
-
-Beyond the CLI, Equity Aggregator also exposes a focused public API that enables seamless integration opportunities. The API automatically detects and downloads the latest canonical equity dataset from remote sources when needed, ensuring users always work with up-to-date data.
+Equity Aggregator exposes a focused public API that enables seamless integration opportunities. The API automatically detects and downloads the latest canonical equity dataset from remote sources when needed, ensuring users always work with up-to-date data.
 
 #### Retrieving All Equities
 
@@ -230,6 +150,88 @@ Market Cap: 3500000000000
 
 > [!NOTE]
 > Both functions work independently - `retrieve_canonical_equity()` automatically downloads data if needed, so there's no requirement to call `retrieve_canonical_equities()` first.
+
+### CLI Usage
+
+Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers three main commands:
+
+- **seed** - Aggregate and populate the local database with fresh equity data
+- **export** - Export the local canonical equity database to compressed JSONL format
+- **download** - Download the latest canonical equity data from remote repository
+
+Run `equity-aggregator --help` for more information:
+
+```bash
+usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,export,download} ...
+
+aggregate, download, and export canonical equity data
+
+options:
+  -h, --help            show this help message and exit
+  -v, --verbose         enable verbose logging (INFO level)
+  -d, --debug           enable debug logging (DEBUG level)
+  -q, --quiet           quiet mode - only show warnings and errors
+
+commands:
+  Available operations
+
+  {seed,export,download}
+    seed                aggregate enriched canonical equity data sourced from data feeds
+    export              export local canonical equity data to compressed JSONL format
+    download            download latest canonical equity data from remote repository
+
+Use 'equity-aggregator <command> --help' for help
+```
+
+#### Download Command
+
+The `download` command retrieves the latest pre-processed canonical equity dataset from GitHub Releases, eliminating the need to run the full aggregation pipeline via `seed` locally. This command:
+
+- Downloads compressed equity data (`canonical_equities.jsonl.gz`) from the latest nightly build
+- Automatically rebuilds the database locally from the downloaded data
+- Provides access to 7,500+ equities with immediate effect
+
+> [!TIP]
+> **Optional: Increase Rate Limits**
+>
+> Set `GITHUB_TOKEN` to increase download limits from 60/hour to 5,000/hour:
+> ```bash
+> export GITHUB_TOKEN="your_personal_access_token_here"
+> ```
+> Create a token at [GitHub Settings](https://github.com/settings/tokens) - no special scopes needed. Recommended for frequent downloads or CI/CD pipelines.
+
+#### Export Command
+
+The `export` command extracts canonical equity data from the local database and exports it as compressed JSONL (JSON Lines) format. It reads all canonical equities from the local database and exports the data to `canonical_equities.jsonl.gz` in the specified output directory.
+
+This creates a portable, standardised dataset suitable for analysis, sharing, or backup while preserving all equity metadata and financial metrics in structured JSON format.
+
+```bash
+# Export aggregated data to compressed JSON in specified directory
+equity-aggregator export --output-dir ~/Downloads
+equity-aggregator export --output-dir /path/to/export/location
+```
+
+#### Seed Command
+
+The `seed` command executes the complete equity aggregation pipeline, collecting raw data from authoritative sources (Euronext, LSE, SEC, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
+
+This command requires that the following API keys are set prior:
+
+```bash
+export EXCHANGE_RATE_API_KEY="your_key_here"
+export OPENFIGI_API_KEY="your_key_here"
+```
+
+```bash
+# Run the main aggregation pipeline (requires API keys)
+equity-aggregator seed
+```
+
+> [!IMPORTANT]
+> Note that the `seed` command processes thousands of equities and is intentionally rate-limited to respect external API constraints. A full run typically takes 90 minutes depending on network conditions and API response times.
+>
+> This is mitigated by the automated nightly CI pipeline that runs `seed` and publishes the latest canonical equity dataset. Users can download this pre-built data using `equity-aggregator download` instead of running the full aggregation pipeline locally.
 
 ### Data Storage
 
@@ -426,7 +428,7 @@ equity-aggregator/
 │   ├── domain/pipeline/             # Core aggregation pipeline
 │   │   └── transforms/              # Transformation stages
 │   ├── adapters/data_sources/       # External data integrations
-│   │   ├── authoritative_feeds/     # Primary sources (Euronext, LSE, SEC, XETRA)
+│   │   ├── authoritative_feeds/     # Primary sources (LSE, SEC, XETRA)
 │   │   └── enrichment_feeds/        # Yahoo Finance integration
 │   ├── schemas/                     # Data validation and types
 │   └── storage/                     # Database operations
@@ -461,7 +463,7 @@ The codebase adheres to clean architecture principles with distinct layers:
 > [!IMPORTANT]
 > **Important Legal Notice**
 >
-> This software aggregates data from various third-party sources including Yahoo Finance, Euronext, London Stock Exchange, SEC, and XETRA. Equity Aggregator is **not** affiliated, endorsed, or vetted by any of these organisations.
+> This software aggregates data from various third-party sources including Yahoo Finance, London Stock Exchange, SEC, and XETRA. Equity Aggregator is **not** affiliated, endorsed, or vetted by any of these organisations.
 >
 > **Data Sources and Terms:**
 >

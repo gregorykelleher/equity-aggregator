@@ -2,7 +2,7 @@
 
 ## Overview
 
-The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple authoritative sources (Euronext, LSE, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance.
+The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple authoritative sources (LSE, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance.
 
 ## Architecture & Design
 
@@ -39,7 +39,7 @@ Raw Data Sources → Parse → Convert → Identify → Deduplicate → Enrich �
 
 Orchestrates parallel data fetching from authoritative feeds:
 
-- Fetches data from Euronext, LSE, SEC, and XETRA concurrently
+- Fetches data from LSE, SEC, and XETRA concurrently
 - Combines all feed data into a single stream for processing
 - Maintains feed source metadata for downstream processing
 
@@ -47,7 +47,7 @@ Orchestrates parallel data fetching from authoritative feeds:
 
 Validates and structures raw feed data:
 
-- Applies feed-specific schemas (`EuronextFeedData`, `LseFeedData`, etc.)
+- Applies feed-specific schemas (`LseFeedData`, `SecFeedData`, etc.)
 - Filters out invalid records early in the pipeline
 - Normalises data formats across different sources
 
@@ -100,7 +100,7 @@ The pipeline uses asynchronous operations to process thousands of equity records
 
 **Parallel Data Fetching**
 
-- All authoritative feeds (Euronext, LSE, SEC, XETRA) are fetched simultaneously
+- All authoritative feeds (LSE, SEC, XETRA) are fetched simultaneously
 
 **Streaming Pipeline**
 
@@ -144,7 +144,6 @@ schemas/
 ├── canonical.py              # CanonicalEquity - final standardised format
 ├── types.py                  # Type definitions and validators
 └── feeds/                    # Feed-specific data models
-    ├── euronext_feed_data.py
     ├── lse_feed_data.py
     ├── sec_feed_data.py
     ├── xetra_feed_data.py
@@ -171,11 +170,11 @@ def parse(stream: AsyncIterable[FeedRecord]) -> AsyncIterator[RawEquity]:
 
 #### 3. **Field Mapping & Normalisation**
 ```python
-class EuronextFeedData(BaseModel):
-    name: str = Field(..., description="Company name")
-    symbol: str = Field(..., description="Trading symbol")
+class LseFeedData(BaseModel):
+    issuername: str = Field(..., description="Company name")
+    tidm: str = Field(..., description="Trading symbol")
     isin: str = Field(..., description="ISIN identifier")
-    mics: list[str] = Field(..., description="Market identifiers")
+    mics: list[str] | None = Field(..., description="Market identifiers")
 
     # Automatic field mapping from raw feed data
     @field_validator('symbol')
@@ -195,7 +194,6 @@ class EuronextFeedData(BaseModel):
 
 ### Authoritative Feeds (Primary Sources)
 
-- **Euronext**: Pan-European Börse Stock Exchange
 - **LSE**: London Stock Exchange
 - **XETRA**: Deutsche Börse Stock Exchange
 - **SEC**: US Securities and Exchange Commission

@@ -2,7 +2,6 @@
 
 from .canonical import CanonicalEquity, EquityFinancials, EquityIdentity
 from .feeds import (
-    EuronextFeedData,
     LseFeedData,
     SecFeedData,
     XetraFeedData,
@@ -15,7 +14,6 @@ __all__ = [
     "EquityIdentity",
     "CanonicalEquity",
     # authoritative feeds
-    "EuronextFeedData",
     "LseFeedData",
     "SecFeedData",
     "XetraFeedData",

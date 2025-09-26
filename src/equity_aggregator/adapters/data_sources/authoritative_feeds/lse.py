@@ -267,7 +267,7 @@ def _extract_records(page_response_json: dict[str, object]) -> list[EquityRecord
 
     Returns:
         list[EquityRecord]: A list of normalised equity records, each as a dictionary
-            with standardised keys matching the eurONext schema.
+            with standardised keys matching the schema.
     """
     rows, _ = _parse_equities(page_response_json)
     records: list[EquityRecord] = []

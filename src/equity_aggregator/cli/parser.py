@@ -68,7 +68,7 @@ def _add_subcommands(parser: argparse.ArgumentParser) -> None:
         "seed",
         help="aggregate enriched canonical equity data sourced from data feeds",
         description="execute the full aggregation pipeline to collect equity "
-        "data from authoritative feeds (Euronext, LSE, SEC, XETRA), enrich "
+        "data from authoritative feeds (LSE, SEC, XETRA), enrich "
         "it with data from enrichment feeds, and store as canonical equities",
     )
 
