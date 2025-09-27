@@ -1,19 +1,18 @@
-# authoritative_feeds/lse.py
+# authoritative_feeds/lse/feed.py
 
 import asyncio
 import logging
 
-from httpx import AsyncClient
-
 from equity_aggregator.adapters.data_sources._utils import make_client
-from equity_aggregator.storage import load_cache, save_cache
-
-from ._record_types import (
+from equity_aggregator.adapters.data_sources.authoritative_feeds._record_types import (
     EquityRecord,
     RecordStream,
     RecordUniqueKeyExtractor,
     UniqueRecordStream,
 )
+from equity_aggregator.storage import load_cache, save_cache
+
+from .session import LseSession
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,7 @@ _HEADERS = {
 
 
 async def fetch_equity_records(
-    client: AsyncClient | None = None,
+    session: LseSession | None = None,
     *,
     cache_key: str = "lse_records",
 ) -> RecordStream:
@@ -42,7 +41,7 @@ async def fetch_equity_records(
     all MICs concurrently, yields records as they arrive, and caches the results.
 
     Args:
-        client (AsyncClient | None): Optional HTTP client to use for requests.
+        session (LseSession | None): Optional LSE session to use for requests.
         cache_key (str): The key under which to cache the records.
 
     Yields:
@@ -56,16 +55,18 @@ async def fetch_equity_records(
             yield record
         return
 
-    # use provided client or create a bespoke lse client
-    client = client or make_client(headers=_HEADERS)
+    # use provided session or create a bespoke lse session
+    session = session or LseSession(make_client(headers=_HEADERS))
 
-    async with client:
-        async for record in _stream_and_cache(client, cache_key=cache_key):
+    try:
+        async for record in _stream_and_cache(session, cache_key=cache_key):
             yield record
+    finally:
+        await session.aclose()
 
 
 async def _stream_and_cache(
-    client: AsyncClient,
+    session: LseSession,
     *,
     cache_key: str,
 ) -> RecordStream:
@@ -73,7 +74,7 @@ async def _stream_and_cache(
     Asynchronously stream unique LSE equity records, cache them, and yield each.
 
     Args:
-        client (AsyncClient): The asynchronous HTTP client used for requests.
+        session (LseSession): The LSE session used for requests.
         cache_key (str): The key under which to cache the records.
 
     Yields:
@@ -87,7 +88,7 @@ async def _stream_and_cache(
 
     # stream all records concurrently and deduplicate by ISIN
     async for record in _deduplicate_records(lambda record: record["isin"])(
-        _stream_all_pages(client),
+        _stream_all_pages(session),
     ):
         buffer.append(record)
         yield record
@@ -120,12 +121,12 @@ def _deduplicate_records(extract_key: RecordUniqueKeyExtractor) -> UniqueRecordS
     return deduplicator
 
 
-async def _stream_all_pages(client: AsyncClient) -> RecordStream:
+async def _stream_all_pages(session: LseSession) -> RecordStream:
     """
     Stream all LSE equity records across all pages.
 
     Args:
-        client (AsyncClient): The asynchronous HTTP client used for requests.
+        session (LseSession): The LSE session used for requests.
 
     Yields:
         EquityRecord: Each equity record from all pages, as soon as it is available.
@@ -133,7 +134,7 @@ async def _stream_all_pages(client: AsyncClient) -> RecordStream:
     # shared queue for all producers to enqueue records
     queue: asyncio.Queue[EquityRecord | None] = asyncio.Queue()
 
-    first_page = await _fetch_page(client, page=1)
+    first_page = await _fetch_page(session, page=1)
     first_page_records = _extract_records(first_page)
 
     total_pages = _get_total_pages(first_page)
@@ -150,7 +151,7 @@ async def _stream_all_pages(client: AsyncClient) -> RecordStream:
 
     # spawn one producer task per remaining page
     producers = [
-        asyncio.create_task(_produce_page(client, page, queue))
+        asyncio.create_task(_produce_page(session, page, queue))
         for page in range(2, total_pages + 1)
     ]
 
@@ -163,7 +164,7 @@ async def _stream_all_pages(client: AsyncClient) -> RecordStream:
 
 
 async def _produce_page(
-    client: AsyncClient,
+    session: LseSession,
     page: int,
     queue: asyncio.Queue[EquityRecord | None],
 ) -> None:
@@ -171,7 +172,7 @@ async def _produce_page(
     Fetch a single LSE page, enqueue its records, and signal completion.
 
     Args:
-        client (AsyncClient): The HTTP client for making requests.
+        session (LseSession): The LSE session for making requests.
         page (int): The 1-based page number to fetch.
         queue (asyncio.Queue[EquityRecord | None]): Queue to put records and sentinel.
 
@@ -184,7 +185,7 @@ async def _produce_page(
     """
     try:
         # stream records from the page and enqueue them
-        page_json = await _fetch_page(client, page)
+        page_json = await _fetch_page(session, page)
         for record in _extract_records(page_json):
             await queue.put(record)
 
@@ -224,7 +225,7 @@ async def _consume_queue(
             yield item
 
 
-async def _fetch_page(client: AsyncClient, page: int) -> dict[str, object]:
+async def _fetch_page(session: LseSession, page: int) -> dict[str, object]:
     """
     Fetch a single page of results from the LSE feed.
 
@@ -232,7 +233,7 @@ async def _fetch_page(client: AsyncClient, page: int) -> dict[str, object]:
     returns the parsed JSON response. HTTP and JSON errors are propagated to the caller.
 
     Args:
-        client (AsyncClient): The HTTP client used to send the request.
+        session (LseSession): The LSE session used to send the request.
         page (int): The 1-based page number to fetch.
 
     Returns:
@@ -242,7 +243,7 @@ async def _fetch_page(client: AsyncClient, page: int) -> dict[str, object]:
         httpx.ReadError: If there is a network or connection error.
         ValueError: If the response body cannot be parsed as JSON.
     """
-    response = await client.post(_LSE_SEARCH_URL, json=_build_payload(page))
+    response = await session.post(_LSE_SEARCH_URL, json=_build_payload(page))
     response.raise_for_status()
 
     try:

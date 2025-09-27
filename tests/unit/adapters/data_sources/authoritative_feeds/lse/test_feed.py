@@ -8,7 +8,7 @@ import httpx
 import pytest
 from httpx import AsyncClient, MockTransport
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lse import (
+from equity_aggregator.adapters.data_sources.authoritative_feeds.lse.feed import (
     _build_payload,
     _deduplicate_records,
     _fetch_page,
@@ -17,6 +17,7 @@ from equity_aggregator.adapters.data_sources.authoritative_feeds.lse import (
     _stream_all_pages,
     fetch_equity_records,
 )
+from equity_aggregator.adapters.data_sources.authoritative_feeds.lse.session import LseSession
 from equity_aggregator.storage import save_cache
 
 pytestmark = pytest.mark.unit
@@ -132,7 +133,7 @@ def test_parse_equities_handles_missing_content_key_total_pages() -> None:
 def test_fetch_page_returns_first_json_element() -> None:
     """
     ARRANGE: transport returns JSON list [{'a':1}]
-    ACT:     call _fetch_page(client, page=1)
+    ACT:     call _fetch_page(session, page=1)
     ASSERT:  actual == {'a':1}
     """
 
@@ -140,8 +141,9 @@ def test_fetch_page_returns_first_json_element() -> None:
         return httpx.Response(200, json=[{"a": 1}])
 
     client = AsyncClient(transport=MockTransport(handler))
+    session = LseSession(client)
 
-    actual = asyncio.run(_fetch_page(client, 1))
+    actual = asyncio.run(_fetch_page(session, 1))
 
     assert actual == {"a": 1}
 
@@ -157,9 +159,10 @@ def test_fetch_page_raises_index_error_on_empty_list() -> None:
         return httpx.Response(200, json=[])
 
     client = AsyncClient(transport=MockTransport(handler))
+    session = LseSession(client)
 
     with pytest.raises(IndexError):
-        asyncio.run(_fetch_page(client, 1))
+        asyncio.run(_fetch_page(session, 1))
 
 
 def test_stream_all_pages_yields_records_from_two_pages() -> None:
@@ -178,9 +181,10 @@ def test_stream_all_pages_yields_records_from_two_pages() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
+    session = LseSession(client)
 
     async def collect() -> list[dict]:
-        return [rec async for rec in _stream_all_pages(client)]
+        return [rec async for rec in _stream_all_pages(session)]
 
     actual = asyncio.run(collect())
 
@@ -205,9 +209,10 @@ def test_stream_all_pages_single_page() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
+    session = LseSession(client)
 
     async def collect() -> list[dict]:
-        return [rec async for rec in _stream_all_pages(client)]
+        return [rec async for rec in _stream_all_pages(session)]
 
     actual = asyncio.run(collect())
 
@@ -235,9 +240,10 @@ def test_fetch_equity_records_flattens_pages() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
+    session = LseSession(client)
 
     async def collect_records() -> list[dict]:
-        return [record async for record in fetch_equity_records(client)]
+        return [record async for record in fetch_equity_records(session)]
 
     actual = asyncio.run(collect_records())
 
@@ -258,9 +264,10 @@ def test_fetch_equity_records_exits_on_first_page_error() -> None:
         return httpx.Response(500)
 
     client = AsyncClient(transport=MockTransport(handler))
+    session = LseSession(client)
 
     async def iterate() -> None:
-        async for _ in fetch_equity_records(client):
+        async for _ in fetch_equity_records(session):
             pass
 
     with pytest.raises(httpx.HTTPStatusError):
@@ -284,9 +291,10 @@ def test_fetch_equity_records_deduplicates_isin_across_pages() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
+    session = LseSession(client)
 
     async def collect() -> list[dict]:
-        return [r async for r in fetch_equity_records(client)]
+        return [r async for r in fetch_equity_records(session)]
 
     actual = asyncio.run(collect())
 
@@ -341,12 +349,12 @@ def test_deduplicate_records_preserves_all_none_keys() -> None:
 
 def test_produce_page_on_error_always_puts_sentinel() -> None:
     """
-    ARRANGE: a client whose .post(...) raises
+    ARRANGE: a session whose .post(...) raises
     ACT:     run _produce_page and then consume its queue
     ASSERT:  we get exactly one None sentinel, even though it raised
     """
 
-    class BadClient:
+    class BadSession:
         async def post(self, *args: object, **kwargs: object) -> None:
             raise RuntimeError("boom!")
 
@@ -356,7 +364,7 @@ def test_produce_page_on_error_always_puts_sentinel() -> None:
         import contextlib
 
         with contextlib.suppress(RuntimeError):
-            await _produce_page(BadClient(), page=5, queue=queue)
+            await _produce_page(BadSession(), page=5, queue=queue)
 
         # Ensure that a sentinel is in the queue
         return [await queue.get()]
