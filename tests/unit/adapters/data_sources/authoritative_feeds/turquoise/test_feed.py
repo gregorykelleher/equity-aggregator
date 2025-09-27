@@ -8,7 +8,7 @@ import httpx
 import pytest
 from httpx import AsyncClient, MockTransport
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lse.feed import (
+from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.feed import (
     _build_payload,
     _deduplicate_records,
     _fetch_page,
@@ -17,7 +17,9 @@ from equity_aggregator.adapters.data_sources.authoritative_feeds.lse.feed import
     _stream_all_pages,
     fetch_equity_records,
 )
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lse.session import LseSession
+from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.session import (
+    TurquoiseSession,
+)
 from equity_aggregator.storage import save_cache
 
 pytestmark = pytest.mark.unit
@@ -25,7 +27,7 @@ pytestmark = pytest.mark.unit
 
 def _page_from_request(request: httpx.Request) -> int:
     """
-    Extract the 'page=' query-argument from the JSON payload sent to the LSE API.
+    Extract the 'page=' query-argument from the JSON payload sent to the Turquoise API.
     """
     body = json.loads(request.content)
     params = body["components"][0]["parameters"]
@@ -141,7 +143,7 @@ def test_fetch_page_returns_first_json_element() -> None:
         return httpx.Response(200, json=[{"a": 1}])
 
     client = AsyncClient(transport=MockTransport(handler))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     actual = asyncio.run(_fetch_page(session, 1))
 
@@ -159,7 +161,7 @@ def test_fetch_page_raises_index_error_on_empty_list() -> None:
         return httpx.Response(200, json=[])
 
     client = AsyncClient(transport=MockTransport(handler))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     with pytest.raises(IndexError):
         asyncio.run(_fetch_page(session, 1))
@@ -181,7 +183,7 @@ def test_stream_all_pages_yields_records_from_two_pages() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     async def collect() -> list[dict]:
         return [rec async for rec in _stream_all_pages(session)]
@@ -209,7 +211,7 @@ def test_stream_all_pages_single_page() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     async def collect() -> list[dict]:
         return [rec async for rec in _stream_all_pages(session)]
@@ -240,7 +242,7 @@ def test_fetch_equity_records_flattens_pages() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     async def collect_records() -> list[dict]:
         return [record async for record in fetch_equity_records(session)]
@@ -264,7 +266,7 @@ def test_fetch_equity_records_exits_on_first_page_error() -> None:
         return httpx.Response(500)
 
     client = AsyncClient(transport=MockTransport(handler))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     async def iterate() -> None:
         async for _ in fetch_equity_records(session):
@@ -291,7 +293,7 @@ def test_fetch_equity_records_deduplicates_isin_across_pages() -> None:
         return httpx.Response(200, json=[{"content": [content_item]}])
 
     client = AsyncClient(transport=MockTransport(handler))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     async def collect() -> list[dict]:
         return [r async for r in fetch_equity_records(session)]
@@ -384,7 +386,7 @@ def test_fetch_equity_records_uses_cache() -> None:
         {"isin": "CACHED2", "mics": ["XLON"]},
     ]
 
-    save_cache("lse_records", payload)
+    save_cache("turquoise_records", payload)
 
     async def collect() -> list[dict]:
         return [record async for record in fetch_equity_records()]

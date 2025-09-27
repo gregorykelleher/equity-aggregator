@@ -1,4 +1,4 @@
-# feeds/lse_feed_data.py
+# feeds/turquoise_feed_data.py
 
 import re
 from decimal import Decimal
@@ -9,10 +9,10 @@ from .feed_validators import required
 
 
 @required("name", "symbol")
-class LseFeedData(BaseModel):
+class TurquoiseFeedData(BaseModel):
     """
-    Represents a single LSE feed record, transforming and normalising incoming fields
-    to match the RawEquity model's expected attributes. If the currency is "GBX",
+    Represents single Turquoise feed record, transforming and normalising incoming
+    fields to match the RawEquity model's expected attributes. If the currency is "GBX",
     price fields such as "last_price" are automatically converted from pence to
     pounds (GBP) for consistency.
 
@@ -29,7 +29,7 @@ class LseFeedData(BaseModel):
             from "marketcapitalization".
 
     Returns:
-        LseFeedData: An instance with fields normalised for RawEquity validation,
+        TurquoiseFeedData: An instance with fields normalised for RawEquity validation,
             including automatic GBX to GBP conversion where relevant.
     """
 
@@ -47,14 +47,14 @@ class LseFeedData(BaseModel):
     @model_validator(mode="before")
     def _normalise_fields(self: dict[str, object]) -> dict[str, object]:
         """
-        Normalise a raw LSE feed record into the flat schema expected by RawEquity.
+        Normalise raw Turquoise feed record into the flat schema expected by RawEquity.
 
         Extracts and renames nested fields to match the RawEquity signature. If the
         currency is "GBX", automatically converts price fields from pence to pounds
         (GBP) using the convert_gbx_to_gbp helper.
 
         Args:
-            self (dict[str, object]): Raw payload containing raw LSE feed data.
+            self (dict[str, object]): Raw payload containing raw Turquoise feed data.
 
         Returns:
             dict[str, object]: A new dictionary with renamed keys and, if applicable,
@@ -69,7 +69,7 @@ class LseFeedData(BaseModel):
             # tidm → maps to RawEquity.symbol
             "symbol": raw.get("tidm"),
             "isin": raw.get("isin"),
-            # no CUSIP, CIK or FIGI in LSE feed, so omitting from model
+            # no CUSIP, CIK or FIGI in Turquoise feed, so omitting from model
             # default to XLON if mic not provided
             "mics": raw.get("mics") or ["XLON"],
             "currency": raw.get("currency"),
@@ -81,11 +81,11 @@ class LseFeedData(BaseModel):
             "fifty_two_week_min": raw.get("fiftyTwoWeeksMin"),
             # fiftyTwoWeeksMax → maps to RawEquity.fifty_two_week_max
             "fifty_two_week_max": raw.get("fiftyTwoWeeksMax"),
-            # no additional fields in LSE feed, so omitting from model
+            # no additional fields in Turquoise feed, so omitting from model
         }
 
     model_config = ConfigDict(
-        # ignore extra fields in incoming LSE raw data feed
+        # ignore extra fields in incoming Turquoise raw data feed
         extra="ignore",
         # defer strict type validation to RawEquity
         strict=False,

@@ -1,4 +1,4 @@
-# lse/session.py
+# turquoise/session.py
 
 import asyncio
 import logging
@@ -17,11 +17,11 @@ logger: logging.Logger = logging.getLogger(__name__)
 HttpRequestFunc = Callable[..., Awaitable[httpx.Response]]
 
 
-class LseSession:
+class TurquoiseSession:
     """
-    Asynchronous session for LSE JSON endpoints.
+    Asynchronous session for Turquoise JSON endpoints.
 
-    This class manages HTTP requests to the London Stock Exchange API, handling
+    This class manages HTTP requests to the Turquoise trading platform API, handling
     rate limits and 403 Forbidden responses with exponential backoff retry logic.
     It is lightweight and reusable, maintaining only a client and session state.
 
@@ -39,7 +39,7 @@ class LseSession:
         client: httpx.AsyncClient | None = None,
     ) -> None:
         """
-        Initialise a new LseSession for LSE JSON endpoints.
+        Initialise a new TurquoiseSession for Turquoise JSON endpoints.
 
         Args:
             client (httpx.AsyncClient | None): Optional pre-configured HTTP client.
@@ -68,7 +68,7 @@ class LseSession:
         params: Mapping[str, str] | None = None,
     ) -> httpx.Response:
         """
-        Perform a resilient asynchronous GET request to LSE endpoints.
+        Perform a resilient asynchronous GET request to Turquoise endpoints.
 
         This method applies exponential backoff on 403 Forbidden responses
         to handle rate limiting gracefully.
@@ -93,7 +93,7 @@ class LseSession:
         json: dict[str, object] | None = None,
     ) -> httpx.Response:
         """
-        Perform a resilient asynchronous POST request to LSE endpoints.
+        Perform a resilient asynchronous POST request to Turquoise endpoints.
 
         This method applies exponential backoff on 403 Forbidden responses
         to handle rate limiting gracefully.

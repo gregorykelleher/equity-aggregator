@@ -9,13 +9,13 @@
 
 ## Description
 
-Equity Aggregator is a financial data tool that collects and normalises raw equity data from authoritative sources (LSE, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
+Equity Aggregator is a financial data tool that collects and normalises raw equity data from authoritative sources (Turquoise, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
 
 Altogether, this tool makes it possible to retrieve up-to-date information on over 7,500+ equities from ten countries worldwide:
 
 | Source | Country | Description |
 |----------|---------|-------------|
-| 🇬🇧 LSE | United Kingdom | London Stock Exchange |
+| 🇬🇧 Turquoise | United Kingdom | Turquoise trading platform |
 | 🇺🇸 SEC | United States | Securities and Exchange Commission |
 | 🇩🇪 XETRA | Germany | Deutsche Börse electronic trading platform |
 
@@ -214,7 +214,7 @@ equity-aggregator export --output-dir /path/to/export/location
 
 #### Seed Command
 
-The `seed` command executes the complete equity aggregation pipeline, collecting raw data from authoritative sources (Euronext, LSE, SEC, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
+The `seed` command executes the complete equity aggregation pipeline, collecting raw data from authoritative sources (Euronext, Turquoise, SEC, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
 
 This command requires that the following API keys are set prior:
 
@@ -428,7 +428,7 @@ equity-aggregator/
 │   ├── domain/pipeline/             # Core aggregation pipeline
 │   │   └── transforms/              # Transformation stages
 │   ├── adapters/data_sources/       # External data integrations
-│   │   ├── authoritative_feeds/     # Primary sources (LSE, SEC, XETRA)
+│   │   ├── authoritative_feeds/     # Primary sources (Turquoise, SEC, XETRA)
 │   │   └── enrichment_feeds/        # Yahoo Finance integration
 │   ├── schemas/                     # Data validation and types
 │   └── storage/                     # Database operations
@@ -463,7 +463,7 @@ The codebase adheres to clean architecture principles with distinct layers:
 > [!IMPORTANT]
 > **Important Legal Notice**
 >
-> This software aggregates data from various third-party sources including Yahoo Finance, London Stock Exchange, SEC, and XETRA. Equity Aggregator is **not** affiliated, endorsed, or vetted by any of these organisations.
+> This software aggregates data from various third-party sources including Yahoo Finance, Turquoise trading platform, SEC, and XETRA. Equity Aggregator is **not** affiliated, endorsed, or vetted by any of these organisations.
 >
 > **Data Sources and Terms:**
 >

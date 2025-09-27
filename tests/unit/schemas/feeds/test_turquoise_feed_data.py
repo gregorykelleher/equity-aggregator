@@ -1,11 +1,11 @@
-# feeds/test_lse_feed_data.py
+# feeds/test_turquoise_feed_data.py
 
 from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
 
-from equity_aggregator.schemas import LseFeedData
+from equity_aggregator.schemas import TurquoiseFeedData
 
 pytestmark = pytest.mark.unit
 
@@ -13,7 +13,7 @@ pytestmark = pytest.mark.unit
 def test_strips_extra_fields() -> None:
     """
     ARRANGE: input with unexpected extra field
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  extra field is not present on the model
     """
     payload = {
@@ -25,7 +25,7 @@ def test_strips_extra_fields() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload, unexpected="FIELD")
+    actual = TurquoiseFeedData(**payload, unexpected="FIELD")
 
     assert not hasattr(actual, "unexpected")
 
@@ -33,7 +33,7 @@ def test_strips_extra_fields() -> None:
 def test_missing_required_raises() -> None:
     """
     ARRANGE: input missing required 'issuername' field
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  raises ValidationError
     """
     incomplete = {
@@ -45,13 +45,13 @@ def test_missing_required_raises() -> None:
     }
 
     with pytest.raises(ValidationError):
-        LseFeedData(**incomplete)
+        TurquoiseFeedData(**incomplete)
 
 
 def test_mics_default_to_xlon() -> None:
     """
     ARRANGE: omit 'mics' field
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  mics defaults to ['XLON']
     """
     payload = {
@@ -62,7 +62,7 @@ def test_mics_default_to_xlon() -> None:
         "marketcapitalization": 1000,
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.mics == ["XLON"]
 
@@ -70,7 +70,7 @@ def test_mics_default_to_xlon() -> None:
 def test_symbol_maps_from_tidm() -> None:
     """
     ARRANGE: provide 'tidm' field
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  symbol is set from tidm
     """
     payload = {
@@ -82,7 +82,7 @@ def test_symbol_maps_from_tidm() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.symbol == "TIDM123"
 
@@ -90,7 +90,7 @@ def test_symbol_maps_from_tidm() -> None:
 def test_last_price_and_market_cap_types() -> None:
     """
     ARRANGE: lastprice and marketcapitalization as int, float, str, Decimal
-    ACT:     construct LseFeedData for each type
+    ACT:     construct TurquoiseFeedData for each type
     ASSERT:  values are preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
@@ -103,7 +103,7 @@ def test_last_price_and_market_cap_types() -> None:
             "mics": ["XLON"],
         }
 
-        actual = LseFeedData(**payload)
+        actual = TurquoiseFeedData(**payload)
 
         assert actual.last_price == candidate
 
@@ -111,7 +111,7 @@ def test_last_price_and_market_cap_types() -> None:
 def test_last_price_can_be_none() -> None:
     """
     ARRANGE: lastprice is None
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is preserved as None
     """
     payload = {
@@ -123,7 +123,7 @@ def test_last_price_can_be_none() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.last_price is None
 
@@ -131,7 +131,7 @@ def test_last_price_can_be_none() -> None:
 def test_market_cap_can_be_none() -> None:
     """
     ARRANGE: marketcapitalization is None
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  market_cap is preserved as None
     """
     payload = {
@@ -143,7 +143,7 @@ def test_market_cap_can_be_none() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.market_cap is None
 
@@ -151,7 +151,7 @@ def test_market_cap_can_be_none() -> None:
 def test_currency_case_and_whitespace_preserved() -> None:
     """
     ARRANGE: currency is lowercase and padded
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  currency is preserved as given (no uppercase enforcement)
     """
     payload = {
@@ -163,7 +163,7 @@ def test_currency_case_and_whitespace_preserved() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.currency == " gbp "
 
@@ -171,7 +171,7 @@ def test_currency_case_and_whitespace_preserved() -> None:
 def test_omits_isin_sets_none() -> None:
     """
     ARRANGE: omit 'isin' field
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  isin is set to None
     """
     payload = {
@@ -183,7 +183,7 @@ def test_omits_isin_sets_none() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.isin is None
 
@@ -191,7 +191,7 @@ def test_omits_isin_sets_none() -> None:
 def test_last_price_string_with_comma() -> None:
     """
     ARRANGE: lastprice as string with comma decimal
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is preserved as string
     """
     payload = {
@@ -203,7 +203,7 @@ def test_last_price_string_with_comma() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.last_price == "1,23"
 
@@ -211,7 +211,7 @@ def test_last_price_string_with_comma() -> None:
 def test_mics_from_field() -> None:
     """
     ARRANGE: provide 'mics' field
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  mics is set as given
     """
     payload = {
@@ -223,7 +223,7 @@ def test_mics_from_field() -> None:
         "mics": ["XLON", "XOFF"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.mics == ["XLON", "XOFF"]
 
@@ -231,7 +231,7 @@ def test_mics_from_field() -> None:
 def test_gbx_currency_converts_price_and_currency() -> None:
     """
     ARRANGE: currency is GBX and lastprice is pence string
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is converted to pounds and currency to GBP
     """
     payload = {
@@ -243,7 +243,7 @@ def test_gbx_currency_converts_price_and_currency() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.last_price == Decimal("1.2345")
 
@@ -251,7 +251,7 @@ def test_gbx_currency_converts_price_and_currency() -> None:
 def test_gbx_currency_converts_currency_to_gbp() -> None:
     """
     ARRANGE: currency is GBX
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  currency is converted to GBP
     """
     payload = {
@@ -263,7 +263,7 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.currency == "GBP"
 
@@ -271,7 +271,7 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
 def test_gbx_currency_handles_invalid_lastprice() -> None:
     """
     ARRANGE: currency is GBX and lastprice is not a number
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is None (conversion fails)
     """
     payload = {
@@ -283,7 +283,7 @@ def test_gbx_currency_handles_invalid_lastprice() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.last_price is None and actual.currency == "GBP"
 
@@ -291,7 +291,7 @@ def test_gbx_currency_handles_invalid_lastprice() -> None:
 def test_gbx_currency_with_none_lastprice() -> None:
     """
     ARRANGE: currency is GBX and lastprice is None
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is None
     """
     payload = {
@@ -303,7 +303,7 @@ def test_gbx_currency_with_none_lastprice() -> None:
         "mics": ["XLON"],
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert actual.last_price is None and actual.currency == "GBP"
 
@@ -311,7 +311,7 @@ def test_gbx_currency_with_none_lastprice() -> None:
 def test_extra_field_is_ignored() -> None:
     """
     ARRANGE: input with an extra unexpected field
-    ACT:     construct LseFeedData
+    ACT:     construct TurquoiseFeedData
     ASSERT:  extra field is not present on the model
     """
     payload = {
@@ -324,7 +324,7 @@ def test_extra_field_is_ignored() -> None:
         "extra": "should be ignored",
     }
 
-    actual = LseFeedData(**payload)
+    actual = TurquoiseFeedData(**payload)
 
     assert not hasattr(actual, "extra")
 
@@ -332,7 +332,7 @@ def test_extra_field_is_ignored() -> None:
 def test_accepts_various_last_price_types() -> None:
     """
     ARRANGE: lastprice as int, float, str, Decimal
-    ACT:     construct LseFeedData for each type
+    ACT:     construct TurquoiseFeedData for each type
     ASSERT:  last_price is preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
@@ -345,6 +345,6 @@ def test_accepts_various_last_price_types() -> None:
             "mics": ["XLON"],
         }
 
-        actual = LseFeedData(**payload)
+        actual = TurquoiseFeedData(**payload)
 
         assert actual.last_price == candidate

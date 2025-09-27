@@ -313,7 +313,7 @@ def test_convert_fifty_two_week_min() -> None:
         name="WEEKLY",
         symbol="WKL",
         currency="EUR",
-        fifty_two_week_min=Decimal("4.00"),   # 4 EUR -> 5 USD
+        fifty_two_week_min=Decimal("4.00"),  # 4 EUR -> 5 USD
     )
 
     actual = convert(equity)

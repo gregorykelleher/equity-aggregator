@@ -1,4 +1,4 @@
-# authoritative_feeds/lse/feed.py
+# authoritative_feeds/turquoise/feed.py
 
 import asyncio
 import logging
@@ -12,11 +12,11 @@ from equity_aggregator.adapters.data_sources.authoritative_feeds._record_types i
 )
 from equity_aggregator.storage import load_cache, save_cache
 
-from .session import LseSession
+from .session import TurquoiseSession
 
 logger = logging.getLogger(__name__)
 
-_LSE_SEARCH_URL = "https://api.londonstockexchange.com/api/v1/components/refresh"
+_TURQUOISE_SEARCH_URL = "https://api.londonstockexchange.com/api/v1/components/refresh"
 
 _HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -30,33 +30,33 @@ _HEADERS = {
 
 
 async def fetch_equity_records(
-    session: LseSession | None = None,
+    session: TurquoiseSession | None = None,
     *,
-    cache_key: str = "lse_records",
+    cache_key: str = "turquoise_records",
 ) -> RecordStream:
     """
-    Yield each LSE equity record exactly once, using cache if available.
+    Yield each Turquoise equity record exactly once, using cache if available.
 
     If a cache is present, loads and yields records from cache. Otherwise, streams
     all MICs concurrently, yields records as they arrive, and caches the results.
 
     Args:
-        session (LseSession | None): Optional LSE session to use for requests.
+        session (TurquoiseSession | None): Optional Turquoise session for requests.
         cache_key (str): The key under which to cache the records.
 
     Yields:
-        EquityRecord: Parsed LSE equity record.
+        EquityRecord: Parsed Turquoise equity record.
     """
     cached = load_cache(cache_key)
 
     if cached:
-        logger.info("Loaded %d LSE records from cache.", len(cached))
+        logger.info("Loaded %d Turquoise records from cache.", len(cached))
         for record in cached:
             yield record
         return
 
-    # use provided session or create a bespoke lse session
-    session = session or LseSession(make_client(headers=_HEADERS))
+    # use provided session or create a bespoke turquoise session
+    session = session or TurquoiseSession(make_client(headers=_HEADERS))
 
     try:
         async for record in _stream_and_cache(session, cache_key=cache_key):
@@ -66,19 +66,19 @@ async def fetch_equity_records(
 
 
 async def _stream_and_cache(
-    session: LseSession,
+    session: TurquoiseSession,
     *,
     cache_key: str,
 ) -> RecordStream:
     """
-    Asynchronously stream unique LSE equity records, cache them, and yield each.
+    Asynchronously stream unique Turquoise equity records, cache them, and yield each.
 
     Args:
-        session (LseSession): The LSE session used for requests.
+        session (TurquoiseSession): The Turquoise session used for requests.
         cache_key (str): The key under which to cache the records.
 
     Yields:
-        EquityRecord: Each unique LSE equity record as it is retrieved.
+        EquityRecord: Each unique Turquoise equity record as it is retrieved.
 
     Side Effects:
         Saves all streamed records to cache after streaming completes.
@@ -94,7 +94,7 @@ async def _stream_and_cache(
         yield record
 
     save_cache(cache_key, buffer)
-    logger.info("Saved %d LSE records to cache.", len(buffer))
+    logger.info("Saved %d Turquoise records to cache.", len(buffer))
 
 
 def _deduplicate_records(extract_key: RecordUniqueKeyExtractor) -> UniqueRecordStream:
@@ -121,12 +121,12 @@ def _deduplicate_records(extract_key: RecordUniqueKeyExtractor) -> UniqueRecordS
     return deduplicator
 
 
-async def _stream_all_pages(session: LseSession) -> RecordStream:
+async def _stream_all_pages(session: TurquoiseSession) -> RecordStream:
     """
-    Stream all LSE equity records across all pages.
+    Stream all Turquoise equity records across all pages.
 
     Args:
-        session (LseSession): The LSE session used for requests.
+        session (TurquoiseSession): The Turquoise session used for requests.
 
     Yields:
         EquityRecord: Each equity record from all pages, as soon as it is available.
@@ -143,7 +143,7 @@ async def _stream_all_pages(session: LseSession) -> RecordStream:
     for record in first_page_records:
         yield record
 
-    logger.debug("LSE page 1 completed")
+    logger.debug("Turquoise page 1 completed")
 
     # if there is only a single page, just return early
     if total_pages <= 1:
@@ -164,15 +164,15 @@ async def _stream_all_pages(session: LseSession) -> RecordStream:
 
 
 async def _produce_page(
-    session: LseSession,
+    session: TurquoiseSession,
     page: int,
     queue: asyncio.Queue[EquityRecord | None],
 ) -> None:
     """
-    Fetch a single LSE page, enqueue its records, and signal completion.
+    Fetch a single Turquoise page, enqueue its records, and signal completion.
 
     Args:
-        session (LseSession): The LSE session for making requests.
+        session (TurquoiseSession): The Turquoise session for making requests.
         page (int): The 1-based page number to fetch.
         queue (asyncio.Queue[EquityRecord | None]): Queue to put records and sentinel.
 
@@ -189,10 +189,10 @@ async def _produce_page(
         for record in _extract_records(page_json):
             await queue.put(record)
 
-        logger.debug("LSE page %s completed", page)
+        logger.debug("Turquoise page %s completed", page)
 
     except Exception as error:
-        logger.fatal("LSE page %s failed: %s", page, error, exc_info=True)
+        logger.fatal("Turquoise page %s failed: %s", page, error, exc_info=True)
         raise
 
     finally:
@@ -225,25 +225,25 @@ async def _consume_queue(
             yield item
 
 
-async def _fetch_page(session: LseSession, page: int) -> dict[str, object]:
+async def _fetch_page(session: TurquoiseSession, page: int) -> dict[str, object]:
     """
-    Fetch a single page of results from the LSE feed.
+    Fetch a single page of results from the Turquoise feed.
 
-    Sends a POST request to the LSE search endpoint with the specified page and
+    Sends a POST request to the Turquoise search endpoint with the specified page and
     returns the parsed JSON response. HTTP and JSON errors are propagated to the caller.
 
     Args:
-        session (LseSession): The LSE session used to send the request.
+        session (TurquoiseSession): The Turquoise session used to send the request.
         page (int): The 1-based page number to fetch.
 
     Returns:
-        dict[str, object]: The parsed JSON response from the LSE feed.
+        dict[str, object]: The parsed JSON response from the Turquoise feed.
 
         httpx.HTTPStatusError: If the response status is not successful.
         httpx.ReadError: If there is a network or connection error.
         ValueError: If the response body cannot be parsed as JSON.
     """
-    response = await session.post(_LSE_SEARCH_URL, json=_build_payload(page))
+    response = await session.post(_TURQUOISE_SEARCH_URL, json=_build_payload(page))
     response.raise_for_status()
 
     try:
@@ -251,7 +251,7 @@ async def _fetch_page(session: LseSession, page: int) -> dict[str, object]:
 
     except (ValueError, IndexError) as error:
         logger.fatal(
-            "LSE JSON decode error at page %s: %s",
+            "Turquoise JSON decode error at page %s: %s",
             page,
             error,
             exc_info=True,
@@ -261,10 +261,10 @@ async def _fetch_page(session: LseSession, page: int) -> dict[str, object]:
 
 def _extract_records(page_response_json: dict[str, object]) -> list[EquityRecord]:
     """
-    Normalise raw LSE JSON page data into a list of EquityRecord dictionaries.
+    Normalise raw Turquoise JSON page data into a list of EquityRecord dictionaries.
 
     Args:
-        page_response_json (dict[str, object]): Parsed JSON response from a LSE page.
+        page_response_json (dict[str, object]): Parsed JSON response from Turquoise.
 
     Returns:
         list[EquityRecord]: A list of normalised equity records, each as a dictionary
@@ -283,10 +283,10 @@ def _extract_records(page_response_json: dict[str, object]) -> list[EquityRecord
 
 def _get_total_pages(page_json: dict[str, object]) -> int:
     """
-    Extract the total number of pages from the first page of LSE results.
+    Extract the total number of pages from the first page of Turquoise results.
 
     Args:
-        page_json (dict[str, object]): Parsed JSON response from a LSE page.
+        page_json (dict[str, object]): Parsed JSON response from a Turquoise page.
 
     Returns:
         int: The total number of result pages. Returns 1 if not found.
@@ -297,7 +297,7 @@ def _get_total_pages(page_json: dict[str, object]) -> int:
 
 def _build_payload(page: int, page_size: int = 100) -> dict[str, object]:
     """
-    Construct the JSON payload for a LSE search POST request.
+    Construct the JSON payload for a Turquoise search POST request.
 
     Args:
         page (int): The 1-based page number to request.
@@ -326,11 +326,11 @@ def _build_payload(page: int, page_size: int = 100) -> dict[str, object]:
 
 def _parse_equities(page_json: dict[str, object]) -> tuple[list[dict], int | None]:
     """
-    Extracts equity data rows and total page count from a LSE price explorer JSON block.
+    Extracts data rows and total page count from a Turquoise price explorer JSON block.
 
     Args:
         page_json (dict[str, object]): The JSON dictionary representing a page of
-            LSE data, expected to contain a "content" key with blocks.
+            Turquoise data, expected to contain a "content" key with blocks.
 
     Returns:
         tuple[list[dict], int | None]: A tuple containing:

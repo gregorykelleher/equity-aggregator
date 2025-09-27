@@ -1,4 +1,4 @@
-# authoritative_feeds/lse/__init__.py
+# authoritative_feeds/turquoise/__init__.py
 
 from .feed import fetch_equity_records
 

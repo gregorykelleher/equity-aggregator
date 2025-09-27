@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from equity_aggregator.adapters import (
-    fetch_equity_records_lse,
+    fetch_equity_records_turquoise,
     fetch_equity_records_xetra,
 )
 
@@ -14,7 +14,7 @@ pytestmark = pytest.mark.live
 
 # Map of exchange names to their fetch functions
 FEEDS: list[tuple[str, Any]] = [
-    ("LSE", fetch_equity_records_lse),
+    ("Turquoise", fetch_equity_records_turquoise),
     ("Xetra", fetch_equity_records_xetra),
 ]
 

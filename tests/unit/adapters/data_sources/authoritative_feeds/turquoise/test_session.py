@@ -1,4 +1,4 @@
-# lse/test_session.py
+# turquoise/test_session.py
 
 import asyncio
 from collections import deque
@@ -6,8 +6,8 @@ from collections import deque
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lse.session import (
-    LseSession,
+from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.session import (
+    TurquoiseSession,
 )
 from tests.unit.adapters.data_sources.enrichment_feeds.yfinance._helpers import (
     close,
@@ -29,7 +29,7 @@ async def test_get_defaults_params_to_empty_dict() -> None:
         captured["params"] = dict(request.url.params)
         return httpx.Response(200)
 
-    session = LseSession(make_client(handler))
+    session = TurquoiseSession(make_client(handler))
 
     await session.get("https://dummy.com")
     await close(session._client)
@@ -49,7 +49,7 @@ async def test_get_passes_through_params() -> None:
         captured["params"] = dict(request.url.params)
         return httpx.Response(200)
 
-    session = LseSession(make_client(handler))
+    session = TurquoiseSession(make_client(handler))
 
     await session.get("https://dummy.com", params={"key": "value"})
     await close(session._client)
@@ -71,7 +71,7 @@ async def test_post_sends_json_payload() -> None:
         captured["json"] = json.loads(request.content)
         return httpx.Response(200)
 
-    session = LseSession(make_client(handler))
+    session = TurquoiseSession(make_client(handler))
 
     await session.post("https://dummy.com", json={"key": "value"})
     await close(session._client)
@@ -86,7 +86,7 @@ async def test_aclose_marks_client_closed() -> None:
     ASSERT:  client reports closed
     """
     client = make_client(lambda r: httpx.Response(200))
-    session = LseSession(client)
+    session = TurquoiseSession(client)
 
     await session.aclose()
 
@@ -104,7 +104,7 @@ async def test_get_retries_after_403_forbidden() -> None:
     async def handler(_request: httpx.Request) -> httpx.Response:
         return responses.popleft()
 
-    session = LseSession(make_client(handler))
+    session = TurquoiseSession(make_client(handler))
 
     response = await session.get("https://dummy.com")
     await close(session._client)
@@ -123,7 +123,7 @@ async def test_post_retries_after_403_forbidden() -> None:
     async def handler(_request: httpx.Request) -> httpx.Response:
         return responses.popleft()
 
-    session = LseSession(make_client(handler))
+    session = TurquoiseSession(make_client(handler))
 
     response = await session.post("https://dummy.com", json={"test": "data"})
     await close(session._client)
@@ -150,7 +150,7 @@ async def test_get_raises_lookup_error_after_max_retries() -> None:
     asyncio.sleep = instant_sleep
 
     try:
-        session = LseSession(make_client(always_403))
+        session = TurquoiseSession(make_client(always_403))
 
         with pytest.raises(LookupError, match="HTTP 403 Forbidden after retries"):
             await session.get("https://dummy.com")
@@ -180,7 +180,7 @@ async def test_post_raises_lookup_error_after_max_retries() -> None:
     asyncio.sleep = instant_sleep
 
     try:
-        session = LseSession(make_client(always_403))
+        session = TurquoiseSession(make_client(always_403))
 
         with pytest.raises(LookupError, match="HTTP 403 Forbidden after retries"):
             await session.post("https://dummy.com", json={"test": "data"})
@@ -203,7 +203,7 @@ async def test_get_returns_non_403_immediately() -> None:
         call_count["count"] += 1
         return httpx.Response(404)
 
-    session = LseSession(make_client(handler))
+    session = TurquoiseSession(make_client(handler))
 
     response = await session.get("https://dummy.com")
     await close(session._client)
@@ -224,7 +224,7 @@ async def test_post_returns_non_403_immediately() -> None:
         call_count["count"] += 1
         return httpx.Response(500)
 
-    session = LseSession(make_client(handler))
+    session = TurquoiseSession(make_client(handler))
 
     response = await session.post("https://dummy.com", json={"test": "data"})
     await close(session._client)
@@ -256,7 +256,7 @@ async def test_get_with_backoff_respects_max_attempts() -> None:
     asyncio.sleep = instant_sleep
 
     try:
-        session = LseSession(make_client(handler))
+        session = TurquoiseSession(make_client(handler))
 
         response = await session.get("https://dummy.com")
         await close(session._client)
@@ -291,7 +291,7 @@ async def test_post_with_backoff_respects_max_attempts() -> None:
     asyncio.sleep = instant_sleep
 
     try:
-        session = LseSession(make_client(handler))
+        session = TurquoiseSession(make_client(handler))
 
         response = await session.post("https://dummy.com", json={"test": "data"})
         await close(session._client)
