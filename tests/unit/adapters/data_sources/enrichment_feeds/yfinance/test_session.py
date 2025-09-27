@@ -227,7 +227,7 @@ async def test_get_with_backoff_returns_200_after_retry() -> None:
 async def test_get_with_backoff_propagates_protocol_error() -> None:
     """
     ARRANGE: first response 429; _safe_get raises ProtocolError
-    ACT:     call _get_with_backoff directly
+    ACT:     call _retry_with_backoff directly
     ASSERT:  ProtocolError is re-raised
     """
 
@@ -239,13 +239,13 @@ async def test_get_with_backoff_propagates_protocol_error() -> None:
     sess = ErrorSession(FeedConfig(), make_client(lambda r: first429))
 
     with pytest.raises(httpx.ProtocolError):
-        await sess._get_with_backoff("https://dummy", {}, first429)
+        await sess._retry_with_backoff("https://dummy", {}, first429)
 
 
 async def test_get_with_backoff_returns_after_max_attempts() -> None:
     """
     ARRANGE: all five retries stay 429, sleep mocked to zero-delay
-    ACT:     call _get_with_backoff directly
+    ACT:     call _retry_with_backoff directly
     ASSERT:  response with status 429 is returned after loop completes
     """
 
@@ -269,7 +269,7 @@ async def test_get_with_backoff_returns_after_max_attempts() -> None:
 
         session = Always429(FeedConfig(), make_client(lambda r: first))
 
-        final = await session._get_with_backoff("https://dummy", {}, first)
+        final = await session._retry_with_backoff("https://dummy", {}, first)
 
         assert final.status_code == expected_status_code
 
