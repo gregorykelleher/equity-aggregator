@@ -1,4 +1,4 @@
-# authoritative_feeds/_record_types.py
+# _utils/_record_types.py
 
 from collections.abc import AsyncIterator, Callable
 
