@@ -46,13 +46,12 @@ def test_parse_valid_turquoise_record_converts_gbx_and_defaults_mics() -> None:
     ASSERT:  yields exactly one RawEquity with converted price and default mics
     """
     raw = {
-        "issuername": "Turquoise CO",
-        "tidm": "LSEC",
+        "name": "Turquoise CO",
+        "symbol": "LSEC",
         "isin": None,
         "mics": None,
         "currency": "GBX",
-        "lastprice": "123,45",  # 123.45 pence => £1.2345
-        "marketcapitalization": "2000",
+        "lastvalue": "123,45",  # 123.45 pence => £1.2345
     }
     record = FeedRecord(TurquoiseFeedData, raw)
 
@@ -68,7 +67,7 @@ def test_parse_valid_turquoise_record_converts_gbx_and_defaults_mics() -> None:
             equity.mics,
         )
         for equity in actual
-    ] == [("TURQUOISE CO", "LSEC", "GBP", Decimal("1.2345"), Decimal("2000"), ["XLON"])]
+    ] == [("TURQUOISE CO", "LSEC", "GBP", Decimal("1.2345"), None, None)]
 
 
 def test_parse_valid_xetra_record_defaults_mics_and_flattens_fields() -> None:
@@ -122,12 +121,11 @@ def test_parse_skips_invalid_records_across_feeds() -> None:
     """
 
     missing_name_gbx = {
-        "tidm": "B2",
+        "symbol": "B2",
         "isin": None,
         "mics": [],
         "currency": "GBX",
-        "lastprice": "not_a_number",
-        "marketcapitalization": "100",
+        "lastvalue": "not_a_number",
     }
     missing_overview = {
         "name": "X",
@@ -157,13 +155,12 @@ def test_parse_turquoise_record_non_gbx_pass_through() -> None:
     """
 
     raw = {
-        "issuername": "ABC LTD",
-        "tidm": "ABCL",
+        "name": "ABC LTD",
+        "symbol": "ABCL",
         "isin": None,
         "mics": ["XLON"],
         "currency": "GBP",
-        "lastprice": "250",
-        "marketcapitalization": "5000",
+        "lastvalue": "250",
     }
 
     record = FeedRecord(TurquoiseFeedData, raw)
@@ -182,13 +179,12 @@ def test_parse_turquoise_gbx_with_none_lastprice() -> None:
     ASSERT:  yields exactly one RawEquity with last_price None and currency 'GBP'
     """
     raw = {
-        "issuername": "XYZ PLC",
-        "tidm": "XYZ",
+        "name": "XYZ PLC",
+        "symbol": "XYZ",
         "isin": None,
         "mics": None,
         "currency": "GBX",
-        "lastprice": None,
-        "marketcapitalization": "1000",
+        "lastvalue": None,
     }
     record = FeedRecord(TurquoiseFeedData, raw)
 
@@ -204,7 +200,7 @@ def test_parse_turquoise_gbx_with_none_lastprice() -> None:
             equity.mics,
         )
         for equity in actual
-    ] == [("XYZ PLC", "XYZ", "GBP", None, Decimal("1000"), ["XLON"])]
+    ] == [("XYZ PLC", "XYZ", "GBP", None, None, None)]
 
 
 def test_parse_xetra_only_key_data() -> None:
@@ -239,13 +235,12 @@ def test_parse_preserves_input_order_across_feeds() -> None:
     """
 
     raw_turquoise_data = {
-        "issuername": "L2",
-        "tidm": "L2",
+        "name": "L2",
+        "symbol": "L2",
         "isin": None,
         "mics": ["XLON"],
         "currency": "GBP",
-        "lastprice": "200",
-        "marketcapitalization": "300",
+        "lastvalue": "200",
     }
     raw_xetra_data = {
         "name": "X3",
