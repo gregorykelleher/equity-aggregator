@@ -6,12 +6,12 @@ import asyncio
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.feed import (
-    YFinanceFeed,
-    _choose_symbol,
-)
 from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.utils import (
     pick_best_symbol,
+)
+from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.yfinance import (
+    YFinanceFeed,
+    _choose_symbol,
 )
 from equity_aggregator.storage import (
     load_cache_entry,

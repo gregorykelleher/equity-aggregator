@@ -1,4 +1,4 @@
-# yfinance/feed.py
+# yfinance/yfinance.py
 
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
