@@ -17,16 +17,15 @@ class TurquoiseFeedData(BaseModel):
     pounds (GBP) for consistency.
 
     Args:
-        name (str): The issuer's full name, mapped from "issuername".
-        symbol (str): The tradable instrument mnemonic, mapped from "tidm".
+        name (str): The issuer's full name, mapped from "name".
+        symbol (str): The tradable instrument symbol, mapped from "symbol".
         isin (str | None): The ISIN identifier, if available.
-        mics (list[str]): List of MIC codes for trading venues; defaults to ["XLON"].
+        mics (list[str] | None): List of MIC codes for trading venues; currently None
+            pending implementation of market-to-MIC mapping.
         currency (str | None): The trading currency code, with "GBX" converted to
             "GBP" if applicable.
         last_price (str | float | int | Decimal | None): Last traded price, mapped
-            from "lastprice" and converted from pence to pounds if currency is "GBX".
-        market_cap (str | float | int | Decimal | None): Market capitalisation, mapped
-            from "marketcapitalization".
+            from "lastvalue" and converted from pence to pounds if currency is "GBX".
 
     Returns:
         TurquoiseFeedData: An instance with fields normalised for RawEquity validation,
@@ -37,12 +36,9 @@ class TurquoiseFeedData(BaseModel):
     name: str
     symbol: str
     isin: str | None
-    mics: list[str]
+    mics: list[str] | None
     currency: str | None
     last_price: str | float | int | Decimal | None
-    market_cap: str | float | int | Decimal | None
-    fifty_two_week_min: str | float | int | Decimal | None = None
-    fifty_two_week_max: str | float | int | Decimal | None = None
 
     @model_validator(mode="before")
     def _normalise_fields(self: dict[str, object]) -> dict[str, object]:
@@ -64,23 +60,15 @@ class TurquoiseFeedData(BaseModel):
         # convert GBX to GBP
         raw = convert_gbx_to_gbp(self)
         return {
-            # issuername → maps to RawEquity.name
-            "name": raw.get("issuername"),
-            # tidm → maps to RawEquity.symbol
-            "symbol": raw.get("tidm"),
+            "name": raw.get("name"),
+            "symbol": raw.get("symbol"),
             "isin": raw.get("isin"),
             # no CUSIP, CIK or FIGI in Turquoise feed, so omitting from model
-            # default to XLON if mic not provided
-            "mics": raw.get("mics") or ["XLON"],
+            # TODO: derive MIC from market field (e.g., Brussels->XBRU, Amsterdam->XAMS)
+            "mics": None,
             "currency": raw.get("currency"),
-            # lastprice → maps to RawEquity.last_price
-            "last_price": raw.get("lastprice"),
-            # marketcapitalization → maps to RawEquity.market_cap
-            "market_cap": raw.get("marketcapitalization"),
-            # fiftyTwoWeeksMin → maps to RawEquity.fifty_two_week_min
-            "fifty_two_week_min": raw.get("fiftyTwoWeeksMin"),
-            # fiftyTwoWeeksMax → maps to RawEquity.fifty_two_week_max
-            "fifty_two_week_max": raw.get("fiftyTwoWeeksMax"),
+            # lastvalue → maps to RawEquity.last_price
+            "last_price": raw.get("lastvalue"),
             # no additional fields in Turquoise feed, so omitting from model
         }
 
@@ -143,15 +131,15 @@ def convert_gbx_to_gbp(raw: dict) -> dict:
     if raw.get("currency") != "GBX":
         return raw
 
-    pence = raw.get("lastprice")
+    pence = raw.get("lastvalue")
     amount = _gbx_to_decimal(pence)
 
     updates = {"currency": "GBP"}
     if amount is None:
-        updates["lastprice"] = None
+        updates["lastvalue"] = None
     else:
         # convert pence to pounds
-        updates["lastprice"] = amount / Decimal("100")
+        updates["lastvalue"] = amount / Decimal("100")
 
     # return a new dict rather than mutating in place
     return {**raw, **updates}

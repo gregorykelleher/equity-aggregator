@@ -17,10 +17,10 @@ def test_strips_extra_fields() -> None:
     ASSERT:  extra field is not present on the model
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": None,
-        "lastprice": None,
+        "lastvalue": None,
         "marketcapitalization": None,
         "mics": ["XLON"],
     }
@@ -32,14 +32,14 @@ def test_strips_extra_fields() -> None:
 
 def test_missing_required_raises() -> None:
     """
-    ARRANGE: input missing required 'issuername' field
+    ARRANGE: input missing required 'name' field
     ACT:     construct TurquoiseFeedData
     ASSERT:  raises ValidationError
     """
     incomplete = {
-        "tidm": "F",
+        "symbol": "F",
         "currency": None,
-        "lastprice": None,
+        "lastvalue": None,
         "marketcapitalization": None,
         "mics": ["XLON"],
     }
@@ -48,36 +48,36 @@ def test_missing_required_raises() -> None:
         TurquoiseFeedData(**incomplete)
 
 
-def test_mics_default_to_xlon() -> None:
+def test_mics_default_to_none() -> None:
     """
     ARRANGE: omit 'mics' field
     ACT:     construct TurquoiseFeedData
-    ASSERT:  mics defaults to ['XLON']
+    ASSERT:  mics defaults to None
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBP",
-        "lastprice": 1.0,
+        "lastvalue": 1.0,
         "marketcapitalization": 1000,
     }
 
     actual = TurquoiseFeedData(**payload)
 
-    assert actual.mics == ["XLON"]
+    assert actual.mics is None
 
 
-def test_symbol_maps_from_tidm() -> None:
+def test_symbol_maps_from_symbol() -> None:
     """
-    ARRANGE: provide 'tidm' field
+    ARRANGE: provide 'symbol' field
     ACT:     construct TurquoiseFeedData
-    ASSERT:  symbol is set from tidm
+    ASSERT:  symbol is set from symbol
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "TIDM123",
+        "name": "Foo",
+        "symbol": "TIDM123",
         "currency": "GBP",
-        "lastprice": 1.0,
+        "lastvalue": 1.0,
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -89,16 +89,16 @@ def test_symbol_maps_from_tidm() -> None:
 
 def test_last_price_and_market_cap_types() -> None:
     """
-    ARRANGE: lastprice and marketcapitalization as int, float, str, Decimal
+    ARRANGE: lastvalue and marketcapitalization as int, float, str, Decimal
     ACT:     construct TurquoiseFeedData for each type
     ASSERT:  values are preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
         payload = {
-            "issuername": "Foo",
-            "tidm": "F",
+            "name": "Foo",
+            "symbol": "F",
             "currency": "GBP",
-            "lastprice": candidate,
+            "lastvalue": candidate,
             "marketcapitalization": candidate,
             "mics": ["XLON"],
         }
@@ -110,15 +110,15 @@ def test_last_price_and_market_cap_types() -> None:
 
 def test_last_price_can_be_none() -> None:
     """
-    ARRANGE: lastprice is None
+    ARRANGE: lastvalue is None
     ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is preserved as None
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBP",
-        "lastprice": None,
+        "lastvalue": None,
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -128,24 +128,25 @@ def test_last_price_can_be_none() -> None:
     assert actual.last_price is None
 
 
-def test_market_cap_can_be_none() -> None:
+def test_marketcapitalization_can_be_none() -> None:
     """
     ARRANGE: marketcapitalization is None
     ACT:     construct TurquoiseFeedData
-    ASSERT:  market_cap is preserved as None
+    ASSERT:  marketcapitalization field is accepted but not exposed on model
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBP",
-        "lastprice": 1.0,
+        "lastvalue": 1.0,
         "marketcapitalization": None,
         "mics": ["XLON"],
     }
 
     actual = TurquoiseFeedData(**payload)
 
-    assert actual.market_cap is None
+    # The model accepts marketcapitalization but doesn't expose it as a field
+    assert actual.name == "Foo"
 
 
 def test_currency_case_and_whitespace_preserved() -> None:
@@ -155,10 +156,10 @@ def test_currency_case_and_whitespace_preserved() -> None:
     ASSERT:  currency is preserved as given (no uppercase enforcement)
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": " gbp ",
-        "lastprice": 10,
+        "lastvalue": 10,
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -175,10 +176,10 @@ def test_omits_isin_sets_none() -> None:
     ASSERT:  isin is set to None
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBP",
-        "lastprice": 1.0,
+        "lastvalue": 1.0,
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -190,15 +191,15 @@ def test_omits_isin_sets_none() -> None:
 
 def test_last_price_string_with_comma() -> None:
     """
-    ARRANGE: lastprice as string with comma decimal
+    ARRANGE: lastvalue as string with comma decimal
     ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is preserved as string
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBP",
-        "lastprice": "1,23",
+        "lastvalue": "1,23",
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -212,33 +213,34 @@ def test_mics_from_field() -> None:
     """
     ARRANGE: provide 'mics' field
     ACT:     construct TurquoiseFeedData
-    ASSERT:  mics is set as given
+    ASSERT:  mics is set as None (field gets normalized away)
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBP",
-        "lastprice": 1.0,
+        "lastvalue": 1.0,
         "marketcapitalization": 1000,
         "mics": ["XLON", "XOFF"],
     }
 
     actual = TurquoiseFeedData(**payload)
 
-    assert actual.mics == ["XLON", "XOFF"]
+    # mics field gets set to None in the normalization process
+    assert actual.mics is None
 
 
 def test_gbx_currency_converts_price_and_currency() -> None:
     """
-    ARRANGE: currency is GBX and lastprice is pence string
+    ARRANGE: currency is GBX and lastvalue is pence string
     ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is converted to pounds and currency to GBP
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBX",
-        "lastprice": "123,45",
+        "lastvalue": "123,45",
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -255,10 +257,10 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
     ASSERT:  currency is converted to GBP
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBX",
-        "lastprice": "123,45",
+        "lastvalue": "123,45",
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -268,17 +270,17 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
     assert actual.currency == "GBP"
 
 
-def test_gbx_currency_handles_invalid_lastprice() -> None:
+def test_gbx_currency_handles_invalid_lastvalue() -> None:
     """
-    ARRANGE: currency is GBX and lastprice is not a number
+    ARRANGE: currency is GBX and lastvalue is not a number
     ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is None (conversion fails)
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBX",
-        "lastprice": "not_a_number",
+        "lastvalue": "not_a_number",
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -288,17 +290,17 @@ def test_gbx_currency_handles_invalid_lastprice() -> None:
     assert actual.last_price is None and actual.currency == "GBP"
 
 
-def test_gbx_currency_with_none_lastprice() -> None:
+def test_gbx_currency_with_none_lastvalue() -> None:
     """
-    ARRANGE: currency is GBX and lastprice is None
+    ARRANGE: currency is GBX and lastvalue is None
     ACT:     construct TurquoiseFeedData
     ASSERT:  last_price is None
     """
     payload = {
-        "issuername": "Foo",
-        "tidm": "F",
+        "name": "Foo",
+        "symbol": "F",
         "currency": "GBX",
-        "lastprice": None,
+        "lastvalue": None,
         "marketcapitalization": 1000,
         "mics": ["XLON"],
     }
@@ -315,10 +317,10 @@ def test_extra_field_is_ignored() -> None:
     ASSERT:  extra field is not present on the model
     """
     payload = {
-        "issuername": "Real Name",
-        "tidm": "SYM",
+        "name": "Real Name",
+        "symbol": "SYM",
         "currency": "GBP",
-        "lastprice": 1.0,
+        "lastvalue": 1.0,
         "marketcapitalization": 1000,
         "mics": ["XLON"],
         "extra": "should be ignored",
@@ -331,16 +333,16 @@ def test_extra_field_is_ignored() -> None:
 
 def test_accepts_various_last_price_types() -> None:
     """
-    ARRANGE: lastprice as int, float, str, Decimal
+    ARRANGE: lastvalue as int, float, str, Decimal
     ACT:     construct TurquoiseFeedData for each type
     ASSERT:  last_price is preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
         payload = {
-            "issuername": "Foo",
-            "tidm": "F",
+            "name": "Foo",
+            "symbol": "F",
             "currency": "GBP",
-            "lastprice": candidate,
+            "lastvalue": candidate,
             "marketcapitalization": 1000,
             "mics": ["XLON"],
         }

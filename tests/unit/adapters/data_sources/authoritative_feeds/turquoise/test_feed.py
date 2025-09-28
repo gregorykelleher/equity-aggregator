@@ -8,7 +8,10 @@ import httpx
 import pytest
 from httpx import AsyncClient, MockTransport
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.feed import (
+from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.session import (
+    TurquoiseSession,
+)
+from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.turquoise import (
     _build_payload,
     _deduplicate_records,
     _fetch_page,
@@ -16,9 +19,6 @@ from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.feed 
     _produce_page,
     _stream_all_pages,
     fetch_equity_records,
-)
-from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.session import (
-    TurquoiseSession,
 )
 from equity_aggregator.storage import save_cache
 
