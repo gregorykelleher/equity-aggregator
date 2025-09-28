@@ -20,8 +20,7 @@ class TurquoiseFeedData(BaseModel):
         name (str): The issuer's full name, mapped from "name".
         symbol (str): The tradable instrument symbol, mapped from "symbol".
         isin (str | None): The ISIN identifier, if available.
-        mics (list[str] | None): List of MIC codes for trading venues; currently None
-            pending implementation of market-to-MIC mapping.
+        mics (list[str] | None): List of MIC codes for trading venues.
         currency (str | None): The trading currency code, with "GBX" converted to
             "GBP" if applicable.
         last_price (str | float | int | Decimal | None): Last traded price, mapped
@@ -64,8 +63,7 @@ class TurquoiseFeedData(BaseModel):
             "symbol": raw.get("symbol"),
             "isin": raw.get("isin"),
             # no CUSIP, CIK or FIGI in Turquoise feed, so omitting from model
-            # TODO: derive MIC from market field (e.g., Brussels->XBRU, Amsterdam->XAMS)
-            "mics": None,
+            "mics": [mic_code] if (mic_code := raw.get("mic_code")) else None,
             "currency": raw.get("currency"),
             # lastvalue → maps to RawEquity.last_price
             "last_price": raw.get("lastvalue"),
