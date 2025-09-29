@@ -213,7 +213,7 @@ def test_mics_from_field() -> None:
     """
     ARRANGE: provide 'mics' field
     ACT:     construct TurquoiseFeedData
-    ASSERT:  mics is set as None (field gets normalized away)
+    ASSERT:  mics is preserved from input
     """
     payload = {
         "name": "Foo",
@@ -226,8 +226,8 @@ def test_mics_from_field() -> None:
 
     actual = TurquoiseFeedData(**payload)
 
-    # mics field gets set to None in the normalization process
-    assert actual.mics is None
+    # mics field should be preserved from input
+    assert actual.mics == ["XLON", "XOFF"]
 
 
 def test_gbx_currency_converts_price_and_currency() -> None:

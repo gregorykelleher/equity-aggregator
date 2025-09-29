@@ -63,7 +63,7 @@ class TurquoiseFeedData(BaseModel):
             "symbol": raw.get("symbol"),
             "isin": raw.get("isin"),
             # no CUSIP, CIK or FIGI in Turquoise feed, so omitting from model
-            "mics": [mic_code] if (mic_code := raw.get("mic_code")) else None,
+            "mics": raw.get("mics"),
             "currency": raw.get("currency"),
             # lastvalue → maps to RawEquity.last_price
             "last_price": raw.get("lastvalue"),

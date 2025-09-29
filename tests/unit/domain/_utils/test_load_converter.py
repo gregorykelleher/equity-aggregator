@@ -210,11 +210,11 @@ def test_already_usd_returns_same_object() -> None:
     assert actual is equity
 
 
-def test_none_price_returns_same_object() -> None:
+def test_none_price_currency_normalised() -> None:
     """
-    ARRANGE: last_price is None
+    ARRANGE: last_price is None but currency is EUR
     ACT:     converter(equity)
-    ASSERT:  object unchanged
+    ASSERT:  currency normalised to USD
     """
     rates = {"EUR": Decimal("0.9")}
     convert = _build_usd_converter(rates)
@@ -228,7 +228,7 @@ def test_none_price_returns_same_object() -> None:
 
     actual = convert(equity)
 
-    assert actual is equity
+    assert actual.currency == "USD"
 
 
 def test_usd_converter_applies_to_multiple_equities() -> None:
@@ -409,11 +409,11 @@ def test_monetary_fields_trigger_conversion() -> None:
     assert actual.currency == "USD"
 
 
-def test_skip_when_no_price_and_no_market_cap() -> None:
+def test_no_monetary_values_currency_normalised() -> None:
     """
     ARRANGE: equity with no last_price and no market_cap
     ACT:     converter(equity)
-    ASSERT:  object unchanged
+    ASSERT:  currency normalised to USD
     """
     rates = {"EUR": Decimal("1")}
 
@@ -427,4 +427,4 @@ def test_skip_when_no_price_and_no_market_cap() -> None:
         market_cap=None,
     )
 
-    assert convert(equity) is equity
+    assert convert(equity).currency == "USD"

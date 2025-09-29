@@ -263,10 +263,12 @@ async def test_get_succeeds_with_non_403_after_retries() -> None:
     ACT:     call get()
     ASSERT:  final response status is 500 (non-403)
     """
-    responses = deque([
-        httpx.Response(HTTP_FORBIDDEN),
-        httpx.Response(HTTP_INTERNAL_ERROR),
-    ])
+    responses = deque(
+        [
+            httpx.Response(HTTP_FORBIDDEN),
+            httpx.Response(HTTP_INTERNAL_ERROR),
+        ],
+    )
 
     async def handler(_: httpx.Request) -> httpx.Response:
         return responses.popleft()

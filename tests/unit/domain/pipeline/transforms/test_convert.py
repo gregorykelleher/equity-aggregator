@@ -130,3 +130,148 @@ def test_eur_to_usd_conversion_and_usd_unaffected() -> None:
         Decimal("2.00"),
         Decimal("3"),
     )
+
+
+def test_currency_normalisation_with_no_monetary_values() -> None:
+    """
+    ARRANGE: equity with EUR currency but all monetary fields are None
+    ACT:     convert over that generator
+    ASSERT:  currency is normalised to USD
+    """
+    equity = RawEquity(name="E", symbol="E", currency="EUR")
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield equity
+
+    actual = _run(gen())
+
+    assert actual[0].currency == "USD"
+
+
+def test_no_monetary_values_fields_remain_none() -> None:
+    """
+    ARRANGE: equity with EUR currency but all monetary fields are None
+    ACT:     convert over that generator
+    ASSERT:  all monetary fields remain None
+    """
+    equity = RawEquity(name="E", symbol="E", currency="EUR")
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield equity
+
+    actual = _run(gen())
+
+    assert actual[0].last_price is None
+
+
+def test_mixed_monetary_values_currency_normalised() -> None:
+    """
+    ARRANGE: equity with GBP currency, some monetary fields None, others with values
+    ACT:     convert over that generator
+    ASSERT:  currency normalised to USD
+    """
+    equity = RawEquity(
+        name="G",
+        symbol="G",
+        currency="GBP",
+        last_price=Decimal("4"),
+        market_cap=None,
+        revenue_per_share=Decimal("2"),
+    )
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield equity
+
+    actual = _run(gen())
+
+    assert actual[0].currency == "USD"
+
+
+def test_mixed_monetary_values_non_none_converted() -> None:
+    """
+    ARRANGE: equity with GBP currency, some monetary fields None, others with values
+    ACT:     convert over that generator
+    ASSERT:  non-None values are converted
+    """
+    equity = RawEquity(
+        name="G",
+        symbol="G",
+        currency="GBP",
+        last_price=Decimal("4"),
+        market_cap=None,
+        revenue_per_share=Decimal("2"),
+    )
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield equity
+
+    actual = _run(gen())
+
+    # GBP @ rate 0.25 → 4 / 0.25 = 16.00
+    assert actual[0].last_price == Decimal("16.00")
+
+
+def test_mixed_monetary_values_none_remain_none() -> None:
+    """
+    ARRANGE: equity with GBP currency, some monetary fields None, others with values
+    ACT:     convert over that generator
+    ASSERT:  None values remain None
+    """
+    equity = RawEquity(
+        name="G",
+        symbol="G",
+        currency="GBP",
+        last_price=Decimal("4"),
+        market_cap=None,
+        revenue_per_share=Decimal("2"),
+    )
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield equity
+
+    actual = _run(gen())
+
+    assert actual[0].market_cap is None
+
+
+def test_single_monetary_field_currency_normalised() -> None:
+    """
+    ARRANGE: equity with EUR currency and only one monetary field with value
+    ACT:     convert over that generator
+    ASSERT:  currency normalised to USD
+    """
+    equity = RawEquity(
+        name="S",
+        symbol="S",
+        currency="EUR",
+        trailing_eps=Decimal("10"),
+    )
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield equity
+
+    actual = _run(gen())
+
+    assert actual[0].currency == "USD"
+
+
+def test_single_monetary_field_value_converted() -> None:
+    """
+    ARRANGE: equity with EUR currency and only one monetary field with value
+    ACT:     convert over that generator
+    ASSERT:  single field is converted
+    """
+    equity = RawEquity(
+        name="S",
+        symbol="S",
+        currency="EUR",
+        trailing_eps=Decimal("10"),
+    )
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield equity
+
+    actual = _run(gen())
+
+    # EUR @ rate 0.5 → 10 / 0.5 = 20.00
+    assert actual[0].trailing_eps == Decimal("20.00")

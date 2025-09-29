@@ -266,7 +266,9 @@ def demo_equity_exploration(equities: list[CanonicalEquity]) -> None:
         # Top 10 companies by market cap
         print("\n🏆 TOP 10 COMPANIES BY MARKET CAP:")
         top_companies = sorted(
-            market_cap_companies, key=lambda x: x.financials.market_cap, reverse=True,
+            market_cap_companies,
+            key=lambda x: x.financials.market_cap,
+            reverse=True,
         )[:10]
         for i, company in enumerate(top_companies, 1):
             print(
@@ -283,7 +285,9 @@ def demo_equity_exploration(equities: list[CanonicalEquity]) -> None:
 
         print(f"   Total sectors represented: {len(sector_counts)}")
         for sector, count in sorted(
-            sector_counts.items(), key=lambda x: x[1], reverse=True,
+            sector_counts.items(),
+            key=lambda x: x[1],
+            reverse=True,
         ):
             percentage = (count / len(sectors)) * 100
             print(f"   {sector:25} {count:>4,} companies ({percentage:5.1f}%)")
@@ -297,7 +301,9 @@ def demo_equity_exploration(equities: list[CanonicalEquity]) -> None:
             currency_counts[currency] = currency_counts.get(currency, 0) + 1
 
         for currency, count in sorted(
-            currency_counts.items(), key=lambda x: x[1], reverse=True,
+            currency_counts.items(),
+            key=lambda x: x[1],
+            reverse=True,
         ):
             percentage = (count / len(currencies)) * 100
             print(f"   {currency} {count:>4,} companies ({percentage:5.1f}%)")
@@ -466,7 +472,9 @@ def main() -> None:
             currency_counts[currency] = currency_counts.get(currency, 0) + 1
 
         for currency, count in sorted(
-            currency_counts.items(), key=lambda x: x[1], reverse=True,
+            currency_counts.items(),
+            key=lambda x: x[1],
+            reverse=True,
         ):
             percentage = (count / len(currencies)) * 100
             print(f"   {currency} {count:>4,} companies ({percentage:5.1f}%)")

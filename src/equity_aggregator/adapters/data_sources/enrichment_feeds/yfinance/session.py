@@ -40,13 +40,15 @@ class YFSession:
     _concurrent_streams: asyncio.Semaphore = asyncio.Semaphore(1)
 
     # Define retryable status codes once to avoid duplication
-    _RETRYABLE_STATUS_CODES = frozenset({
-        httpx.codes.TOO_MANY_REQUESTS,  # 429
-        httpx.codes.INTERNAL_SERVER_ERROR,  # 500
-        httpx.codes.BAD_GATEWAY,  # 502
-        httpx.codes.SERVICE_UNAVAILABLE,  # 503
-        httpx.codes.GATEWAY_TIMEOUT,  # 504
-    })
+    _RETRYABLE_STATUS_CODES = frozenset(
+        {
+            httpx.codes.TOO_MANY_REQUESTS,  # 429
+            httpx.codes.INTERNAL_SERVER_ERROR,  # 500
+            httpx.codes.BAD_GATEWAY,  # 502
+            httpx.codes.SERVICE_UNAVAILABLE,  # 503
+            httpx.codes.GATEWAY_TIMEOUT,  # 504
+        },
+    )
 
     def __init__(
         self,

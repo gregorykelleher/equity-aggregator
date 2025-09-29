@@ -15,8 +15,8 @@ type RawEquityConverter = Callable[[RawEquity], RawEquity]
 _MONETARY_FIELDS = [
     "last_price",
     "market_cap",
-    "fifty_two_week_max",
     "fifty_two_week_min",
+    "fifty_two_week_max",
     "revenue_per_share",
     "free_cash_flow",
     "operating_cash_flow",
@@ -90,9 +90,9 @@ def _should_skip_conversion(equity: RawEquity) -> bool:
     """
     Determines whether the conversion process should be skipped for a given equity.
 
-    The function checks if all price-related fields are missing, if the currency is
-    not specified, or if the currency is already USD. In any of these cases,
-    conversion is deemed unnecessary and the function returns True.
+    The function only skips conversion if the currency is not specified or if the
+    currency is already USD. This ensures that currency normalisation happens
+    even for records with no monetary values.
 
     Args:
         equity (RawEquity): The equity object containing price fields and currency
@@ -103,12 +103,8 @@ def _should_skip_conversion(equity: RawEquity) -> bool:
     """
     currency = equity.currency
 
-    # Skip if no monetary fields present or currency is missing/already USD
-    has_any_monetary_field = any(
-        getattr(equity, field) is not None for field in _MONETARY_FIELDS
-    )
-
-    return not has_any_monetary_field or currency is None or currency == "USD"
+    # Skip only if currency is missing or already USD
+    return currency is None or currency == "USD"
 
 
 def _get_rate_for_currency(currency: str, rates: dict[str, Decimal]) -> Decimal:
