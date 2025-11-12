@@ -1,6 +1,5 @@
 # lseg/lseg.py
 
-import asyncio
 import logging
 
 from equity_aggregator.adapters.data_sources._utils import make_client
@@ -10,13 +9,7 @@ from equity_aggregator.adapters.data_sources._utils._record_types import (
 )
 from equity_aggregator.storage import load_cache, save_cache
 
-from ._utils import (
-    consume_queue,
-    create_deduplication_stream,
-    enqueue_records,
-    extract_available_exchanges,
-    extract_exchange_page_data,
-)
+from ._utils import parse_response
 from .session import (
     LsegSession,
 )
@@ -24,7 +17,8 @@ from .session import (
 logger = logging.getLogger(__name__)
 
 _LSEG_SEARCH_URL = "https://api.londonstockexchange.com/api/v1/pages"
-_LSEG_MARKETS_INSTRUMENTS_URL = "trade/turquoise-markets-and-instruments"
+_LSEG_PATH = "live-markets/market-data-dashboard/price-explorer"
+_LSEG_BASE_PARAMS = "categories=EQUITY"
 
 _HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -47,8 +41,8 @@ async def fetch_equity_records(
     Yield each LSEG equity record exactly once, using cache if available.
 
     If a cache is present, loads and yields records from cache. Otherwise, fetches
-    available exchanges from all supported markets, streams equity records from each
-    exchange concurrently, yields records as they arrive, and caches the results.
+    all equity records from the LSEG price-explorer endpoint by paginating through
+    all available pages, deduplicates by ISIN, yields records, and caches the results.
 
     Args:
         session (LsegSession | None): Optional LSEG session for requests.
@@ -81,6 +75,9 @@ async def _stream_and_cache(
     """
     Stream unique LSEG equity records, cache them, and yield each.
 
+    Fetches all records, deduplicates by ISIN (filtering out records with
+    missing or empty ISINs), then yields and caches the unique records.
+
     Args:
         session (LsegSession): The LSEG session used for requests.
         cache_key (str): The key under which to cache the records.
@@ -91,213 +88,77 @@ async def _stream_and_cache(
     Side Effects:
         Saves all streamed records to cache after streaming completes.
     """
-    # collect all records in a buffer to cache them later
-    buffer: list[EquityRecord] = []
+    all_records = await _fetch_all_records(session)
+    unique_records = _deduplicate_by_isin(all_records)
 
-    # stream all records and deduplicate by ISIN
-    async for record in create_deduplication_stream(lambda record: record.get("isin"))(
-        _stream_all_exchanges(session),
-    ):
-        buffer.append(record)
+    for record in unique_records:
         yield record
 
-    save_cache(cache_key, buffer)
-    logger.info("Saved %d LSEG records to cache.", len(buffer))
+    save_cache(cache_key, unique_records)
+    logger.info("Saved %d LSEG records to cache.", len(unique_records))
 
 
-async def _stream_all_exchanges(
+async def _fetch_all_records(
     session: LsegSession,
-) -> RecordStream:
-    """
-    Stream all LSEG equity records across all exchanges.
-
-    Fetches equity records from all exchanges concurrently using producer tasks.
-    Each exchange is processed independently and records are yielded as they
-    become available through a shared queue.
-
-    Args:
-        session (LsegSession): The LSEG session used for requests.
-
-    Yields:
-        EquityRecord: Each equity record from all exchanges, as soon as it is available.
-    """
-    exchanges = await _fetch_available_exchanges(session)
-
-    if not exchanges:
-        msg = "No exchanges found - cannot proceed without exchange data"
-        raise ValueError(msg)
-
-    # shared queue for all producers to enqueue records
-    queue: asyncio.Queue[EquityRecord | None] = asyncio.Queue()
-    exchange_ids = _extract_exchange_ids(exchanges)
-    producers = _create_producer_tasks(session, exchange_ids, queue)
-
-    # consume queue until every producer sends its sentinel
-    async for record in consume_queue(queue, expected_sentinels=len(producers)):
-        yield record
-
-    await _log_producer_results(producers, exchange_ids)
-
-
-def _extract_exchange_ids(exchanges: list[dict[str, str]]) -> list[str]:
-    """
-    Extract market IDs from list of exchange metadata dictionaries.
-
-    Filters exchanges to only include those with valid marketid fields,
-    returning a clean list of market identifiers for processing.
-
-    Args:
-        exchanges (list[dict[str, str]]): List of exchange metadata dicts
-            containing marketid and other exchange information.
-
-    Returns:
-        list[str]: List of valid market IDs extracted from exchanges.
-    """
-    return [exchange["marketid"] for exchange in exchanges if exchange.get("marketid")]
-
-
-def _create_producer_tasks(
-    session: LsegSession,
-    exchange_ids: list[str],
-    queue: asyncio.Queue[EquityRecord | None],
-) -> list[asyncio.Task]:
-    """
-    Create async producer tasks for concurrent exchange processing.
-
-    Each task handles fetching equity records from a single exchange,
-    allowing parallel processing of multiple exchanges simultaneously.
-
-    Args:
-        session (LsegSession): HTTP session for API requests.
-        exchange_ids (list[str]): List of market IDs to process.
-        queue (asyncio.Queue[EquityRecord | None]): Shared queue for
-            collecting records from all exchanges.
-
-    Returns:
-        list[asyncio.Task]: List of async tasks, one per exchange.
-    """
-    return [
-        asyncio.create_task(
-            _produce_exchange(session, market_id, queue),
-            name=f"exchange-{market_id}",
-        )
-        for market_id in exchange_ids
-    ]
-
-
-async def _log_producer_results(
-    producers: list[asyncio.Task],
-    exchange_ids: list[str],
-) -> None:
-    """
-    Wait for all producer tasks to complete and log any failures.
-
-    Gathers results from all exchange producer tasks, identifies which
-    exchanges failed during processing, and logs detailed error information
-    for debugging and monitoring purposes.
-
-    Args:
-        producers (list[asyncio.Task]): List of producer tasks to monitor.
-        exchange_ids (list[str]): Corresponding exchange IDs for tasks,
-            used to identify which exchanges failed.
-
-    Returns:
-        None
-    """
-    results = await asyncio.gather(*producers, return_exceptions=True)
-    failed_exchanges = [
-        exchange_ids[i]
-        for i, result in enumerate(results)
-        if isinstance(result, Exception)
-    ]
-
-    if failed_exchanges:
-        logger.error(
-            "Failed to process %d/%d exchanges: %s",
-            len(failed_exchanges),
-            len(exchange_ids),
-            failed_exchanges,
-        )
-    # All exchanges processed successfully
-
-
-async def _produce_exchange(
-    session: LsegSession,
-    market_id: str,
-    queue: asyncio.Queue[EquityRecord | None],
-) -> None:
-    """
-    Fetch all equity records for a single exchange, label with MIC code, and
-    signal completion.
-
-    Args:
-        session (LsegSession): The LSEG session for making requests.
-        market_id (str): The market ID (MIC code) to fetch equities for.
-        queue (asyncio.Queue[EquityRecord | None]): Queue to put records and sentinel.
-
-    Returns:
-        None
-
-    Side Effects:
-        Fetches all equity records for the exchange, labelling each record with the
-        MIC code, enqueues each record into the queue, and pushes a `None` sentinel
-        to signal completion. Logs fatal and raises on any error.
-    """
-    try:
-        all_records = await _fetch_all_exchange_records(session, market_id)
-
-        # Label all records with the MIC code for this exchange
-        for record in all_records:
-            record["mic_code"] = market_id
-
-        await enqueue_records(queue, all_records)
-        logger.debug("Exchange %s completed: %d records", market_id, len(all_records))
-
-    except Exception as error:
-        logger.error(
-            "Exchange %s failed: %s",
-            market_id,
-            error,
-            exc_info=True,
-        )
-    finally:
-        await queue.put(None)
-
-
-async def _fetch_all_exchange_records(
-    session: LsegSession,
-    market_id: str,
 ) -> list[EquityRecord]:
     """
-    Fetch all records from an exchange, handling pagination functionally.
+    Fetch all equity records from the price-explorer endpoint, handling pagination.
 
-    Retrieves the first page, determines total pages, then concurrently fetches
-    remaining pages with resilient error handling and safety limits.
+    Retrieves the first page, determines total pages, then fetches
+    remaining pages sequentially with resilient error handling.
 
     Args:
         session: HTTP session for API requests.
-        market_id: Exchange market identifier.
 
     Returns:
         Complete list of equity records from all pages.
     """
     # Fetch first page and extract pagination metadata
-    first_page_data, pagination_info = await _fetch_exchange_page(session, market_id, 0)
+    first_page_data, pagination_info = await _fetch_page(session, 0)
     total_pages = _extract_total_pages(pagination_info)
 
     if total_pages <= 1:
         return first_page_data
 
-    logger.debug(
-        "Exchange %s: %d total pages to process",
-        market_id,
-        total_pages,
-    )
-
     # Fetch remaining pages with error resilience
-    remaining_pages_data = await _fetch_remaining_pages(session, market_id, total_pages)
+    remaining_pages_data = await _fetch_remaining_pages(session, total_pages)
 
     return first_page_data + remaining_pages_data
+
+
+async def _fetch_page(
+    session: LsegSession,
+    page: int,
+) -> tuple[list[EquityRecord], dict | None]:
+    """
+    Fetch a single page of results from LSEG price-explorer endpoint.
+
+    Sends GET request to LSEG pages endpoint with the specified page number,
+    returns parsed equity records and pagination metadata.
+
+    Args:
+        session (LsegSession): LSEG session used to send the request.
+        page (int): Zero-based page number to fetch.
+
+    Returns:
+        tuple[list[EquityRecord], dict | None]: Tuple containing parsed equity
+            records and pagination metadata from LSEG feed.
+
+    Raises:
+        httpx.HTTPStatusError: If response status is not successful.
+        httpx.ReadError: If there is a network or connection error.
+        ValueError: If response body cannot be parsed as JSON.
+    """
+    parameters = f"{_LSEG_BASE_PARAMS}&page={page}"
+    response = await session.get(
+        _LSEG_SEARCH_URL,
+        params={
+            "path": _LSEG_PATH,
+            "parameters": parameters,
+        },
+    )
+    response.raise_for_status()
+    return parse_response(response.json())
 
 
 def _extract_total_pages(pagination_info: dict | None) -> int:
@@ -320,7 +181,6 @@ def _extract_total_pages(pagination_info: dict | None) -> int:
 
 async def _fetch_remaining_pages(
     session: LsegSession,
-    market_id: str,
     total_pages: int,
 ) -> list[EquityRecord]:
     """
@@ -328,24 +188,21 @@ async def _fetch_remaining_pages(
 
     Args:
         session: HTTP session for API requests.
-        market_id: Exchange market identifier.
         total_pages: Total number of pages to fetch.
 
     Returns:
         Combined records from all successfully fetched remaining pages.
     """
     all_remaining_records = []
-    max_pages = min(total_pages, 100)  # Safety limit
 
-    for page in range(1, max_pages):
+    for page in range(1, total_pages):
         try:
-            page_data, _ = await _fetch_exchange_page(session, market_id, page)
+            page_data, _ = await _fetch_page(session, page)
             all_remaining_records.extend(page_data)
         except Exception as error:
             logger.warning(
-                "Failed to fetch page %d for market %s: %s",
+                "Failed to fetch page %d: %s",
                 page,
-                market_id,
                 error,
             )
             break  # Stop on first error to avoid cascade failures
@@ -353,60 +210,30 @@ async def _fetch_remaining_pages(
     return all_remaining_records
 
 
-async def _fetch_available_exchanges(session: LsegSession) -> list[dict[str, str]]:
+def _deduplicate_by_isin(records: list[EquityRecord]) -> list[EquityRecord]:
     """
-    Fetch available exchanges from the LSEG markets API.
+    Deduplicate equity records by ISIN, maintaining insertion order.
+
+    Filters out records with missing or empty ISINs, then removes duplicates
+    by keeping the first occurrence of each unique ISIN.
 
     Args:
-        session (LsegSession): Session for making API requests.
+        records (list[EquityRecord]): List of equity records to deduplicate.
 
     Returns:
-        list[dict[str, str]]: List of available exchanges with metadata.
+        list[EquityRecord]: Deduplicated list of equity records.
     """
-    try:
-        response = await session.get(
-            _LSEG_SEARCH_URL,
-            params={"path": _LSEG_MARKETS_INSTRUMENTS_URL},
-        )
-        response.raise_for_status()
-        return extract_available_exchanges(response.json())
-    except Exception as error:
-        logger.error("Failed to fetch LSEG exchanges: %s", error, exc_info=True)
-        return []
+    seen_isins: set[str] = set()
+    unique: list[EquityRecord] = []
 
+    for record in records:
+        isin = record.get("isin")
 
-async def _fetch_exchange_page(
-    session: LsegSession,
-    market_id: str,
-    page: int,
-) -> tuple[list[EquityRecord], dict | None]:
-    """
-    Fetch a single page of results from LSEG feed for specific exchange.
+        if not isin:
+            continue
 
-    Sends GET request to LSEG pages endpoint with specified market ID and
-    page number, returns parsed equity records and pagination metadata.
+        if isin not in seen_isins:
+            seen_isins.add(isin)
+            unique.append(record)
 
-    Args:
-        session (LsegSession): LSEG session used to send the request.
-        market_id (str): Market ID to fetch equities for.
-        page (int): Zero-based page number to fetch.
-
-    Returns:
-        tuple[list[EquityRecord], dict | None]: Tuple containing parsed equity
-            records and pagination metadata from LSEG feed.
-
-    Raises:
-        httpx.HTTPStatusError: If response status is not successful.
-        httpx.ReadError: If there is a network or connection error.
-        ValueError: If response body cannot be parsed as JSON.
-    """
-    parameters = f"marketid={market_id}&page={page}"
-    response = await session.get(
-        _LSEG_SEARCH_URL,
-        params={
-            "path": _LSEG_MARKETS_INSTRUMENTS_URL,
-            "parameters": parameters,
-        },
-    )
-    response.raise_for_status()
-    return extract_exchange_page_data(response.json())
+    return unique

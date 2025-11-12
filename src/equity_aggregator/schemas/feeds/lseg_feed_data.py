@@ -17,14 +17,19 @@ class LsegFeedData(BaseModel):
     pounds (GBP) for consistency.
 
     Args:
-        name (str): The issuer's full name, mapped from "name".
-        symbol (str): The tradable instrument symbol, mapped from "symbol".
+        name (str): The issuer's full name, mapped from "issuername".
+        symbol (str): The tradable instrument symbol, mapped from "tidm".
         isin (str | None): The ISIN identifier, if available.
-        mics (list[str] | None): List of MIC codes for trading venues.
         currency (str | None): The trading currency code, with "GBX" converted to
             "GBP" if applicable.
         last_price (str | float | int | Decimal | None): Last traded price, mapped
-            from "lastvalue" and converted from pence to pounds if currency is "GBX".
+            from "lastprice" and converted from pence to pounds if currency is "GBX".
+        market_cap (str | float | int | Decimal | None): Market capitalisation,
+            mapped from "marketcapitalization".
+        fifty_two_week_min (str | float | int | Decimal | None): 52-week low,
+            mapped from "fiftyTwoWeeksMin" (converted from pence to GBP if needed).
+        fifty_two_week_max (str | float | int | Decimal | None): 52-week high,
+            mapped from "fiftyTwoWeeksMax" (converted from pence to GBP if needed).
 
     Returns:
         LsegFeedData: An instance with fields normalised for RawEquity validation,
@@ -35,9 +40,11 @@ class LsegFeedData(BaseModel):
     name: str
     symbol: str
     isin: str | None
-    mics: list[str] | None
     currency: str | None
     last_price: str | float | int | Decimal | None
+    market_cap: str | float | int | Decimal | None
+    fifty_two_week_min: str | float | int | Decimal | None
+    fifty_two_week_max: str | float | int | Decimal | None
 
     @model_validator(mode="before")
     def _normalise_fields(self: dict[str, object]) -> dict[str, object]:
@@ -59,14 +66,15 @@ class LsegFeedData(BaseModel):
         # convert GBX to GBP
         raw = convert_gbx_to_gbp(self)
         return {
-            "name": raw.get("name"),
-            "symbol": raw.get("symbol"),
+            "name": raw.get("issuername"),
+            "symbol": raw.get("tidm"),
             "isin": raw.get("isin"),
             # no CUSIP, CIK or FIGI in LSEG feed, so omitting from model
-            "mics": raw.get("mics"),
             "currency": raw.get("currency"),
-            # lastvalue → maps to RawEquity.last_price
-            "last_price": raw.get("lastvalue"),
+            "last_price": raw.get("lastprice"),
+            "market_cap": raw.get("marketcapitalization"),
+            "fifty_two_week_min": raw.get("fiftyTwoWeeksMin"),
+            "fifty_two_week_max": raw.get("fiftyTwoWeeksMax"),
             # no additional fields in LSEG feed, so omitting from model
         }
 
@@ -110,34 +118,40 @@ def _gbx_to_decimal(pence: str | None) -> Decimal | None:
 
 def convert_gbx_to_gbp(raw: dict) -> dict:
     """
-    Converts price and currency fields from GBX (pence) to GBP (pounds) if applicable.
+    Convert price and currency fields from GBX (pence) to GBP (pounds).
 
-    If the input dictionary has a "currency" field set to "GBX", this function divides
-    the "lastprice" value by 100 to convert from pence to pounds, sets the "currency"
-    field to "GBP", and returns a new dictionary with these updates. All other fields
-    remain unchanged. If the currency is not "GBX", the original dictionary is returned
+    If the input dictionary has a "currency" field set to "GBX", this function
+    divides all price fields (lastprice, fiftyTwoWeeksMin, fiftyTwoWeeksMax)
+    by 100 to convert from pence to pounds, sets the "currency" field to "GBP",
+    and returns a new dictionary with these updates. All other fields remain
+    unchanged. If the currency is not "GBX", the original dictionary is returned
     unmodified.
 
     Args:
-        raw (dict): A dictionary containing at least a "currency" field, and optionally
-            a "lastprice" field representing the price in pence.
+        raw (dict): A dictionary containing at least a "currency" field, and
+            optionally price fields representing values in pence.
 
     Returns:
-        dict: A new dictionary with "lastprice" converted to pounds and "currency" set
-        to "GBP" if original currency was "GBX". Otherwise, returns original dict.
+        dict: A new dictionary with price fields converted to pounds and
+        "currency" set to "GBP" if original currency was "GBX". Otherwise,
+        returns original dict.
     """
     if raw.get("currency") != "GBX":
         return raw
 
-    pence = raw.get("lastvalue")
-    amount = _gbx_to_decimal(pence)
-
     updates = {"currency": "GBP"}
-    if amount is None:
-        updates["lastvalue"] = None
-    else:
-        # convert pence to pounds
-        updates["lastvalue"] = amount / Decimal("100")
+
+    # Convert lastprice
+    lastprice = _gbx_to_decimal(raw.get("lastprice"))
+    updates["lastprice"] = lastprice / Decimal("100") if lastprice else None
+
+    # Convert fiftyTwoWeeksMin
+    min_price = _gbx_to_decimal(raw.get("fiftyTwoWeeksMin"))
+    updates["fiftyTwoWeeksMin"] = min_price / Decimal("100") if min_price else None
+
+    # Convert fiftyTwoWeeksMax
+    max_price = _gbx_to_decimal(raw.get("fiftyTwoWeeksMax"))
+    updates["fiftyTwoWeeksMax"] = max_price / Decimal("100") if max_price else None
 
     # return a new dict rather than mutating in place
     return {**raw, **updates}

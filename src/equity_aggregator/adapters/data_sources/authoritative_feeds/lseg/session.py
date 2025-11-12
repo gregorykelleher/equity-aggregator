@@ -7,7 +7,9 @@ from collections.abc import Awaitable, Callable, Mapping
 import httpx
 
 from equity_aggregator.adapters.data_sources._utils import make_client
-from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.utils import (
+
+# TODO don't mix utils imports from YFinance
+from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance._utils import (
     backoff_delays,
 )
 
@@ -145,7 +147,7 @@ class LsegSession:
 
         for attempt, delay in enumerate(backoff_delays(attempts=max_attempts), 1):
             logger.debug(
-                "403 Forbidden %s – sleeping %.1fs (attempt %d/%d)",
+                "403 Forbidden %s - sleeping %.1fs (attempt %d/%d)",
                 url,
                 delay,
                 attempt,
