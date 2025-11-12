@@ -4,7 +4,7 @@ import pytest
 from rapidfuzz import fuzz
 from rapidfuzz import utils as rf_utils
 
-from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.utils.fuzzy import (
+from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance._utils.fuzzy import (
     _score_quote,
     pick_best_symbol,
 )

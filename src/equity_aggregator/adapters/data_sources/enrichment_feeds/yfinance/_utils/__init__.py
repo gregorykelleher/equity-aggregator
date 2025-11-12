@@ -1,4 +1,4 @@
-# utils/__init__.py
+# _utils/__init__.py
 
 from .backoff import backoff_delays
 from .fuzzy import pick_best_symbol

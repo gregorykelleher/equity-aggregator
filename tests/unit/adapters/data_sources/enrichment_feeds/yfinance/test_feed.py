@@ -6,7 +6,7 @@ import asyncio
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.utils import (
+from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance._utils import (
     pick_best_symbol,
 )
 from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.yfinance import (

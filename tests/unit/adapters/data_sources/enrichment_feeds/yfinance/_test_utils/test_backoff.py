@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.utils.backoff import (
+from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance._utils.backoff import (
     backoff_delays,
 )
 

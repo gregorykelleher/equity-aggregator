@@ -11,13 +11,13 @@ from equity_aggregator.storage import (
     save_cache_entry,
 )
 
+from ._utils import pick_best_symbol
 from .api import (
     get_quote_summary,
     search_quotes,
 )
 from .config import FeedConfig
 from .session import YFSession
-from .utils import pick_best_symbol
 
 logger = logging.getLogger(__name__)
 

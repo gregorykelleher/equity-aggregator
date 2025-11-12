@@ -8,8 +8,8 @@ import httpx
 
 from equity_aggregator.adapters.data_sources._utils import make_client
 
+from ._utils import backoff_delays
 from .config import FeedConfig
-from .utils import backoff_delays
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -313,6 +313,7 @@ class YFSession:
         Returns:
             dict[str, str]: Updated query parameters with crumb if needed.
         """
+        # TODO why was this commented out?
         # needs_crumb = self._crumb is not None and url.startswith(
         #     self._config.quote_summary_url,
         # )
