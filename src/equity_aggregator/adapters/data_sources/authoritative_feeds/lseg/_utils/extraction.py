@@ -47,21 +47,21 @@ def create_deduplication_stream(
 
 def extract_equity_record(equity: dict) -> EquityRecord:
     """
-    Normalise raw Turquoise JSON equity data into EquityRecord dictionary.
+    Normalise raw LSEG JSON equity data into EquityRecord dictionary.
 
-    Maps the raw API fields to the expected TurquoiseFeedData schema fields.
+    Maps the raw API fields to the expected LsegFeedData schema fields.
 
-    Note: Raw equity records from Turquoise API do not contain MIC codes.
+    Note: Raw equity records from LSEG API do not contain MIC codes.
     However, each record is labeled with a 'mic_code' field during processing
     using the 'marketid' from the exchange metadata API call.
 
     Args:
-        equity (dict): Raw equity data from Turquoise API response with equity
+        equity (dict): Raw equity data from LSEG API response with equity
             information, market data fields, and MIC code stamp.
 
     Returns:
         EquityRecord: Normalised equity record dictionary with field names
-            matching TurquoiseFeedData schema expectations.
+            matching LsegFeedData schema expectations.
     """
     # Use the MIC code that was labeled by the producer
     mics = []

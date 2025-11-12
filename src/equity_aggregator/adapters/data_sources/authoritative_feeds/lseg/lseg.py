@@ -1,4 +1,4 @@
-# turquoise/turquoise.py
+# lseg/lseg.py
 
 import asyncio
 import logging
@@ -18,13 +18,13 @@ from ._utils import (
     extract_exchange_page_data,
 )
 from .session import (
-    TurquoiseSession,
+    LsegSession,
 )
 
 logger = logging.getLogger(__name__)
 
-_TURQUOISE_SEARCH_URL = "https://api.londonstockexchange.com/api/v1/pages"
-_TURQUOISE_MARKETS_INSTRUMENTS_URL = "trade/turquoise-markets-and-instruments"
+_LSEG_SEARCH_URL = "https://api.londonstockexchange.com/api/v1/pages"
+_LSEG_MARKETS_INSTRUMENTS_URL = "trade/turquoise-markets-and-instruments"
 
 _HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -39,32 +39,32 @@ _HEADERS = {
 
 
 async def fetch_equity_records(
-    session: TurquoiseSession | None = None,
+    session: LsegSession | None = None,
     *,
-    cache_key: str = "turquoise_records",
+    cache_key: str = "lseg_records",
 ) -> RecordStream:
     """
-    Yield each Turquoise equity record exactly once, using cache if available.
+    Yield each LSEG equity record exactly once, using cache if available.
 
     If a cache is present, loads and yields records from cache. Otherwise, fetches
     available exchanges from all supported markets, streams equity records from each
     exchange concurrently, yields records as they arrive, and caches the results.
 
     Args:
-        session (TurquoiseSession | None): Optional Turquoise session for requests.
+        session (LsegSession | None): Optional LSEG session for requests.
         cache_key (str): The key under which to cache the records.
 
     Yields:
-        EquityRecord: Parsed Turquoise equity record.
+        EquityRecord: Parsed LSEG equity record.
     """
     cached = load_cache(cache_key)
     if cached:
-        logger.info("Loaded %d Turquoise records from cache.", len(cached))
+        logger.info("Loaded %d LSEG records from cache.", len(cached))
         for record in cached:
             yield record
         return
 
-    session = session or TurquoiseSession(make_client(headers=_HEADERS))
+    session = session or LsegSession(make_client(headers=_HEADERS))
 
     try:
         async for record in _stream_and_cache(session, cache_key=cache_key):
@@ -74,19 +74,19 @@ async def fetch_equity_records(
 
 
 async def _stream_and_cache(
-    session: TurquoiseSession,
+    session: LsegSession,
     *,
     cache_key: str,
 ) -> RecordStream:
     """
-    Stream unique Turquoise equity records, cache them, and yield each.
+    Stream unique LSEG equity records, cache them, and yield each.
 
     Args:
-        session (TurquoiseSession): The Turquoise session used for requests.
+        session (LsegSession): The LSEG session used for requests.
         cache_key (str): The key under which to cache the records.
 
     Yields:
-        EquityRecord: Each unique Turquoise equity record as retrieved.
+        EquityRecord: Each unique LSEG equity record as retrieved.
 
     Side Effects:
         Saves all streamed records to cache after streaming completes.
@@ -102,21 +102,21 @@ async def _stream_and_cache(
         yield record
 
     save_cache(cache_key, buffer)
-    logger.info("Saved %d Turquoise records to cache.", len(buffer))
+    logger.info("Saved %d LSEG records to cache.", len(buffer))
 
 
 async def _stream_all_exchanges(
-    session: TurquoiseSession,
+    session: LsegSession,
 ) -> RecordStream:
     """
-    Stream all Turquoise equity records across all exchanges.
+    Stream all LSEG equity records across all exchanges.
 
     Fetches equity records from all exchanges concurrently using producer tasks.
     Each exchange is processed independently and records are yielded as they
     become available through a shared queue.
 
     Args:
-        session (TurquoiseSession): The Turquoise session used for requests.
+        session (LsegSession): The LSEG session used for requests.
 
     Yields:
         EquityRecord: Each equity record from all exchanges, as soon as it is available.
@@ -157,7 +157,7 @@ def _extract_exchange_ids(exchanges: list[dict[str, str]]) -> list[str]:
 
 
 def _create_producer_tasks(
-    session: TurquoiseSession,
+    session: LsegSession,
     exchange_ids: list[str],
     queue: asyncio.Queue[EquityRecord | None],
 ) -> list[asyncio.Task]:
@@ -168,7 +168,7 @@ def _create_producer_tasks(
     allowing parallel processing of multiple exchanges simultaneously.
 
     Args:
-        session (TurquoiseSession): HTTP session for API requests.
+        session (LsegSession): HTTP session for API requests.
         exchange_ids (list[str]): List of market IDs to process.
         queue (asyncio.Queue[EquityRecord | None]): Shared queue for
             collecting records from all exchanges.
@@ -222,7 +222,7 @@ async def _log_producer_results(
 
 
 async def _produce_exchange(
-    session: TurquoiseSession,
+    session: LsegSession,
     market_id: str,
     queue: asyncio.Queue[EquityRecord | None],
 ) -> None:
@@ -231,7 +231,7 @@ async def _produce_exchange(
     signal completion.
 
     Args:
-        session (TurquoiseSession): The Turquoise session for making requests.
+        session (LsegSession): The LSEG session for making requests.
         market_id (str): The market ID (MIC code) to fetch equities for.
         queue (asyncio.Queue[EquityRecord | None]): Queue to put records and sentinel.
 
@@ -265,7 +265,7 @@ async def _produce_exchange(
 
 
 async def _fetch_all_exchange_records(
-    session: TurquoiseSession,
+    session: LsegSession,
     market_id: str,
 ) -> list[EquityRecord]:
     """
@@ -302,7 +302,7 @@ async def _fetch_all_exchange_records(
 
 def _extract_total_pages(pagination_info: dict | None) -> int:
     """
-    Extract the total page count from Turquoise API pagination metadata.
+    Extract the total page count from LSEG API pagination metadata.
 
     Safely retrieves the totalPages field from pagination info, providing a
     sensible default of 1 when pagination data is missing or invalid.
@@ -319,7 +319,7 @@ def _extract_total_pages(pagination_info: dict | None) -> int:
 
 
 async def _fetch_remaining_pages(
-    session: TurquoiseSession,
+    session: LsegSession,
     market_id: str,
     total_pages: int,
 ) -> list[EquityRecord]:
@@ -353,47 +353,47 @@ async def _fetch_remaining_pages(
     return all_remaining_records
 
 
-async def _fetch_available_exchanges(session: TurquoiseSession) -> list[dict[str, str]]:
+async def _fetch_available_exchanges(session: LsegSession) -> list[dict[str, str]]:
     """
-    Fetch available exchanges from the Turquoise markets API.
+    Fetch available exchanges from the LSEG markets API.
 
     Args:
-        session (TurquoiseSession): Session for making API requests.
+        session (LsegSession): Session for making API requests.
 
     Returns:
         list[dict[str, str]]: List of available exchanges with metadata.
     """
     try:
         response = await session.get(
-            _TURQUOISE_SEARCH_URL,
-            params={"path": _TURQUOISE_MARKETS_INSTRUMENTS_URL},
+            _LSEG_SEARCH_URL,
+            params={"path": _LSEG_MARKETS_INSTRUMENTS_URL},
         )
         response.raise_for_status()
         return extract_available_exchanges(response.json())
     except Exception as error:
-        logger.error("Failed to fetch Turquoise exchanges: %s", error, exc_info=True)
+        logger.error("Failed to fetch LSEG exchanges: %s", error, exc_info=True)
         return []
 
 
 async def _fetch_exchange_page(
-    session: TurquoiseSession,
+    session: LsegSession,
     market_id: str,
     page: int,
 ) -> tuple[list[EquityRecord], dict | None]:
     """
-    Fetch a single page of results from Turquoise feed for specific exchange.
+    Fetch a single page of results from LSEG feed for specific exchange.
 
-    Sends GET request to Turquoise pages endpoint with specified market ID and
+    Sends GET request to LSEG pages endpoint with specified market ID and
     page number, returns parsed equity records and pagination metadata.
 
     Args:
-        session (TurquoiseSession): Turquoise session used to send the request.
+        session (LsegSession): LSEG session used to send the request.
         market_id (str): Market ID to fetch equities for.
         page (int): Zero-based page number to fetch.
 
     Returns:
         tuple[list[EquityRecord], dict | None]: Tuple containing parsed equity
-            records and pagination metadata from Turquoise feed.
+            records and pagination metadata from LSEG feed.
 
     Raises:
         httpx.HTTPStatusError: If response status is not successful.
@@ -402,9 +402,9 @@ async def _fetch_exchange_page(
     """
     parameters = f"marketid={market_id}&page={page}"
     response = await session.get(
-        _TURQUOISE_SEARCH_URL,
+        _LSEG_SEARCH_URL,
         params={
-            "path": _TURQUOISE_MARKETS_INSTRUMENTS_URL,
+            "path": _LSEG_MARKETS_INSTRUMENTS_URL,
             "parameters": parameters,
         },
     )

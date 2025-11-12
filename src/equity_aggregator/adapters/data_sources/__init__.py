@@ -1,8 +1,8 @@
 # data_sources/__init__.py
 
 from .authoritative_feeds import (
+    fetch_equity_records_lseg,
     fetch_equity_records_sec,
-    fetch_equity_records_turquoise,
     fetch_equity_records_xetra,
 )
 from .enrichment_feeds import (
@@ -15,7 +15,7 @@ from .reference_lookup import (
 
 __all__ = [
     # authoritative feeds
-    "fetch_equity_records_turquoise",
+    "fetch_equity_records_lseg",
     "fetch_equity_records_sec",
     "fetch_equity_records_xetra",
     # enrichment feeds

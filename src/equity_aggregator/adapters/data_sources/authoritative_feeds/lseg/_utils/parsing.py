@@ -12,7 +12,7 @@ def _find_search_component(data: dict) -> dict | None:
     Find the turquoise-markets-instruments-search component.
 
     Args:
-        data (dict): Raw JSON response from Turquoise API.
+        data (dict): Raw JSON response from LSEG API.
 
     Returns:
         dict | None: The search component if found, None otherwise.
@@ -92,10 +92,10 @@ def _process_value_data(value_data: dict) -> tuple[list[EquityRecord], dict]:
 
 def _extract_pagination_info(value_data: dict) -> dict:
     """
-    Extract pagination metadata from Turquoise API response.
+    Extract pagination metadata from LSEG API response.
 
     Args:
-        value_data (dict): Value section from Turquoise API response with
+        value_data (dict): Value section from LSEG API response with
             pagination metadata fields.
 
     Returns:
@@ -115,10 +115,10 @@ def _extract_pagination_info(value_data: dict) -> dict:
 
 def extract_available_exchanges(data: dict) -> list[dict[str, str]]:
     """
-    Extract available exchanges from Turquoise API response.
+    Extract available exchanges from LSEG API response.
 
     Args:
-        data (dict): Raw JSON response from Turquoise API.
+        data (dict): Raw JSON response from LSEG API.
 
     Returns:
         list[dict[str, str]]: List of available exchanges with metadata.
@@ -136,7 +136,7 @@ def extract_exchange_page_data(data: dict) -> tuple[list[EquityRecord], dict | N
     Extract equity records and pagination info from API response.
 
     Args:
-        data (dict): Raw JSON response from Turquoise API.
+        data (dict): Raw JSON response from LSEG API.
 
     Returns:
         tuple[list[EquityRecord], dict | None]: Tuple containing equity records

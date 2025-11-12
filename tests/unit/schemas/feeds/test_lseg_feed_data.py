@@ -1,11 +1,11 @@
-# feeds/test_turquoise_feed_data.py
+# feeds/test_lseg_feed_data.py
 
 from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
 
-from equity_aggregator.schemas import TurquoiseFeedData
+from equity_aggregator.schemas import LsegFeedData
 
 pytestmark = pytest.mark.unit
 
@@ -13,7 +13,7 @@ pytestmark = pytest.mark.unit
 def test_strips_extra_fields() -> None:
     """
     ARRANGE: input with unexpected extra field
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  extra field is not present on the model
     """
     payload = {
@@ -25,7 +25,7 @@ def test_strips_extra_fields() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload, unexpected="FIELD")
+    actual = LsegFeedData(**payload, unexpected="FIELD")
 
     assert not hasattr(actual, "unexpected")
 
@@ -33,7 +33,7 @@ def test_strips_extra_fields() -> None:
 def test_missing_required_raises() -> None:
     """
     ARRANGE: input missing required 'name' field
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  raises ValidationError
     """
     incomplete = {
@@ -45,13 +45,13 @@ def test_missing_required_raises() -> None:
     }
 
     with pytest.raises(ValidationError):
-        TurquoiseFeedData(**incomplete)
+        LsegFeedData(**incomplete)
 
 
 def test_mics_default_to_none() -> None:
     """
     ARRANGE: omit 'mics' field
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  mics defaults to None
     """
     payload = {
@@ -62,7 +62,7 @@ def test_mics_default_to_none() -> None:
         "marketcapitalization": 1000,
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.mics is None
 
@@ -70,7 +70,7 @@ def test_mics_default_to_none() -> None:
 def test_symbol_maps_from_symbol() -> None:
     """
     ARRANGE: provide 'symbol' field
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  symbol is set from symbol
     """
     payload = {
@@ -82,7 +82,7 @@ def test_symbol_maps_from_symbol() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.symbol == "TIDM123"
 
@@ -90,7 +90,7 @@ def test_symbol_maps_from_symbol() -> None:
 def test_last_price_and_market_cap_types() -> None:
     """
     ARRANGE: lastvalue and marketcapitalization as int, float, str, Decimal
-    ACT:     construct TurquoiseFeedData for each type
+    ACT:     construct LsegFeedData for each type
     ASSERT:  values are preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
@@ -103,7 +103,7 @@ def test_last_price_and_market_cap_types() -> None:
             "mics": ["XLON"],
         }
 
-        actual = TurquoiseFeedData(**payload)
+        actual = LsegFeedData(**payload)
 
         assert actual.last_price == candidate
 
@@ -111,7 +111,7 @@ def test_last_price_and_market_cap_types() -> None:
 def test_last_price_can_be_none() -> None:
     """
     ARRANGE: lastvalue is None
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  last_price is preserved as None
     """
     payload = {
@@ -123,7 +123,7 @@ def test_last_price_can_be_none() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.last_price is None
 
@@ -131,7 +131,7 @@ def test_last_price_can_be_none() -> None:
 def test_marketcapitalization_can_be_none() -> None:
     """
     ARRANGE: marketcapitalization is None
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  marketcapitalization field is accepted but not exposed on model
     """
     payload = {
@@ -143,7 +143,7 @@ def test_marketcapitalization_can_be_none() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     # The model accepts marketcapitalization but doesn't expose it as a field
     assert actual.name == "Foo"
@@ -152,7 +152,7 @@ def test_marketcapitalization_can_be_none() -> None:
 def test_currency_case_and_whitespace_preserved() -> None:
     """
     ARRANGE: currency is lowercase and padded
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  currency is preserved as given (no uppercase enforcement)
     """
     payload = {
@@ -164,7 +164,7 @@ def test_currency_case_and_whitespace_preserved() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.currency == " gbp "
 
@@ -172,7 +172,7 @@ def test_currency_case_and_whitespace_preserved() -> None:
 def test_omits_isin_sets_none() -> None:
     """
     ARRANGE: omit 'isin' field
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  isin is set to None
     """
     payload = {
@@ -184,7 +184,7 @@ def test_omits_isin_sets_none() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.isin is None
 
@@ -192,7 +192,7 @@ def test_omits_isin_sets_none() -> None:
 def test_last_price_string_with_comma() -> None:
     """
     ARRANGE: lastvalue as string with comma decimal
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  last_price is preserved as string
     """
     payload = {
@@ -204,7 +204,7 @@ def test_last_price_string_with_comma() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.last_price == "1,23"
 
@@ -212,7 +212,7 @@ def test_last_price_string_with_comma() -> None:
 def test_mics_from_field() -> None:
     """
     ARRANGE: provide 'mics' field
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  mics is preserved from input
     """
     payload = {
@@ -224,7 +224,7 @@ def test_mics_from_field() -> None:
         "mics": ["XLON", "XOFF"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     # mics field should be preserved from input
     assert actual.mics == ["XLON", "XOFF"]
@@ -233,7 +233,7 @@ def test_mics_from_field() -> None:
 def test_gbx_currency_converts_price_and_currency() -> None:
     """
     ARRANGE: currency is GBX and lastvalue is pence string
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  last_price is converted to pounds and currency to GBP
     """
     payload = {
@@ -245,7 +245,7 @@ def test_gbx_currency_converts_price_and_currency() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.last_price == Decimal("1.2345")
 
@@ -253,7 +253,7 @@ def test_gbx_currency_converts_price_and_currency() -> None:
 def test_gbx_currency_converts_currency_to_gbp() -> None:
     """
     ARRANGE: currency is GBX
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  currency is converted to GBP
     """
     payload = {
@@ -265,7 +265,7 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.currency == "GBP"
 
@@ -273,7 +273,7 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
 def test_gbx_currency_handles_invalid_lastvalue() -> None:
     """
     ARRANGE: currency is GBX and lastvalue is not a number
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  last_price is None (conversion fails)
     """
     payload = {
@@ -285,7 +285,7 @@ def test_gbx_currency_handles_invalid_lastvalue() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.last_price is None and actual.currency == "GBP"
 
@@ -293,7 +293,7 @@ def test_gbx_currency_handles_invalid_lastvalue() -> None:
 def test_gbx_currency_with_none_lastvalue() -> None:
     """
     ARRANGE: currency is GBX and lastvalue is None
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  last_price is None
     """
     payload = {
@@ -305,7 +305,7 @@ def test_gbx_currency_with_none_lastvalue() -> None:
         "mics": ["XLON"],
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert actual.last_price is None and actual.currency == "GBP"
 
@@ -313,7 +313,7 @@ def test_gbx_currency_with_none_lastvalue() -> None:
 def test_extra_field_is_ignored() -> None:
     """
     ARRANGE: input with an extra unexpected field
-    ACT:     construct TurquoiseFeedData
+    ACT:     construct LsegFeedData
     ASSERT:  extra field is not present on the model
     """
     payload = {
@@ -326,7 +326,7 @@ def test_extra_field_is_ignored() -> None:
         "extra": "should be ignored",
     }
 
-    actual = TurquoiseFeedData(**payload)
+    actual = LsegFeedData(**payload)
 
     assert not hasattr(actual, "extra")
 
@@ -334,7 +334,7 @@ def test_extra_field_is_ignored() -> None:
 def test_accepts_various_last_price_types() -> None:
     """
     ARRANGE: lastvalue as int, float, str, Decimal
-    ACT:     construct TurquoiseFeedData for each type
+    ACT:     construct LsegFeedData for each type
     ASSERT:  last_price is preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
@@ -347,6 +347,6 @@ def test_accepts_various_last_price_types() -> None:
             "mics": ["XLON"],
         }
 
-        actual = TurquoiseFeedData(**payload)
+        actual = LsegFeedData(**payload)
 
         assert actual.last_price == candidate

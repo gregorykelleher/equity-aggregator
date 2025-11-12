@@ -2,7 +2,7 @@
 
 ## Overview
 
-The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple authoritative sources (Turquoise, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance.
+The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple authoritative sources (LSEG, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance.
 
 ## Architecture & Design
 
@@ -39,7 +39,7 @@ Raw Data Sources → Parse → Convert → Identify → Deduplicate → Enrich �
 
 Orchestrates parallel data fetching from authoritative feeds:
 
-- Fetches data from Turquoise, SEC, and XETRA concurrently
+- Fetches data from LSEG, SEC, and XETRA concurrently
 - Combines all feed data into a single stream for processing
 - Maintains feed source metadata for downstream processing
 
@@ -47,7 +47,7 @@ Orchestrates parallel data fetching from authoritative feeds:
 
 Validates and structures raw feed data:
 
-- Applies feed-specific schemas (`TurquoiseFeedData`, `SecFeedData`, etc.)
+- Applies feed-specific schemas (`LsegFeedData`, `SecFeedData`, etc.)
 - Filters out invalid records early in the pipeline
 - Normalises data formats across different sources
 
@@ -100,7 +100,7 @@ The pipeline uses asynchronous operations to process thousands of equity records
 
 **Parallel Data Fetching**
 
-- All authoritative feeds (Turquoise, SEC, XETRA) are fetched simultaneously
+- All authoritative feeds (LSEG, SEC, XETRA) are fetched simultaneously
 
 **Streaming Pipeline**
 
@@ -144,7 +144,7 @@ schemas/
 ├── canonical.py              # CanonicalEquity - final standardised format
 ├── types.py                  # Type definitions and validators
 └── feeds/                    # Feed-specific data models
-    ├── turqoise_feed_data.py
+    ├── lseg_feed_data.py
     ├── sec_feed_data.py
     ├── xetra_feed_data.py
     └── yfinance_feed_data.py
@@ -170,7 +170,7 @@ def parse(stream: AsyncIterable[FeedRecord]) -> AsyncIterator[RawEquity]:
 
 #### 3. **Field Mapping & Normalisation**
 ```python
-class TurquoiseFeedData(BaseModel):
+class LsegFeedData(BaseModel):
     issuername: str = Field(..., description="Company name")
     tidm: str = Field(..., description="Trading symbol")
     isin: str = Field(..., description="ISIN identifier")
@@ -194,7 +194,7 @@ class TurquoiseFeedData(BaseModel):
 
 ### Authoritative Feeds (Primary Sources)
 
-- **Turquoise**: Turquoise trading platform
+- **LSEG**: London Stock Exchange Group trading platform
 - **XETRA**: Deutsche Börse Stock Exchange
 - **SEC**: US Securities and Exchange Commission
 

@@ -1,4 +1,4 @@
-# turquoise/test_session.py
+# lseg/test_session.py
 
 import asyncio
 import json
@@ -8,8 +8,8 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.turquoise.session import (  # noqa: E501
-    TurquoiseSession,
+from equity_aggregator.adapters.data_sources.authoritative_feeds.lseg.session import (
+    LsegSession,
 )
 
 pytestmark = pytest.mark.unit
@@ -97,7 +97,7 @@ async def test_get_defaults_params_to_empty_dict() -> None:
         captured["params"] = dict(request.url.params)
         return httpx.Response(HTTP_OK)
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     await session.get("https://dummy.com")
     await close(session._client)
 
@@ -117,7 +117,7 @@ async def test_get_passes_through_params() -> None:
         captured["params"] = dict(request.url.params)
         return httpx.Response(HTTP_OK)
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     await session.get("https://dummy.com", params=expected_params)
     await close(session._client)
 
@@ -137,7 +137,7 @@ async def test_post_sends_json_payload() -> None:
         captured["json"] = json.loads(request.content)
         return httpx.Response(HTTP_OK)
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     await session.post("https://dummy.com", json=expected_json)
     await close(session._client)
 
@@ -151,7 +151,7 @@ async def test_aclose_marks_client_closed() -> None:
     ASSERT:  client reports closed
     """
     client = make_client(lambda r: httpx.Response(HTTP_OK))
-    session = TurquoiseSession(client)
+    session = LsegSession(client)
 
     await session.aclose()
 
@@ -169,7 +169,7 @@ async def test_get_retries_after_403_forbidden() -> None:
     async def handler(_request: httpx.Request) -> httpx.Response:
         return responses.popleft()
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     response = await session.get("https://dummy.com")
     await close(session._client)
 
@@ -187,7 +187,7 @@ async def test_post_retries_after_403_forbidden() -> None:
     async def handler(_request: httpx.Request) -> httpx.Response:
         return responses.popleft()
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     response = await session.post("https://dummy.com", json={"test": "data"})
     await close(session._client)
 
@@ -204,7 +204,7 @@ async def test_get_returns_404_immediately() -> None:
     async def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(HTTP_NOT_FOUND)
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     response = await session.get("https://dummy.com")
     await close(session._client)
 
@@ -221,7 +221,7 @@ async def test_post_returns_500_immediately() -> None:
     async def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(HTTP_INTERNAL_ERROR)
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     response = await session.post("https://dummy.com", json={"test": "data"})
     await close(session._client)
 
@@ -247,7 +247,7 @@ async def test_get_raises_lookup_error_after_max_retries() -> None:
     asyncio.sleep = _instant
 
     try:
-        session = TurquoiseSession(make_client(handler))
+        session = LsegSession(make_client(handler))
 
         with pytest.raises(LookupError, match="HTTP 403 Forbidden after retries"):
             await session.get("https://dummy.com")
@@ -273,7 +273,7 @@ async def test_get_succeeds_with_non_403_after_retries() -> None:
     async def handler(_: httpx.Request) -> httpx.Response:
         return responses.popleft()
 
-    session = TurquoiseSession(make_client(handler))
+    session = LsegSession(make_client(handler))
     response = await session.get("https://dummy.com")
     await close(session._client)
 
@@ -294,7 +294,7 @@ async def test_post_performs_backoff_retry_attempts() -> None:
     real_sleep, asyncio.sleep = asyncio.sleep, _instant_sleep
 
     try:
-        session = TurquoiseSession(make_client(handler))
+        session = LsegSession(make_client(handler))
         await session.post("https://dummy.com", json={"test": "data"})
         await close(session._client)
         assert get_call_count() == EXPECTED_CALL_COUNT
@@ -316,7 +316,7 @@ async def test_post_succeeds_after_backoff_retries() -> None:
     real_sleep, asyncio.sleep = asyncio.sleep, _instant_sleep
 
     try:
-        session = TurquoiseSession(make_client(handler))
+        session = LsegSession(make_client(handler))
         response = await session.post("https://dummy.com", json={"test": "data"})
         await close(session._client)
         assert response.status_code == HTTP_OK

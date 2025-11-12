@@ -1,4 +1,4 @@
-# feeds/turquoise_feed_data.py
+# feeds/lseg_feed_data.py
 
 import re
 from decimal import Decimal
@@ -9,9 +9,9 @@ from .feed_validators import required
 
 
 @required("name", "symbol")
-class TurquoiseFeedData(BaseModel):
+class LsegFeedData(BaseModel):
     """
-    Represents single Turquoise feed record, transforming and normalising incoming
+    Represents single LSEG feed record, transforming and normalising incoming
     fields to match the RawEquity model's expected attributes. If the currency is "GBX",
     price fields such as "last_price" are automatically converted from pence to
     pounds (GBP) for consistency.
@@ -27,7 +27,7 @@ class TurquoiseFeedData(BaseModel):
             from "lastvalue" and converted from pence to pounds if currency is "GBX".
 
     Returns:
-        TurquoiseFeedData: An instance with fields normalised for RawEquity validation,
+        LsegFeedData: An instance with fields normalised for RawEquity validation,
             including automatic GBX to GBP conversion where relevant.
     """
 
@@ -42,14 +42,14 @@ class TurquoiseFeedData(BaseModel):
     @model_validator(mode="before")
     def _normalise_fields(self: dict[str, object]) -> dict[str, object]:
         """
-        Normalise raw Turquoise feed record into the flat schema expected by RawEquity.
+        Normalise raw LSEG feed record into the flat schema expected by RawEquity.
 
         Extracts and renames nested fields to match the RawEquity signature. If the
         currency is "GBX", automatically converts price fields from pence to pounds
         (GBP) using the convert_gbx_to_gbp helper.
 
         Args:
-            self (dict[str, object]): Raw payload containing raw Turquoise feed data.
+            self (dict[str, object]): Raw payload containing raw LSEG feed data.
 
         Returns:
             dict[str, object]: A new dictionary with renamed keys and, if applicable,
@@ -62,16 +62,16 @@ class TurquoiseFeedData(BaseModel):
             "name": raw.get("name"),
             "symbol": raw.get("symbol"),
             "isin": raw.get("isin"),
-            # no CUSIP, CIK or FIGI in Turquoise feed, so omitting from model
+            # no CUSIP, CIK or FIGI in LSEG feed, so omitting from model
             "mics": raw.get("mics"),
             "currency": raw.get("currency"),
             # lastvalue → maps to RawEquity.last_price
             "last_price": raw.get("lastvalue"),
-            # no additional fields in Turquoise feed, so omitting from model
+            # no additional fields in LSEG feed, so omitting from model
         }
 
     model_config = ConfigDict(
-        # ignore extra fields in incoming Turquoise raw data feed
+        # ignore extra fields in incoming LSEG raw data feed
         extra="ignore",
         # defer strict type validation to RawEquity
         strict=False,

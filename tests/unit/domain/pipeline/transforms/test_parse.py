@@ -9,7 +9,7 @@ import pytest
 from equity_aggregator.domain.pipeline.resolve import FeedRecord
 from equity_aggregator.domain.pipeline.transforms.parse import parse
 from equity_aggregator.schemas import (
-    TurquoiseFeedData,
+    LsegFeedData,
     XetraFeedData,
 )
 from equity_aggregator.schemas.raw import RawEquity
@@ -39,21 +39,21 @@ def _run_parse(records: list[FeedRecord]) -> list[RawEquity]:
     return asyncio.run(runner())
 
 
-def test_parse_valid_turquoise_record_converts_gbx_and_defaults_mics() -> None:
+def test_parse_valid_lseg_record_converts_gbx_and_defaults_mics() -> None:
     """
-    ARRANGE: a TurquoiseFeedData record with GBX currency, pence lastprice, and no mics
+    ARRANGE: a LsegFeedData record with GBX currency, pence lastprice, and no mics
     ACT:     run parse() over that single record
     ASSERT:  yields exactly one RawEquity with converted price and default mics
     """
     raw = {
-        "name": "Turquoise CO",
+        "name": "LSEG CO",
         "symbol": "LSEC",
         "isin": None,
         "mics": None,
         "currency": "GBX",
         "lastvalue": "123,45",  # 123.45 pence => £1.2345
     }
-    record = FeedRecord(TurquoiseFeedData, raw)
+    record = FeedRecord(LsegFeedData, raw)
 
     actual = _run_parse([record])
 
@@ -67,7 +67,7 @@ def test_parse_valid_turquoise_record_converts_gbx_and_defaults_mics() -> None:
             equity.mics,
         )
         for equity in actual
-    ] == [("TURQUOISE CO", "LSEC", "GBP", Decimal("1.2345"), None, None)]
+    ] == [("LSEG CO", "LSEC", "GBP", Decimal("1.2345"), None, None)]
 
 
 def test_parse_valid_xetra_record_defaults_mics_and_flattens_fields() -> None:
@@ -138,7 +138,7 @@ def test_parse_skips_invalid_records_across_feeds() -> None:
     }
 
     records = [
-        FeedRecord(TurquoiseFeedData, missing_name_gbx),
+        FeedRecord(LsegFeedData, missing_name_gbx),
         FeedRecord(XetraFeedData, missing_overview),
     ]
 
@@ -147,9 +147,9 @@ def test_parse_skips_invalid_records_across_feeds() -> None:
     assert [equity.symbol for equity in actual] == ["WX"]
 
 
-def test_parse_turquoise_record_non_gbx_pass_through() -> None:
+def test_parse_lseg_record_non_gbx_pass_through() -> None:
     """
-    ARRANGE: a TurquoiseFeedData record with non-GBX currency and numeric lastprice
+    ARRANGE: a LsegFeedData record with non-GBX currency and numeric lastprice
     ACT:     run parse() over that single record
     ASSERT:  yields exactly one RawEquity with last_price unchanged & currency unchanged
     """
@@ -163,7 +163,7 @@ def test_parse_turquoise_record_non_gbx_pass_through() -> None:
         "lastvalue": "250",
     }
 
-    record = FeedRecord(TurquoiseFeedData, raw)
+    record = FeedRecord(LsegFeedData, raw)
 
     actual = _run_parse([record])
 
@@ -172,9 +172,9 @@ def test_parse_turquoise_record_non_gbx_pass_through() -> None:
     ]
 
 
-def test_parse_turquoise_gbx_with_none_lastprice() -> None:
+def test_parse_lseg_gbx_with_none_lastprice() -> None:
     """
-    ARRANGE: a TurquoiseFeedData record with GBX currency and no lastprice
+    ARRANGE: a LsegFeedData record with GBX currency and no lastprice
     ACT:     run parse() over that single record
     ASSERT:  yields exactly one RawEquity with last_price None and currency 'GBP'
     """
@@ -186,7 +186,7 @@ def test_parse_turquoise_gbx_with_none_lastprice() -> None:
         "currency": "GBX",
         "lastvalue": None,
     }
-    record = FeedRecord(TurquoiseFeedData, raw)
+    record = FeedRecord(LsegFeedData, raw)
 
     actual = _run_parse([record])
 
@@ -229,12 +229,12 @@ def test_parse_xetra_only_key_data() -> None:
 
 def test_parse_preserves_input_order_across_feeds() -> None:
     """
-    ARRANGE: one Turquoise, one Xetra record in a known order
+    ARRANGE: one LSEG, one Xetra record in a known order
     ACT:     run parse() over that list
     ASSERT:  yields RawEquity instances in the same order
     """
 
-    raw_turquoise_data = {
+    raw_lseg_data = {
         "name": "L2",
         "symbol": "L2",
         "isin": None,
@@ -253,7 +253,7 @@ def test_parse_preserves_input_order_across_feeds() -> None:
     }
 
     records = [
-        FeedRecord(TurquoiseFeedData, raw_turquoise_data),
+        FeedRecord(LsegFeedData, raw_lseg_data),
         FeedRecord(XetraFeedData, raw_xetra_data),
     ]
 
