@@ -235,7 +235,7 @@ class YFSession:
                 return response
 
             logger.debug(
-                "%d %s – sleeping %.1fs (attempt %d/%d)",
+                "%d %s – sleeping for the next %.1fs (attempt %d/%d)",
                 response.status_code,
                 url,
                 delay,

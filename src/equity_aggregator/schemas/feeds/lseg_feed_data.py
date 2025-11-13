@@ -53,7 +53,8 @@ class LsegFeedData(BaseModel):
 
         Extracts and renames nested fields to match the RawEquity signature. If the
         currency is "GBX", automatically converts price fields from pence to pounds
-        (GBP) using the convert_gbx_to_gbp helper.
+        (GBP) using the convert_gbx_to_gbp helper. Treats 0 as None for monetary
+        fields since LSEG API uses 0 to represent missing data for certain fields.
 
         Args:
             self (dict[str, object]): Raw payload containing raw LSEG feed data.
@@ -63,8 +64,11 @@ class LsegFeedData(BaseModel):
             price and currency fields converted from GBX to GBP, suitable for the
             RawEquity schema.
         """
-        # convert GBX to GBP
-        raw = convert_gbx_to_gbp(self)
+
+        # convert GBX to GBP and sanitise zero monetary values
+        raw = _convert_gbx_to_gbp(self)
+        raw = _sanitise_zero_monetary_values(raw)
+
         return {
             "name": raw.get("issuername"),
             "symbol": raw.get("tidm"),
@@ -86,37 +90,7 @@ class LsegFeedData(BaseModel):
     )
 
 
-def _gbx_to_decimal(pence: str | None) -> Decimal | None:
-    """
-    Convert a pence string (e.g., "150", "1,50") to a Decimal value.
-
-    Accepts strings representing pence values, optionally using a comma as a decimal
-    separator (e.g., "1,23" is treated as "1.23"). Returns None if the input is None or
-    does not match a positive number format.
-
-    Args:
-        pence (str | None): The pence value as a string, possibly with a comma decimal
-            separator, or None.
-
-    Returns:
-        Decimal | None: The parsed Decimal value, or None if input is invalid.
-    """
-    if pence is None:
-        return None
-
-    s = str(pence).strip()
-    # allow "1,23" → "1.23"
-    if "," in s and "." not in s:
-        s = s.replace(",", ".")
-
-    # only digits with optional single decimal point
-    if not re.fullmatch(r"\d+(?:\.\d+)?", s):
-        return None
-
-    return Decimal(s)
-
-
-def convert_gbx_to_gbp(raw: dict) -> dict:
+def _convert_gbx_to_gbp(raw: dict) -> dict:
     """
     Convert price and currency fields from GBX (pence) to GBP (pounds).
 
@@ -154,4 +128,63 @@ def convert_gbx_to_gbp(raw: dict) -> dict:
     updates["fiftyTwoWeeksMax"] = max_price / Decimal("100") if max_price else None
 
     # return a new dict rather than mutating in place
+    return {**raw, **updates}
+
+
+def _gbx_to_decimal(pence: str | None) -> Decimal | None:
+    """
+    Convert a pence string (e.g., "150", "1,50") to a Decimal value.
+
+    Accepts strings representing pence values, optionally using a comma as a decimal
+    separator (e.g., "1,23" is treated as "1.23"). Returns None if the input is None or
+    does not match a positive number format.
+
+    Args:
+        pence (str | None): The pence value as a string, possibly with a comma decimal
+            separator, or None.
+
+    Returns:
+        Decimal | None: The parsed Decimal value, or None if input is invalid.
+    """
+    if pence is None:
+        return None
+
+    s = str(pence).strip()
+    # allow "1,23" → "1.23"
+    if "," in s and "." not in s:
+        s = s.replace(",", ".")
+
+    # only digits with optional single decimal point
+    if not re.fullmatch(r"\d+(?:\.\d+)?", s):
+        return None
+
+    return Decimal(s)
+
+
+def _sanitise_zero_monetary_values(raw: dict) -> dict:
+    """
+    Treat 0 as None for LSEG monetary fields.
+
+    LSEG API returns 0 for missing monetary data. Since 0 is not a valid
+    price or market cap, we treat it as None to allow enrichment feeds
+    to provide valid data downstream.
+
+    Args:
+        raw: Dictionary containing LSEG API fields.
+
+    Returns:
+        A new dictionary with 0 values converted to None for monetary fields.
+    """
+    monetary_fields = [
+        "lastprice",
+        "marketcapitalization",
+        "fiftyTwoWeeksMin",
+        "fiftyTwoWeeksMax",
+    ]
+
+    updates = {
+        field: None if raw.get(field) == 0 else raw.get(field)
+        for field in monetary_fields
+    }
+
     return {**raw, **updates}
