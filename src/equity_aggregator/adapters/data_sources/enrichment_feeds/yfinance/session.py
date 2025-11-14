@@ -104,9 +104,9 @@ class YFSession:
         """
         Perform a resilient asynchronous GET request to Yahoo Finance endpoints.
 
-        This method injects the crumb if required, renews it on a single 401
-        response, and applies exponential backoff on 429 responses. Concurrency
-        is limited to comply with Yahoo's HTTP/2 stream limits.
+        This method renews the crumb on a single 401 response and applies
+        exponential backoff on 429 responses. Concurrency is limited to comply
+        with Yahoo's HTTP/2 stream limits.
 
         Args:
             url (str): Absolute URL to request.
@@ -116,7 +116,7 @@ class YFSession:
             httpx.Response: The successful HTTP response.
         """
         async with self.__class__._concurrent_streams:
-            merged_params: dict[str, str] = self._attach_crumb(url, dict(params or {}))
+            merged_params: dict[str, str] = dict(params or {})
             return await self._fetch_with_retry(url, merged_params)
 
     async def _safe_get(
@@ -293,36 +293,6 @@ class YFSession:
         params["crumb"] = self._crumb
 
         return await self._client.get(url, params=params)
-
-    def _attach_crumb(
-        self,
-        url: str,  # noqa: ARG002
-        params: dict[str, str],
-    ) -> dict[str, str]:
-        """
-        Inject the anti-CSRF crumb into query parameters if required.
-
-        The crumb is added only for quote-summary endpoint requests when available.
-        If the crumb is not set or the URL does not match, the original parameters
-        are returned unchanged.
-
-        Args:
-            url (str): Target request URL.
-            params (dict[str, str]): Query parameters to update.
-
-        Returns:
-            dict[str, str]: Updated query parameters with crumb if needed.
-        """
-        # TODO why was this commented out?
-        # needs_crumb = self._crumb is not None and url.startswith(
-        #     self._config.quote_summary_url,
-        # )
-
-        # if not needs_crumb:
-        #     return params
-
-        # return {**params, "crumb": self._crumb}
-        return params
 
     def _extract_ticker(self, url: str) -> str:
         """

@@ -114,7 +114,8 @@ class YFinanceFeedData(BaseModel):
             "return_on_equity": self.get("returnOnEquity"),
             # returnOnAssets → maps to RawEquity.return_on_assets
             "return_on_assets": self.get("returnOnAssets"),
-            # no one year performance, so omitting from model
+            # 52WeekChange → maps to RawEquity.performance_1_year
+            "performance_1_year": self.get("52WeekChange"),
             # totalDebt → maps to RawEquity.total_debt
             "total_debt": self.get("totalDebt"),
             # totalRevenue → maps to RawEquity.revenue

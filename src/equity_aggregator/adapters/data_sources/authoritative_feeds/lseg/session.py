@@ -8,10 +8,7 @@ import httpx
 
 from equity_aggregator.adapters.data_sources._utils import make_client
 
-# TODO don't mix utils imports from YFinance
-from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance._utils import (
-    backoff_delays,
-)
+from ._utils import backoff_delays
 
 logger: logging.Logger = logging.getLogger(__name__)
 

@@ -12,11 +12,11 @@ Equity Aggregator is a financial data tool that collects and normalises raw equi
 
 Altogether, this tool makes it possible to retrieve up-to-date information on over 7,500+ equities from ten countries worldwide:
 
-| Source | Country | Description |
+| Source | Coverage | Description |
 |----------|---------|-------------|
-| 🇬🇧 LSEG | United Kingdom | London Stock Exchange Group trading platform |
-| 🇺🇸 SEC | United States | Securities and Exchange Commission |
-| 🇩🇪 XETRA | Germany | Deutsche Börse electronic trading platform |
+| 🇬🇧 LSEG | International | London Stock Exchange Group - Global equities |
+| 🇺🇸 SEC | United States | Securities and Exchange Commission - US-listed equities |
+| 🇩🇪 XETRA | Germany | Deutsche Börse electronic trading platform - German equities |
 
 > [!NOTE]
 > **Euronext Data Source Discontinued**: Euronext data feeds are no longer supported due to implementation of bot protection mechanisms. European equity coverage is now provided through alternative data sources. For historical Euronext integration code, see the `legacy/euronext-integration` branch.

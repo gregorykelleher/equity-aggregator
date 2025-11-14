@@ -1,4 +1,4 @@
-# authoritative_feeds/sec.py
+# authoritative_feeds/sec/sec.py
 
 import logging
 

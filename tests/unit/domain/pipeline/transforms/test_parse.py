@@ -41,17 +41,19 @@ def _run_parse(records: list[FeedRecord]) -> list[RawEquity]:
 
 def test_parse_valid_lseg_record_converts_gbx_and_defaults_mics() -> None:
     """
-    ARRANGE: a LsegFeedData record with GBX currency, pence lastprice, and no mics
+    ARRANGE: a LsegFeedData record with GBX currency, pence lastprice, and no isin
     ACT:     run parse() over that single record
-    ASSERT:  yields exactly one RawEquity with converted price and default mics
+    ASSERT:  yields exactly one RawEquity with converted price
     """
     raw = {
-        "name": "LSEG CO",
-        "symbol": "LSEC",
+        "issuername": "LSEG CO",
+        "tidm": "LSEC",
         "isin": None,
-        "mics": None,
         "currency": "GBX",
-        "lastvalue": "123,45",  # 123.45 pence => £1.2345
+        "lastprice": "123,45",  # 123.45 pence => £1.2345
+        "marketcapitalization": None,
+        "fiftyTwoWeeksMin": None,
+        "fiftyTwoWeeksMax": None,
     }
     record = FeedRecord(LsegFeedData, raw)
 
@@ -64,7 +66,7 @@ def test_parse_valid_lseg_record_converts_gbx_and_defaults_mics() -> None:
             equity.currency,
             equity.last_price,
             equity.market_cap,
-            equity.mics,
+            equity.isin,
         )
         for equity in actual
     ] == [("LSEG CO", "LSEC", "GBP", Decimal("1.2345"), None, None)]
@@ -155,12 +157,14 @@ def test_parse_lseg_record_non_gbx_pass_through() -> None:
     """
 
     raw = {
-        "name": "ABC LTD",
-        "symbol": "ABCL",
+        "issuername": "ABC LTD",
+        "tidm": "ABCL",
         "isin": None,
-        "mics": ["XLON"],
         "currency": "GBP",
-        "lastvalue": "250",
+        "lastprice": "250",
+        "marketcapitalization": None,
+        "fiftyTwoWeeksMin": None,
+        "fiftyTwoWeeksMax": None,
     }
 
     record = FeedRecord(LsegFeedData, raw)
@@ -179,12 +183,14 @@ def test_parse_lseg_gbx_with_none_lastprice() -> None:
     ASSERT:  yields exactly one RawEquity with last_price None and currency 'GBP'
     """
     raw = {
-        "name": "XYZ PLC",
-        "symbol": "XYZ",
+        "issuername": "XYZ PLC",
+        "tidm": "XYZ",
         "isin": None,
-        "mics": None,
         "currency": "GBX",
-        "lastvalue": None,
+        "lastprice": None,
+        "marketcapitalization": None,
+        "fiftyTwoWeeksMin": None,
+        "fiftyTwoWeeksMax": None,
     }
     record = FeedRecord(LsegFeedData, raw)
 
@@ -197,7 +203,7 @@ def test_parse_lseg_gbx_with_none_lastprice() -> None:
             equity.currency,
             equity.last_price,
             equity.market_cap,
-            equity.mics,
+            equity.isin,
         )
         for equity in actual
     ] == [("XYZ PLC", "XYZ", "GBP", None, None, None)]
@@ -235,12 +241,14 @@ def test_parse_preserves_input_order_across_feeds() -> None:
     """
 
     raw_lseg_data = {
-        "name": "L2",
-        "symbol": "L2",
+        "issuername": "L2",
+        "tidm": "L2",
         "isin": None,
-        "mics": ["XLON"],
         "currency": "GBP",
-        "lastvalue": "200",
+        "lastprice": "200",
+        "marketcapitalization": None,
+        "fiftyTwoWeeksMin": None,
+        "fiftyTwoWeeksMax": None,
     }
     raw_xetra_data = {
         "name": "X3",

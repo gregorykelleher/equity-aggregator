@@ -103,23 +103,6 @@ async def test_get_defaults_params_to_empty_dict() -> None:
     assert captured["params"] == {}
 
 
-def test_attach_crumb_is_noop_after_token_comment_out() -> None:
-    """
-    ARRANGE: crumb pre-set; target URL is quote-summary
-    ACT:     call _attach_crumb
-    ASSERT:  returned params unchanged (crumb injection disabled in code)
-    """
-
-    cfg = FeedConfig()
-    session = YFSession(cfg, make_client(lambda r: httpx.Response(200)))
-    session._crumb = "should_not_be_used"
-
-    original = {"modules": "price"}
-    updated = session._attach_crumb(f"{cfg.quote_summary_url}GOOG", original.copy())
-
-    assert updated == original
-
-
 async def test_bootstrap_returns_immediately_if_crumb_set() -> None:
     """
     ARRANGE: session already possesses a crumb token

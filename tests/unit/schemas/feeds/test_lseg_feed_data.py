@@ -17,12 +17,11 @@ def test_strips_extra_fields() -> None:
     ASSERT:  extra field is not present on the model
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": None,
-        "lastvalue": None,
+        "lastprice": None,
         "marketcapitalization": None,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload, unexpected="FIELD")
@@ -32,54 +31,52 @@ def test_strips_extra_fields() -> None:
 
 def test_missing_required_raises() -> None:
     """
-    ARRANGE: input missing required 'name' field
+    ARRANGE: input missing required 'issuername' field
     ACT:     construct LsegFeedData
     ASSERT:  raises ValidationError
     """
     incomplete = {
-        "symbol": "F",
+        "tidm": "F",
         "currency": None,
-        "lastvalue": None,
+        "lastprice": None,
         "marketcapitalization": None,
-        "mics": ["XLON"],
     }
 
     with pytest.raises(ValidationError):
         LsegFeedData(**incomplete)
 
 
-def test_mics_default_to_none() -> None:
+def test_isin_defaults_to_none() -> None:
     """
-    ARRANGE: omit 'mics' field
+    ARRANGE: omit 'isin' field
     ACT:     construct LsegFeedData
-    ASSERT:  mics defaults to None
+    ASSERT:  isin defaults to None
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBP",
-        "lastvalue": 1.0,
+        "lastprice": 1.0,
         "marketcapitalization": 1000,
     }
 
     actual = LsegFeedData(**payload)
 
-    assert actual.mics is None
+    assert actual.isin is None
 
 
-def test_symbol_maps_from_symbol() -> None:
+def test_symbol_maps_from_tidm() -> None:
     """
-    ARRANGE: provide 'symbol' field
+    ARRANGE: provide 'tidm' field
     ACT:     construct LsegFeedData
-    ASSERT:  symbol is set from symbol
+    ASSERT:  symbol is set from tidm
     """
     payload = {
-        "name": "Foo",
-        "symbol": "TIDM123",
+        "issuername": "Foo",
+        "tidm": "TIDM123",
         "currency": "GBP",
-        "lastvalue": 1.0,
+        "lastprice": 1.0,
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -89,18 +86,17 @@ def test_symbol_maps_from_symbol() -> None:
 
 def test_last_price_and_market_cap_types() -> None:
     """
-    ARRANGE: lastvalue and marketcapitalization as int, float, str, Decimal
+    ARRANGE: lastprice and marketcapitalization as int, float, str, Decimal
     ACT:     construct LsegFeedData for each type
     ASSERT:  values are preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
         payload = {
-            "name": "Foo",
-            "symbol": "F",
+            "issuername": "Foo",
+            "tidm": "F",
             "currency": "GBP",
-            "lastvalue": candidate,
+            "lastprice": candidate,
             "marketcapitalization": candidate,
-            "mics": ["XLON"],
         }
 
         actual = LsegFeedData(**payload)
@@ -110,17 +106,16 @@ def test_last_price_and_market_cap_types() -> None:
 
 def test_last_price_can_be_none() -> None:
     """
-    ARRANGE: lastvalue is None
+    ARRANGE: lastprice is None
     ACT:     construct LsegFeedData
     ASSERT:  last_price is preserved as None
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBP",
-        "lastvalue": None,
+        "lastprice": None,
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -135,12 +130,11 @@ def test_marketcapitalization_can_be_none() -> None:
     ASSERT:  marketcapitalization field is accepted but not exposed on model
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBP",
-        "lastvalue": 1.0,
+        "lastprice": 1.0,
         "marketcapitalization": None,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -156,12 +150,11 @@ def test_currency_case_and_whitespace_preserved() -> None:
     ASSERT:  currency is preserved as given (no uppercase enforcement)
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": " gbp ",
-        "lastvalue": 10,
+        "lastprice": 10,
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -176,12 +169,11 @@ def test_omits_isin_sets_none() -> None:
     ASSERT:  isin is set to None
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBP",
-        "lastvalue": 1.0,
+        "lastprice": 1.0,
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -191,17 +183,16 @@ def test_omits_isin_sets_none() -> None:
 
 def test_last_price_string_with_comma() -> None:
     """
-    ARRANGE: lastvalue as string with comma decimal
+    ARRANGE: lastprice as string with comma decimal
     ACT:     construct LsegFeedData
-    ASSERT:  last_price is preserved as string
+    ASSERT:  last_price is preserved as string (no conversion for non-GBX)
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBP",
-        "lastvalue": "1,23",
+        "lastprice": "1,23",
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -209,40 +200,18 @@ def test_last_price_string_with_comma() -> None:
     assert actual.last_price == "1,23"
 
 
-def test_mics_from_field() -> None:
-    """
-    ARRANGE: provide 'mics' field
-    ACT:     construct LsegFeedData
-    ASSERT:  mics is preserved from input
-    """
-    payload = {
-        "name": "Foo",
-        "symbol": "F",
-        "currency": "GBP",
-        "lastvalue": 1.0,
-        "marketcapitalization": 1000,
-        "mics": ["XLON", "XOFF"],
-    }
-
-    actual = LsegFeedData(**payload)
-
-    # mics field should be preserved from input
-    assert actual.mics == ["XLON", "XOFF"]
-
-
 def test_gbx_currency_converts_price_and_currency() -> None:
     """
-    ARRANGE: currency is GBX and lastvalue is pence string
+    ARRANGE: currency is GBX and lastprice is pence string
     ACT:     construct LsegFeedData
     ASSERT:  last_price is converted to pounds and currency to GBP
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBX",
-        "lastvalue": "123,45",
+        "lastprice": "123,45",
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -257,12 +226,11 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
     ASSERT:  currency is converted to GBP
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBX",
-        "lastvalue": "123,45",
+        "lastprice": "123,45",
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -270,19 +238,18 @@ def test_gbx_currency_converts_currency_to_gbp() -> None:
     assert actual.currency == "GBP"
 
 
-def test_gbx_currency_handles_invalid_lastvalue() -> None:
+def test_gbx_currency_handles_invalid_lastprice() -> None:
     """
-    ARRANGE: currency is GBX and lastvalue is not a number
+    ARRANGE: currency is GBX and lastprice is not a number
     ACT:     construct LsegFeedData
     ASSERT:  last_price is None (conversion fails)
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBX",
-        "lastvalue": "not_a_number",
+        "lastprice": "not_a_number",
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -290,19 +257,18 @@ def test_gbx_currency_handles_invalid_lastvalue() -> None:
     assert actual.last_price is None and actual.currency == "GBP"
 
 
-def test_gbx_currency_with_none_lastvalue() -> None:
+def test_gbx_currency_with_none_lastprice() -> None:
     """
-    ARRANGE: currency is GBX and lastvalue is None
+    ARRANGE: currency is GBX and lastprice is None
     ACT:     construct LsegFeedData
     ASSERT:  last_price is None
     """
     payload = {
-        "name": "Foo",
-        "symbol": "F",
+        "issuername": "Foo",
+        "tidm": "F",
         "currency": "GBX",
-        "lastvalue": None,
+        "lastprice": None,
         "marketcapitalization": 1000,
-        "mics": ["XLON"],
     }
 
     actual = LsegFeedData(**payload)
@@ -317,10 +283,10 @@ def test_extra_field_is_ignored() -> None:
     ASSERT:  extra field is not present on the model
     """
     payload = {
-        "name": "Real Name",
-        "symbol": "SYM",
+        "issuername": "Real Name",
+        "tidm": "SYM",
         "currency": "GBP",
-        "lastvalue": 1.0,
+        "lastprice": 1.0,
         "marketcapitalization": 1000,
         "mics": ["XLON"],
         "extra": "should be ignored",
@@ -333,18 +299,17 @@ def test_extra_field_is_ignored() -> None:
 
 def test_accepts_various_last_price_types() -> None:
     """
-    ARRANGE: lastvalue as int, float, str, Decimal
+    ARRANGE: lastprice as int, float, str, Decimal
     ACT:     construct LsegFeedData for each type
     ASSERT:  last_price is preserved as given
     """
     for candidate in (123, 123.45, "123.45", Decimal("123.45")):
         payload = {
-            "name": "Foo",
-            "symbol": "F",
+            "issuername": "Foo",
+            "tidm": "F",
             "currency": "GBP",
-            "lastvalue": candidate,
+            "lastprice": candidate,
             "marketcapitalization": 1000,
-            "mics": ["XLON"],
         }
 
         actual = LsegFeedData(**payload)

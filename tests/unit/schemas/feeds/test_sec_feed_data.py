@@ -94,3 +94,21 @@ def test_cik_field_processed() -> None:
     actual = SecFeedData(**raw)
 
     assert actual.cik == "0000123456"
+
+
+def test_cik_already_zero_padded_string() -> None:
+    """
+    ARRANGE: cik provided as zero-padded string
+    ACT:     construct SecFeedData
+    ASSERT:  cik remains unchanged
+    """
+    raw = {
+        "name": "Foo Inc",
+        "symbol": "FOO",
+        "mics": ["XNYS"],
+        "cik": "0000123456",
+    }
+
+    actual = SecFeedData(**raw)
+
+    assert actual.cik == "0000123456"

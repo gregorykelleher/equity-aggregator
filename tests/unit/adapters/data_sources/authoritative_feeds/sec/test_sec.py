@@ -1,12 +1,11 @@
-# authoritative_feeds/test_sec.py
+# authoritative_feeds/sec/test_sec.py
 
-import uuid
 from collections.abc import AsyncGenerator
 
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.sec import (
+from equity_aggregator.adapters.data_sources.authoritative_feeds.sec.sec import (
     _deduplicate_records,
     _parse_row,
     _stream_and_cache,
@@ -88,7 +87,7 @@ async def test_stream_sec_yields_records() -> None:
     """
     payload = {"data": [[1, "Foo Inc", "FOO", "Nasdaq"]]}
 
-    def _respond(request: httpx.Request) -> httpx.Response:
+    def _respond(_: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=payload)
 
     transport = httpx.MockTransport(_respond)
@@ -112,15 +111,14 @@ async def test_stream_and_cache_deduplicates_and_caches() -> None:
         ],
     }
 
-    def _respond(request: httpx.Request) -> httpx.Response:
+    def _respond(_: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=payload)
 
     transport = httpx.MockTransport(_respond)
-    cache_key = f"sec_test_cache_{uuid.uuid4()}"
 
     async with httpx.AsyncClient(transport=transport) as client:
         records = [
-            record async for record in _stream_and_cache(client, cache_key=cache_key)
+            record async for record in _stream_and_cache(client, cache_key="sec_test_cache")
         ]
 
     assert len(records) == 1
@@ -132,7 +130,6 @@ async def test_fetch_equity_records_uses_existing_cache() -> None:
     ACT:     call fetch_equity_records
     ASSERT:  record comes straight from cache (no HTTP required)
     """
-    cache_key = f"sec_cached_{uuid.uuid4()}"
     expected = [
         {
             "cik": 42,
@@ -142,9 +139,9 @@ async def test_fetch_equity_records_uses_existing_cache() -> None:
             "mics": ["XNAS"],
         },
     ]
-    save_cache(cache_key, expected)
+    save_cache("sec_records", expected)
 
-    records = [record async for record in fetch_equity_records(cache_key=cache_key)]
+    records = [record async for record in fetch_equity_records()]
 
     assert records == expected
 
@@ -162,19 +159,17 @@ async def test_fetch_equity_records_streams_with_supplied_client() -> None:
         ],
     }
 
-    def _respond(request: httpx.Request) -> httpx.Response:
+    def _respond(_: httpx.Request) -> httpx.Response:
         return httpx.Response(status_code=200, json=payload)
 
     transport = httpx.MockTransport(_respond)
     client = httpx.AsyncClient(transport=transport)
 
-    cache_key = f"sec_branch_cov_{uuid.uuid4()}"
-
     records = [
         record
         async for record in fetch_equity_records(
             client=client,
-            cache_key=cache_key,
+            cache_key="sec_branch_cov",
         )
     ]
 
@@ -207,7 +202,7 @@ async def test_stream_sec_skips_invalid_rows() -> None:
         ],
     }
 
-    def _respond(request: httpx.Request) -> httpx.Response:
+    def _respond(_: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=payload)
 
     transport = httpx.MockTransport(_respond)
