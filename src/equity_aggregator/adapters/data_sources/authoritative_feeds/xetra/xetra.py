@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 
 _PAGE_SIZE = 100
 
-_XETRA_SEARCH_URL = "https://api.boerse-frankfurt.de/v1/search/equity_search"
+_XETRA_SEARCH_URL = "https://api.live.deutsche-boerse.com/v1/search/equity_search"
 
 _HEADERS = {
     "Accept": "application/json, text/plain, */*",
     "User-Agent": "Mozilla/5.0",
     "Content-Type": "application/json; charset=UTF-8",
-    "Referer": "https://www.boerse-frankfurt.de/",
-    "Origin": "https://www.boerse-frankfurt.de",
+    "Referer": "https://live.deutsche-boerse.com/",
+    "Origin": "https://live.deutsche-boerse.com",
     "Cache-Control": "no-cache",
     "Pragma": "no-cache",
 }
