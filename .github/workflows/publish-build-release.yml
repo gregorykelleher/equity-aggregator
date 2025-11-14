@@ -61,6 +61,13 @@ jobs:
           LATEST_LOG=$(ls -t data/logs/equity_aggregator_*.log | head -1)
           echo "latest_log=$LATEST_LOG" >> $GITHUB_OUTPUT
 
+      - name: Delete existing release
+        run: |
+          gh release delete latest-build-release --yes || true
+          git push --delete origin latest-build-release || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Publish Latest Canonical Equities Release
         uses: softprops/action-gh-release@v2
         with:
