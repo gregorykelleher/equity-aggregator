@@ -225,7 +225,7 @@ async def _safe_fetch(
         )
 
     except LookupError as error:
-        _log_no_feed_data(
+        _log_enrichment_outcome(
             feed_name,
             source,
             error,
@@ -293,11 +293,11 @@ def _make_validator(
             else:
                 summary = str(error)
 
-                _log_no_feed_data(
-                    feed_name,
-                    source,
-                    summary,
-                )
+            _log_enrichment_outcome(
+                feed_name,
+                source,
+                summary,
+            )
             return source
 
     return validate
@@ -376,10 +376,18 @@ async def _convert_to_usd_or_fallback(
 
         if converted is None:
             raise ValueError("USD conversion failed")
+
+        # log successful enrichment
+        _log_enrichment_outcome(
+            feed_name,
+            source,
+            error=None,
+        )
+
         return converted
 
     except Exception as error:
-        _log_no_feed_data(
+        _log_enrichment_outcome(
             feed_name,
             source,
             error,
@@ -387,38 +395,53 @@ async def _convert_to_usd_or_fallback(
         return source
 
 
-def _log_no_feed_data(
+def _log_enrichment_outcome(
     feed_name: str,
     source: RawEquity,
-    error: object,
+    error: object | None = None,
     *,
     level: int = logging.DEBUG,
 ) -> None:
     """
-    Log a standardised message for missing or failed enrichment feed data.
+    Log a standardised message for enrichment feed data retrieval outcomes.
 
-    This logs details about the equity and the error context when no data is
-    available from a feed, or when enrichment fails.
+    Logs SUCCESS when data is retrieved successfully (error is None), or FAILURE
+    when enrichment fails with error details.
 
     Args:
         feed_name (str): Name of the enrichment feed.
         source (RawEquity): Equity instance with identifying fields.
-        error (object): Error or context for the missing data.
+        error (object | None, optional): Error or context for failed retrieval.
+            If None, logs success; otherwise logs failure with error details.
         level (int, optional): Logging level (default: logging.DEBUG).
 
     Returns:
         None
     """
-    logger.log(
-        level,
-        "No %s feed data for symbol=%s, name=%s "
-        "(isin=%s, cusip=%s, cik=%s, share_class_figi=%s). %s",
-        feed_name,
-        source.symbol,
-        source.name,
-        source.isin or "<none>",
-        source.cusip or "<none>",
-        source.cik or "<none>",
-        source.share_class_figi or "<none>",
-        error,
-    )
+    if error is None:
+        logger.log(
+            level,
+            "SUCCESS: %s feed data retrieved for symbol=%s, name=%s "
+            "(isin=%s, cusip=%s, cik=%s, share_class_figi=%s).",
+            feed_name,
+            source.symbol,
+            source.name,
+            source.isin or "<none>",
+            source.cusip or "<none>",
+            source.cik or "<none>",
+            source.share_class_figi or "<none>",
+        )
+    else:
+        logger.log(
+            level,
+            "FAILURE: No %s feed data retrieved for symbol=%s, name=%s "
+            "(isin=%s, cusip=%s, cik=%s, share_class_figi=%s). %s",
+            feed_name,
+            source.symbol,
+            source.name,
+            source.isin or "<none>",
+            source.cusip or "<none>",
+            source.cik or "<none>",
+            source.share_class_figi or "<none>",
+            error,
+        )

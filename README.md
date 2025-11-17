@@ -10,7 +10,7 @@
 
 Equity Aggregator is a financial data tool that collects and normalises raw equity data from authoritative sources (LSEG, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
 
-Altogether, this tool makes it possible to retrieve up-to-date information on over 7,500+ equities from ten countries worldwide:
+Altogether, this tool makes it possible to retrieve up-to-date information on over 10,000+ equities from countries worldwide:
 
 | Source | Coverage | Description |
 |----------|---------|-------------|
@@ -188,7 +188,7 @@ The `download` command retrieves the latest pre-processed canonical equity datas
 
 - Downloads compressed equity data (`canonical_equities.jsonl.gz`) from the latest nightly build
 - Automatically rebuilds the database locally from the downloaded data
-- Provides access to 7,500+ equities with immediate effect
+- Provides access to 10,000+ equities with immediate effect
 
 > [!TIP]
 > **Optional: Increase Rate Limits**
