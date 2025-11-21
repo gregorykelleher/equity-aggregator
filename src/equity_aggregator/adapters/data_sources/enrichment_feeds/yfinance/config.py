@@ -25,14 +25,14 @@ class FeedConfig:
     """
 
     # search URL for searching equities by symbol, name, ISIN, or CUSIP
-    search_url: str = "https://query1.finance.yahoo.com/v1/finance/search"
+    search_url: str = "https://query2.finance.yahoo.com/v1/finance/search"
 
     # quote summary URL for fetching equity data
-    quote_summary_url: str = (
+    quote_summary_primary_url: str = (
         "https://query2.finance.yahoo.com/v10/finance/quoteSummary/"
     )
 
-    # quote summary URL fallback endpoint for fetching equity data
+    # fallback quote URL for simpler equity data
     quote_summary_fallback_url: str = (
         "https://query1.finance.yahoo.com/v7/finance/quote"
     )

@@ -1,10 +1,11 @@
-# api/summary.py
+# api/quote_summary.py
 
 import logging
 from collections.abc import Iterable, Mapping
 
 import httpx
 
+from .._utils import safe_json_parse
 from ..session import YFSession
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,10 @@ async def get_quote_summary(
     in a single call, then merges the resulting module dictionaries into a single
     flat mapping for convenience.
 
+    If the primary endpoint returns 500 (Internal Server Error), automatically
+    try the fallback quote endpoint which may have better availability.
+    This handles cases where quoteSummary has issues but the fallback endpoint works.
+
     Args:
         session (YFSession): The Yahoo Finance session for making HTTP requests.
         ticker (str): The stock symbol to fetch (e.g., "AAPL").
@@ -36,7 +41,7 @@ async def get_quote_summary(
 
     modules = tuple(modules or session.config.modules)
 
-    url = session.config.quote_summary_url + ticker
+    url = session.config.quote_summary_primary_url + ticker
 
     response = await session.get(
         url,
@@ -52,25 +57,22 @@ async def get_quote_summary(
 
     status = response.status_code
 
-    # 401/500/502 → fallback
-    if status in {
-        httpx.codes.UNAUTHORIZED,
-        httpx.codes.INTERNAL_SERVER_ERROR,
-        httpx.codes.BAD_GATEWAY,
-    }:
+    # 500 → try fallback endpoint
+    if status == httpx.codes.INTERNAL_SERVER_ERROR:
         return await _get_quote_summary_fallback(session, ticker)
 
-    # 429 after back-off → treat as “no data” so the caller logs it cleanly
-    if status == httpx.codes.TOO_MANY_REQUESTS:
-        raise LookupError(f"HTTP 429 Too Many Requests for {ticker}")
+    # Other non-200 status codes are errors
+    if status != httpx.codes.OK:
+        raise LookupError(f"HTTP {status} from quote summary endpoint for {ticker}")
 
-    # everything else: try to parse
-    raw = response.json().get("quoteSummary", {}).get("result", [])
-    if raw:
-        return _flatten_module_dicts(modules, raw[0])
+    # Parse and flatten the response
+    json = safe_json_parse(response, context=f"quote summary for {ticker}")
+    raw_data = json.get("quoteSummary", {}).get("result", [])
 
-    # empty result
-    raise LookupError("Quote Summary endpoint returned nothing.")
+    if not raw_data:
+        return None
+
+    return _flatten_module_dicts(modules, raw_data[0])
 
 
 async def _get_quote_summary_fallback(
@@ -78,33 +80,45 @@ async def _get_quote_summary_fallback(
     ticker: str,
 ) -> dict[str, object] | None:
     """
-    Fallback: fetch basic quote data from Yahoo Finance's v7 /finance/quote endpoint.
+    Fetch quote data from Yahoo Finance fallback endpoint.
 
-    This coroutine is used if the main quoteSummary endpoint returns no data. It
-    retrieves a basic set of quote fields for the given ticker symbol from the
-    fallback endpoint.
+    This endpoint returns a simpler data structure compared to quoteSummary,
+    with different field names.
 
     Args:
         session (YFSession): The Yahoo Finance session for making HTTP requests.
         ticker (str): The stock symbol to fetch (e.g., "AAPL").
 
     Returns:
-        dict[str, object] | None: The first quote dictionary from the response if
-        available, otherwise None.
+        dict[str, object] | None: Quote data from the fallback endpoint,
+        or None if no data is found.
     """
-    resp = await session.get(
-        session.config.quote_summary_fallback_url,
+    url = session.config.quote_summary_fallback_url
+
+    response = await session.get(
+        url,
         params={
-            "corsDomain": "finance.yahoo.com",
-            "formatted": "false",
             "symbols": ticker,
+            "formatted": "false",
             "lang": "en-US",
             "region": "US",
         },
     )
-    resp.raise_for_status()
-    results = resp.json().get("quoteResponse", {}).get("result", [])
-    return results[0] if results else None
+
+    status = response.status_code
+
+    if status != httpx.codes.OK:
+        raise LookupError(
+            f"HTTP {status} from quote fallback endpoint for {ticker}",
+        )
+
+    json = safe_json_parse(response, context=f"quote fallback for {ticker}")
+    raw_data = json.get("quoteResponse", {}).get("result", [])
+
+    if raw_data and len(raw_data) > 0:
+        return raw_data[0]
+
+    return None
 
 
 def _flatten_module_dicts(

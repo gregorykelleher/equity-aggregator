@@ -33,17 +33,13 @@ class YFSession:
 
     __slots__: tuple[str, ...] = ("_client", "_config", "_crumb", "_crumb_lock")
 
-    # Limit HTTP/2 concurrent streams to 1; in effect serialising requests.
-    # This is workaround to alleviate reliability issues with Yahoo Finance's endpoints.
-    # With this approach, the HTTP/2 protocol is still in use, without having to drop to
-    # HTTP/1.1.
-    _concurrent_streams: asyncio.Semaphore = asyncio.Semaphore(1)
+    # Limit HTTP/2 concurrent streams to 10 for maximum throughput.
+    _concurrent_streams: asyncio.Semaphore = asyncio.Semaphore(10)
 
     # Define retryable status codes once to avoid duplication
     _RETRYABLE_STATUS_CODES = frozenset(
         {
             httpx.codes.TOO_MANY_REQUESTS,  # 429
-            httpx.codes.INTERNAL_SERVER_ERROR,  # 500
             httpx.codes.BAD_GATEWAY,  # 502
             httpx.codes.SERVICE_UNAVAILABLE,  # 503
             httpx.codes.GATEWAY_TIMEOUT,  # 504
@@ -108,16 +104,27 @@ class YFSession:
         exponential backoff on 429 responses. Concurrency is limited to comply
         with Yahoo's HTTP/2 stream limits.
 
+        All httpx exceptions are converted to LookupError for consistent
+        error handling at the domain boundary.
+
         Args:
             url (str): Absolute URL to request.
             params (Mapping[str, str] | None): Optional query parameters.
 
         Returns:
             httpx.Response: The successful HTTP response.
+
+        Raises:
+            LookupError: If the request fails due to network or HTTP errors.
         """
         async with self.__class__._concurrent_streams:
             merged_params: dict[str, str] = dict(params or {})
-            return await self._fetch_with_retry(url, merged_params)
+
+            try:
+                return await self._fetch_with_retry(url, merged_params)
+
+            except httpx.HTTPError as error:
+                raise LookupError("Request failed") from error
 
     async def _safe_get(
         self,
@@ -130,7 +137,7 @@ class YFSession:
         Perform a GET request with up to 3 retries on HTTP/2 protocol errors.
 
         If a ProtocolError occurs, the HTTP client is reset and the request
-        retried. After 3 failed attempts, the last exception is raised.
+        retried. After all attempts fail, raises LookupError.
 
         Args:
             url (str): The absolute URL to request.
@@ -140,28 +147,23 @@ class YFSession:
             httpx.Response: The successful HTTP response.
 
         Raises:
-            httpx.ProtocolError: If all retry attempts fail.
+            LookupError: If all retry attempts fail due to protocol errors.
         """
-        last_exc: Exception | None = None
-
         for attempt in range(1, retries + 1):
             try:
                 return await self._client.get(url, params=params)
-            except httpx.ProtocolError as exc:
-                last_exc = exc
+            except httpx.ProtocolError:
                 logger.debug(
-                    (
-                        "HTTP/2 protocol error (%s) on %s - "
-                        "recreating client (attempt %d/3)"
-                    ),
-                    exc,
-                    url,
+                    "CLIENT_RESET: HTTP/2 connection broken. "
+                    "Resetting client and retrying (attempt %d/%d)",
                     attempt,
+                    retries,
                 )
-                await self._reset_client()
 
-        assert last_exc is not None
-        raise last_exc
+                if attempt < retries:
+                    await self._reset_client()
+
+        raise LookupError(f"Connection failed after {retries} attempts") from None
 
     async def _fetch_with_retry(
         self,
@@ -235,19 +237,15 @@ class YFSession:
                 return response
 
             logger.debug(
-                "%d %s – sleeping for the next %.1fs (attempt %d/%d)",
-                response.status_code,
-                url,
+                "RATE_LIMIT: YFinance feed data request paused. "
+                "Retrying in %.1fs (attempt %d/%d)",
                 delay,
                 attempt,
                 max_attempts,
             )
             await asyncio.sleep(delay)
 
-            try:
-                response = await self._safe_get(url, params)
-            except httpx.ProtocolError:
-                raise
+            response = await self._safe_get(url, params)
 
         return response
 
@@ -292,7 +290,7 @@ class YFSession:
 
         params["crumb"] = self._crumb
 
-        return await self._client.get(url, params=params)
+        return await self._safe_get(url, params)
 
     def _extract_ticker(self, url: str) -> str:
         """
@@ -304,7 +302,7 @@ class YFSession:
         Returns:
             str: The ticker symbol found in the URL path.
         """
-        remainder: str = url[len(self._config.quote_summary_url) :]
+        remainder: str = url[len(self._config.quote_summary_primary_url) :]
 
         first_segment: str = remainder.split("/", 1)[0]
 
@@ -336,8 +334,8 @@ class YFSession:
                 f"https://finance.yahoo.com/quote/{ticker}",
             )
             for seed in seeds:
-                await self._client.get(seed)
+                await self._safe_get(seed, {})
 
-            resp: httpx.Response = await self._client.get(self._config.crumb_url)
+            resp: httpx.Response = await self._safe_get(self._config.crumb_url, {})
             resp.raise_for_status()
             self._crumb = resp.text.strip().strip('"')

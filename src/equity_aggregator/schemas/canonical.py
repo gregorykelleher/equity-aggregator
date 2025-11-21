@@ -104,7 +104,7 @@ class EquityFinancials(BaseModel):
     short_interest: UnsignedDecOpt = None
     share_float: UnsignedDecOpt = None
     shares_outstanding: UnsignedDecOpt = None
-    revenue_per_share: UnsignedDecOpt = None
+    revenue_per_share: SignedDecOpt = None
     profit_margin: SignedDecOpt = None
     gross_margin: SignedDecOpt = None
     operating_margin: SignedDecOpt = None
@@ -114,7 +114,7 @@ class EquityFinancials(BaseModel):
     return_on_assets: SignedDecOpt = None
     performance_1_year: SignedDecOpt = None
     total_debt: UnsignedDecOpt = None
-    revenue: UnsignedDecOpt = None
+    revenue: SignedDecOpt = None
     ebitda: SignedDecOpt = None
     trailing_pe: SignedDecOpt = None
     price_to_book: SignedDecOpt = None

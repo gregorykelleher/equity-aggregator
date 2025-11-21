@@ -4,6 +4,7 @@ import logging
 
 import httpx
 
+from .._utils import safe_json_parse
 from ..session import YFSession
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -27,13 +28,17 @@ async def search_quotes(
 
     Returns:
         list[dict]: List of quote dictionaries for equities matching the query.
+
+    Raises:
+        LookupError: If the search endpoint returns an HTTP error or network
+            error occurs.
     """
     response = await session.get(session.config.search_url, params={"q": query})
 
-    if response.status_code == httpx.codes.TOO_MANY_REQUESTS:
-        logger.warning("429 from search endpoint for %s", query)
-        return []
+    if response.status_code != httpx.codes.OK:
+        raise LookupError(f"Search endpoint returned HTTP {response.status_code}")
 
-    response.raise_for_status()  # other statuses are unexpected
-    raw_data = response.json().get("quotes", [])
+    json = safe_json_parse(response, context=f"search query '{query}'")
+    raw_data = json.get("quotes", [])
+
     return [quote for quote in raw_data if quote.get("quoteType") == "EQUITY"]

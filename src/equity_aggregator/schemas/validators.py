@@ -323,25 +323,55 @@ def to_analyst_rating(value: str | float | Decimal | None) -> str | None:
 
 def _parse_numeric_text(value: str | float | Decimal | None) -> str | None:
     """
-    Normalises numeric text.
+    Normalises numeric text for Decimal conversion, rejecting invalid values.
+
+    - Returns None for None, blank input, or non-finite floats (NaN, Infinity).
+    - Uses Decimal parsing to validate strings, automatically rejecting
+      non-numeric text such as "n/a", "null", or "infinity".
+    - Normalises separators (e.g., "1,234.56" → "1234.56") before validation.
+    - Removes leading '+' for uniformity.
 
     Args:
-        value (str | float | Decimal): The value to normalise. Can be a string,
-            float, Decimal, or None.
+        value: The input value to normalise, expected as a string, float, Decimal,
+            or None.
 
     Returns:
-        str | None: The normalised numeric string, or None if input is None or blank.
-
-    - Returns None for None or blank input.
-    - Removes leading '+'.
-    - Delegates separator handling to _convert_separators.
+        str | None: The normalised numeric string ready for Decimal conversion,
+        or None if the input is invalid or non-finite.
     """
-    text = str(value).strip() if value is not None else ""
+    # Reject None or non-finite floats
+    if value is None or (
+        isinstance(value, float) and not -float("inf") < value < float("inf")
+    ):
+        return None
+
+    text = str(value).strip().lstrip("+")
     if not text:
         return None
 
-    text = text.lstrip("+")
-    return _convert_separators(text)
+    # Normalise separators and validate as a finite decimal
+    normalised_text = _convert_separators(text)
+    return normalised_text if _is_finite_decimal(normalised_text) else None
+
+
+def _is_finite_decimal(text: str) -> bool:
+    """
+    Validates whether a string represents a valid, finite decimal number.
+
+    - Returns True if the string can be converted to a finite Decimal.
+    - Returns False for non-numeric text (e.g., "n/a", "null").
+    - Returns False for non-finite values (e.g., "Infinity", "NaN").
+
+    Args:
+        text (str): The string to validate as a decimal number.
+
+    Returns:
+        bool: True if the string is a valid finite decimal, False otherwise.
+    """
+    try:
+        return Decimal(text).is_finite()
+    except InvalidOperation:
+        return False
 
 
 def _convert_separators(text: str) -> str:

@@ -51,7 +51,7 @@ class XetraFeedData(BaseModel):
         """
         return {
             "name": self.get("name"),
-            # wkn → maps to RawEquity.symbol
+            # wkn → RawEquity.symbol
             "symbol": self.get("wkn"),
             "isin": self.get("isin"),
             # no CUSIP, CIK or FIGI in Xetra feed, so omitting from model

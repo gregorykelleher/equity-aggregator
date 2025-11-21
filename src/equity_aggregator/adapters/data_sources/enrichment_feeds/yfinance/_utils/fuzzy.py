@@ -3,42 +3,38 @@
 from rapidfuzz import fuzz, utils
 
 
-def pick_best_symbol(
+def rank_all_symbols(
     quotes: list[dict],
     *,
     name_key: str,
     expected_name: str,
     expected_symbol: str,
     min_score: int = 0,
-) -> str | None:
+) -> list[str]:
     """
-    Select the best-matching symbol from a list of Yahoo Finance quotes using
-    fuzzy matching.
+    Rank all matching symbols from a list of Yahoo Finance quotes using fuzzy matching.
 
-    For each quote, this function computes a combined fuzzy score based on the
-    similarity between the quote's symbol and the expected symbol, and between the
-    quote's name (using `name_key`) and the expected name. Quote with the highest
-    combined score is selected if its score meets or exceeds `min_score`. If no
-    quote meets the threshold, None is returned.
+    For each quote, computes a combined fuzzy score based on similarity between the
+    quote's symbol and expected symbol, and between the quote's name and expected name.
+    Returns all symbols that meet or exceed the minimum score threshold, sorted by
+    score in descending order (best match first).
 
     Args:
         quotes (list[dict]): List of quote dictionaries, each with at least a
             "symbol" key and a name field specified by `name_key`.
-        name_key (str): The key in each quote dict for equity name
-            (e.g., "longname").
+        name_key (str): The key in each quote dict for equity name (e.g., "longname").
         expected_name (str): The expected equity name to match against.
         expected_symbol (str): The expected ticker symbol to match against.
         min_score (int, optional): Minimum combined fuzzy score required to accept a
             match. Defaults to 0.
 
     Returns:
-        str | None: Best-matching symbol if a suitable match is found, else None.
+        list[str]: Ranked symbols (best first), empty if none meet threshold.
     """
-
     if not quotes:
-        return None
+        return []
 
-    # compute fuzzy scores for each quote
+    # Compute fuzzy scores for each quote
     scored = [
         _score_quote(
             quote,
@@ -49,15 +45,14 @@ def pick_best_symbol(
         for quote in quotes
     ]
 
-    # compute the best score and symbol from the scored list
-    best_score, best_symbol, best_name = max(scored, key=lambda t: t[0])
+    # Filter by minimum score and sort by score descending
+    filtered = [
+        (score, symbol, name) for score, symbol, name in scored if score >= min_score
+    ]
+    ranked = sorted(filtered, key=lambda t: t[0], reverse=True)
 
-    # if the best score is below the minimum threshold, return None
-    if best_score < min_score:
-        return None
-
-    # otherwise, return the best symbol found
-    return best_symbol
+    # Return symbols in ranked order
+    return [symbol for _, symbol, _ in ranked]
 
 
 def _score_quote(

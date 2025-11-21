@@ -30,7 +30,7 @@ feed_specs: list[FeedSpec] = [
     (
         open_yfinance_feed,  # factory for creating YFinance feed context
         YFinanceFeedData,  # data model for YFinance feed data
-        10,  # concurrency limit (max simultaneous YFinance requests)
+        20,  # concurrency limit (max simultaneous requests to YFinance)
     ),
 ]
 
@@ -190,7 +190,7 @@ async def _safe_fetch(
     fetcher: FetchFunc,
     feed_name: str,
     *,
-    wait_timeout: float = 180.0,
+    wait_timeout: float = 300.0,
 ) -> dict[str, object] | None:
     """
     Safely fetch raw data for a RawEquity from an enrichment feed, handling
@@ -240,9 +240,10 @@ async def _safe_fetch(
 
     except Exception as error:
         logger.error(
-            "Error fetching from %s: %s",
+            "Error fetching from %s: %s: %s",
             feed_name,
-            error,
+            type(error).__name__,
+            error or "<empty error message>",
         )
 
     return data
@@ -369,6 +370,9 @@ async def _convert_to_usd_or_fallback(
         RawEquity: The USD-converted RawEquity if successful, otherwise the original
         source RawEquity.
     """
+    # Check if enrichment actually occurred (validated != source)
+    enrichment_succeeded = validated is not source
+
     converter = await get_usd_converter()
 
     try:
@@ -377,12 +381,13 @@ async def _convert_to_usd_or_fallback(
         if converted is None:
             raise ValueError("USD conversion failed")
 
-        # log successful enrichment
-        _log_enrichment_outcome(
-            feed_name,
-            source,
-            error=None,
-        )
+        # Only log success if actual enrichment happened
+        if enrichment_succeeded:
+            _log_enrichment_outcome(
+                feed_name,
+                source,
+                error=None,
+            )
 
         return converted
 

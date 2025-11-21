@@ -62,6 +62,13 @@ class YFinanceFeedData(BaseModel):
         """
         Normalise a raw YFinance feed record into the flat schema expected by RawEquity.
 
+        This validator supports both Yahoo Finance endpoints:
+        - quote_summary_primary_url (i.e. '/v10/finance/quoteSummary/')
+        - quote_summary_fallback_url (i.e. '/v7/finance/quote')
+
+        Note:
+            The fallback endpoint lacks many financial metrics.
+
         Args:
             self (dict[str, object]): Raw payload containing YFinance feed data.
 
@@ -70,69 +77,73 @@ class YFinanceFeedData(BaseModel):
                 RawEquity schema.
         """
         return {
-            # longName/shortName → maps to RawEquity.name (camel-case for Quote Summary)
+            # longName/shortName → RawEquity.name
             "name": self.get("longName") or self.get("shortName"),
-            # underlyingSymbol → maps to RawEquity.symbol
+            # underlyingSymbol or symbol → RawEquity.symbol
             "symbol": self.get("underlyingSymbol") or self.get("symbol"),
             # no ISIN, CUSIP, CIK, FIGI or MICS in YFinance feed, so omitting from model
             "currency": self.get("currency"),
-            # currentPrice → maps to RawEquity.last_price
-            "last_price": self.get("currentPrice"),
-            # marketCap → maps to RawEquity.market_cap
+            # currentPrice or regularMarketPrice
+            # → RawEquity.last_price
+            "last_price": self.get("currentPrice") or self.get("regularMarketPrice"),
+            # marketCap → RawEquity.market_cap
             "market_cap": self.get("marketCap"),
-            # fiftyTwoWeekLow → maps to RawEquity.fifty_two_week_min
+            # fiftyTwoWeekLow → RawEquity.fifty_two_week_min
             "fifty_two_week_min": self.get("fiftyTwoWeekLow"),
-            # fiftyTwoWeekHigh → maps to RawEquity.fifty_two_week_max
+            # fiftyTwoWeekHigh → RawEquity.fifty_two_week_max
             "fifty_two_week_max": self.get("fiftyTwoWeekHigh"),
-            # dividendYield → maps to RawEquity.dividend_yield
+            # dividendYield → RawEquity.dividend_yield
             "dividend_yield": self.get("dividendYield"),
-            # volume → maps to RawEquity.market_volume
-            "market_volume": self.get("volume"),
-            # heldInsiders → maps to RawEquity.held_insiders
+            # volume or regularMarketVolume → RawEquity.market_volume
+            "market_volume": self.get("volume") or self.get("regularMarketVolume"),
+            # heldPercentInsiders → RawEquity.held_insiders
             "held_insiders": self.get("heldPercentInsiders"),
-            # heldInstitutions → maps to RawEquity.held_institutions
+            # heldPercentInstitutions → RawEquity.held_institutions
             "held_institutions": self.get("heldPercentInstitutions"),
-            # shortPercentOfFloat → maps to RawEquity.short_interest
+            # shortPercentOfFloat → RawEquity.short_interest
             "short_interest": self.get("shortPercentOfFloat"),
-            # floatShares → maps to RawEquity.share_float
+            # floatShares → RawEquity.share_float
             "share_float": self.get("floatShares"),
-            # sharesOutstanding → maps to RawEquity.shares_outstanding
+            # sharesOutstanding → RawEquity.shares_outstanding
             "shares_outstanding": self.get("sharesOutstanding"),
-            # revenuePerShare → maps to RawEquity.revenue_per_share
+            # revenuePerShare → RawEquity.revenue_per_share
             "revenue_per_share": self.get("revenuePerShare"),
-            # profitMargins → maps to RawEquity.profit_margin
+            # profitMargins → RawEquity.profit_margin
             "profit_margin": self.get("profitMargins"),
-            # grossMargins → maps to RawEquity.gross_margin
+            # grossMargins → RawEquity.gross_margin
             "gross_margin": self.get("grossMargins"),
-            # operatingMargins → maps to RawEquity.operating_margin
+            # operatingMargins → RawEquity.operating_margin
             "operating_margin": self.get("operatingMargins"),
-            # freeCashflow → maps to RawEquity.free_cash_flow
+            # freeCashflow → RawEquity.free_cash_flow
             "free_cash_flow": self.get("freeCashflow"),
-            # operatingCashflow → maps to RawEquity.operating_cash_flow
+            # operatingCashflow → RawEquity.operating_cash_flow
             "operating_cash_flow": self.get("operatingCashflow"),
-            # returnOnEquity → maps to RawEquity.return_on_equity
+            # returnOnEquity → RawEquity.return_on_equity
             "return_on_equity": self.get("returnOnEquity"),
-            # returnOnAssets → maps to RawEquity.return_on_assets
+            # returnOnAssets → RawEquity.return_on_assets
             "return_on_assets": self.get("returnOnAssets"),
-            # 52WeekChange → maps to RawEquity.performance_1_year
-            "performance_1_year": self.get("52WeekChange"),
-            # totalDebt → maps to RawEquity.total_debt
+            # 52WeekChange or fiftyTwoWeekChangePercent → RawEquity.performance_1_year
+            "performance_1_year": self.get("52WeekChange")
+            or self.get("fiftyTwoWeekChangePercent"),
+            # totalDebt → RawEquity.total_debt
             "total_debt": self.get("totalDebt"),
-            # totalRevenue → maps to RawEquity.revenue
+            # totalRevenue → RawEquity.revenue
             "revenue": self.get("totalRevenue"),
-            # ebitda → maps to RawEquity.ebitda
+            # ebitda → RawEquity.ebitda
             "ebitda": self.get("ebitda"),
-            # trailingPE → maps to RawEquity.trailing_pe
+            # trailingPE → RawEquity.trailing_pe
             "trailing_pe": self.get("trailingPE"),
-            # PriceToBook → maps to RawEquity.price_to_book
+            # priceToBook → RawEquity.price_to_book
             "price_to_book": self.get("priceToBook"),
-            # trailingEps → maps to RawEquity.trailing_eps
-            "trailing_eps": self.get("trailingEps"),
-            # recommendationKey → maps to RawEquity.analyst_rating
-            "analyst_rating": self.get("recommendationKey"),
-            # industry → maps to RawEquity.industry
+            # trailingEps or epsTrailingTwelveMonths → RawEquity.trailing_eps
+            "trailing_eps": self.get("trailingEps")
+            or self.get("epsTrailingTwelveMonths"),
+            # recommendationKey or averageAnalystRating → RawEquity.analyst_rating
+            "analyst_rating": self.get("recommendationKey")
+            or self.get("averageAnalystRating"),
+            # industry → RawEquity.industry
             "industry": self.get("industry"),
-            # sector → maps to RawEquity.sector
+            # sector → RawEquity.sector
             "sector": self.get("sector"),
         }
 

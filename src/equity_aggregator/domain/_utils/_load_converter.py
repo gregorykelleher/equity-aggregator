@@ -125,7 +125,7 @@ def _get_rate_for_currency(currency: str, rates: dict[str, Decimal]) -> Decimal:
     """
     rate = rates.get(currency)
     if rate is None:
-        raise ValueError(f"Missing FX rate for currency {currency}")
+        raise ValueError(f"Missing FX rate for currency {currency}.")
     return rate
 
 
