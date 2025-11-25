@@ -67,8 +67,8 @@ def _score_quote(
 
     This function calculates the sum of the fuzzy string similarity between the
     quote's symbol and the expected symbol, and between the quote's name (using
-    `name_key`) and the expected name. The result is a tuple containing the total
-    score, the actual symbol, and the actual name.
+    `name_key`) and the expected name. Applies minimum score thresholds to prevent
+    matching completely unrelated equities.
 
     Args:
         quote (dict): The quote dictionary containing at least a "symbol" key and
@@ -80,6 +80,7 @@ def _score_quote(
     Returns:
         tuple[int, str, str]: A tuple of (total_score, actual_symbol, actual_name),
             where total_score is the sum of the symbol and name fuzzy scores.
+            Returns (0, symbol, name) if either score is below the minimum threshold.
     """
     actual_symbol = quote["symbol"]
     actual_name = quote.get(name_key, "<no-name>")
@@ -88,12 +89,18 @@ def _score_quote(
         actual_symbol,
         expected_symbol,
         processor=utils.default_process,
+        score_cutoff=70,
     )
     name_score = fuzz.WRatio(
         actual_name,
         expected_name,
         processor=utils.default_process,
+        score_cutoff=70,
     )
+
+    # Reject if either score is below threshold
+    if name_score == 0 or symbol_score == 0:
+        return 0, actual_symbol, actual_name
 
     total_score = symbol_score + name_score
     return total_score, actual_symbol, actual_name

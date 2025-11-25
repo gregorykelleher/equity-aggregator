@@ -27,7 +27,10 @@ LOGGING = {
     },
     "formatters": {
         "standard": {
-            "format": "%(asctime)s | %(module)-20s | %(levelname)-5s | %(message)s",
+            "format": (
+                "%(asctime)s | %(module)-20s | %(levelname)-5s | "
+                "%(taskName)-12s | %(message)s"
+            ),
             "datefmt": "%Y-%m-%dT%H:%M:%S",
         },
     },

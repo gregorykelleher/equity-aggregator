@@ -53,7 +53,7 @@ class YFinanceFeed:
     Attributes:
         _session (YFSession): HTTP session for Yahoo Finance.
         _config (FeedConfig): Endpoints and modules configuration.
-        _min_score (int): Minimum fuzzy score threshold.
+        _default_min_score (int): Minimum fuzzy score threshold.
     """
 
     __slots__ = ("_session", "_config")
@@ -61,8 +61,8 @@ class YFinanceFeed:
     # Data model associated with the Yahoo Finance feed
     model = YFinanceFeedData
 
-    # Minimum fuzzy matching score
-    _min_score = 150
+    # Default minimum fuzzy matching score
+    default_min_score = 160
 
     def __init__(self, session: YFSession, config: FeedConfig | None = None) -> None:
         """
@@ -241,6 +241,11 @@ class YFinanceFeed:
           3. Ranks all viable candidates using fuzzy matching.
           4. Returns the ranked list of symbols.
 
+        Note:
+          Uses adaptive thresholds: reduced 120 score for a result with a single equity
+          (more lenient since ISIN/CUISIP identifiers are globally unique), default
+          minimum score for multiple results (stricter ranking to select best match).
+
         Args:
             identifier (str): The ISIN or CUSIP to search for.
             expected_name (str): The expected company or equity name.
@@ -262,11 +267,16 @@ class YFinanceFeed:
         if not viable_equities:
             raise LookupError("No viable candidates found")
 
+        # Use lower threshold for single-result identifier lookups
+        identifier_min_score = (
+            120 if len(viable_equities) == 1 else self.default_min_score
+        )
+
         return _rank_symbols(
             viable_equities,
             expected_name=expected_name,
             expected_symbol=expected_symbol,
-            min_score=self._min_score,
+            min_score=identifier_min_score,
         )
 
     async def _rank_symbols_by_name_or_symbol(
@@ -317,7 +327,7 @@ class YFinanceFeed:
                 viable_equities,
                 expected_name=expected_name,
                 expected_symbol=expected_symbol,
-                min_score=self._min_score,
+                min_score=self.default_min_score,
             )
 
             if ranked_symbols:
