@@ -1,4 +1,4 @@
-# yfinance/yfinance.py
+# yfinance/feed.py
 
 import logging
 from collections.abc import AsyncIterator
@@ -10,12 +10,12 @@ from equity_aggregator.storage import (
     save_cache_entry,
 )
 
-from ._utils import rank_all_symbols
 from .api import (
     get_quote_summary,
     search_quotes,
 )
 from .config import FeedConfig
+from .ranking import filter_equities, rank_symbols
 from .session import YFSession
 
 logger = logging.getLogger(__name__)
@@ -156,19 +156,14 @@ class YFinanceFeed:
         Raises:
             LookupError: If no candidates are found via any strategy.
         """
-        # Try ISIN identifier
-        if isin:
-            candidates = await self._try_rank_by_identifier(isin, name, symbol)
+        identifiers = (isin, cusip)
+
+        for identifier in filter(None, identifiers):
+            candidates = await self._try_rank_by_identifier(identifier, name, symbol)
             if candidates:
                 return candidates
 
-        # Try CUSIP identifier
-        if cusip:
-            candidates = await self._try_rank_by_identifier(cusip, name, symbol)
-            if candidates:
-                return candidates
-
-        # Fallback to fuzzy search
+        # Fallback to name/symbol fuzzy search
         return await self._rank_symbols_by_name_or_symbol(
             query=name or symbol,
             expected_name=name,
@@ -262,7 +257,7 @@ class YFinanceFeed:
         if not quotes:
             raise LookupError("Quote Search endpoint returned no results")
 
-        viable_equities = _filter_equities(quotes)
+        viable_equities = filter_equities(quotes)
 
         if not viable_equities:
             raise LookupError("No viable candidates found")
@@ -272,7 +267,7 @@ class YFinanceFeed:
             120 if len(viable_equities) == 1 else self.default_min_score
         )
 
-        return _rank_symbols(
+        return rank_symbols(
             viable_equities,
             expected_name=expected_name,
             expected_symbol=expected_symbol,
@@ -318,12 +313,12 @@ class YFinanceFeed:
                 continue
 
             # filter out any without name or symbol
-            viable_equities = _filter_equities(quotes)
+            viable_equities = filter_equities(quotes)
 
             if not viable_equities:
                 continue
 
-            ranked_symbols = _rank_symbols(
+            ranked_symbols = rank_symbols(
                 viable_equities,
                 expected_name=expected_name,
                 expected_symbol=expected_symbol,
@@ -375,97 +370,3 @@ class YFinanceFeed:
             raise LookupError(f"Symbol {symbol} has no company name")
 
         return data
-
-
-def _filter_equities(quotes: list[dict]) -> list[dict]:
-    """
-    Filter out any quotes lacking a longname or symbol.
-
-    Note:
-        The Yahoo Finance search quote query endpoint returns 'longname' and 'shortname'
-        fields in lowercase.
-
-    Args:
-        quotes (list[dict]): Raw list of quote dicts from Yahoo Finance.
-
-    Returns:
-        list[dict]: Only those quotes that have both 'longname' and 'symbol'.
-    """
-    return [
-        quote
-        for quote in quotes
-        if (quote.get("longname") or quote.get("shortname")) and quote.get("symbol")
-    ]
-
-
-def _rank_symbols(
-    viable: list[dict],
-    *,
-    expected_name: str,
-    expected_symbol: str,
-    min_score: int,
-) -> list[str]:
-    """
-    Rank Yahoo Finance quote candidates by fuzzy match quality.
-
-    Returns ALL viable candidates as a ranked list ordered by match confidence
-    (best match first), filtered by minimum score threshold. All candidates are
-    scored and validated, even if there's only one or they share identical names.
-
-    Args:
-        viable (list[dict]): List of filtered Yahoo Finance quote dictionaries.
-        expected_name (str): Expected company or equity name for fuzzy matching.
-        expected_symbol (str): Expected ticker symbol for fuzzy matching.
-        min_score (int): Minimum fuzzy score required to accept a match.
-
-    Returns:
-        list[str]: Ranked symbols (best first), empty if none meet threshold.
-    """
-    # Try longname first, then shortname
-    for name_key in ("longname", "shortname"):
-        ranked = _rank_by_name_key(
-            viable,
-            name_key=name_key,
-            expected_name=expected_name,
-            expected_symbol=expected_symbol,
-            min_score=min_score,
-        )
-        if ranked:
-            return ranked
-
-    return []
-
-
-def _rank_by_name_key(
-    viable: list[dict],
-    *,
-    name_key: str,
-    expected_name: str,
-    expected_symbol: str,
-    min_score: int,
-) -> list[str]:
-    """
-    Rank symbols using specified name field (longname or shortname).
-
-    Args:
-        viable (list[dict]): List of quote dictionaries to rank.
-        name_key (str): The key to use for name comparison.
-        expected_name (str): Expected company or equity name.
-        expected_symbol (str): Expected ticker symbol.
-        min_score (int): Minimum fuzzy score threshold.
-
-    Returns:
-        list[str]: Ranked symbols, or empty list if no matches meet threshold.
-    """
-    candidates_with_name = [quote for quote in viable if quote.get(name_key)]
-
-    if not candidates_with_name:
-        return []
-
-    return rank_all_symbols(
-        candidates_with_name,
-        name_key=name_key,
-        expected_name=expected_name,
-        expected_symbol=expected_symbol,
-        min_score=min_score,
-    )

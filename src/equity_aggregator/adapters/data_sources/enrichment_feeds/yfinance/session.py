@@ -6,10 +6,10 @@ from collections.abc import Mapping
 
 import httpx
 
-from equity_aggregator.adapters.data_sources._utils import make_client
-
 from ._utils import backoff_delays
+from .auth import CrumbManager
 from .config import FeedConfig
+from .transport import HttpTransport
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -18,10 +18,9 @@ class YFSession:
     """
     Asynchronous session for Yahoo Finance JSON endpoints.
 
-    This class manages HTTP requests to Yahoo Finance, handling authentication,
-    rate limits, and crumb renewal. It is lightweight and reusable, maintaining
-    only a client and session state. Concurrency is limited by a shared
-    semaphore to respect Yahoo's HTTP/2 stream restriction.
+    Composes HttpTransport for connection management, CrumbManager for
+    authentication, and applies retry policies for rate limiting.
+    Concurrency is limited by a shared semaphore.
 
     Args:
         config (FeedConfig): Immutable feed configuration.
@@ -31,20 +30,13 @@ class YFSession:
         None
     """
 
-    __slots__: tuple[str, ...] = (
-        "_client",
-        "_client_lock",
-        "_client_ready",
-        "_config",
-        "_crumb",
-        "_crumb_lock",
-    )
+    __slots__ = ("_auth", "_config", "_transport")
 
     # Limit HTTP/2 concurrent streams to 10 for maximum throughput.
     _concurrent_streams: asyncio.Semaphore = asyncio.Semaphore(10)
 
     # Define retryable status codes once to avoid duplication
-    _RETRYABLE_STATUS_CODES = frozenset(
+    _RETRYABLE_STATUS_CODES: frozenset[int] = frozenset(
         {
             httpx.codes.TOO_MANY_REQUESTS,  # 429
             httpx.codes.BAD_GATEWAY,  # 502
@@ -59,7 +51,7 @@ class YFSession:
         client: httpx.AsyncClient | None = None,
     ) -> None:
         """
-        Initialise a new YFSession for Yahoo Finance JSON endpoints.
+        Initialise YFSession with configuration.
 
         Args:
             config (FeedConfig): Immutable feed configuration.
@@ -69,29 +61,28 @@ class YFSession:
             None
         """
         self._config: FeedConfig = config
-        self._client: httpx.AsyncClient = client or make_client()
-        self._client_lock: asyncio.Lock = asyncio.Lock()
-        self._client_ready: asyncio.Event = asyncio.Event()
-        self._client_ready.set()
-        self._crumb: str | None = None
-        self._crumb_lock: asyncio.Lock = asyncio.Lock()
+        self._auth: CrumbManager = CrumbManager(config.crumb_url)
+        self._transport: HttpTransport = HttpTransport(
+            client=client,
+            on_reset=self._auth.clear,
+        )
 
     @property
     def config(self) -> FeedConfig:
         """
-        Gets the immutable configuration associated with this session.
+        Get the immutable configuration associated with this session.
 
         Args:
             None
 
         Returns:
-            FeedConfig: The configuration object bound to this session instance.
+            FeedConfig: The configuration object bound to this session.
         """
         return self._config
 
     async def aclose(self) -> None:
         """
-        Asynchronously close the underlying HTTP client.
+        Close the underlying HTTP transport.
 
         Args:
             None
@@ -99,9 +90,7 @@ class YFSession:
         Returns:
             None
         """
-        async with self._client_lock:
-            client = self._client
-        await client.aclose()
+        await self._transport.aclose()
 
     async def get(
         self,
@@ -130,90 +119,17 @@ class YFSession:
             LookupError: If the request fails due to network or HTTP errors.
         """
         async with self.__class__._concurrent_streams:
-            merged_params: dict[str, str] = dict(params or {})
+            params_dict: dict[str, str] = dict(params or {})
 
             try:
-                return await self._fetch_with_retry(url, merged_params)
-
+                return await self._fetch_with_retry(url, params_dict)
             except httpx.HTTPError as error:
                 raise LookupError("Request failed") from error
-
-    async def _safe_get(
-        self,
-        url: str,
-        params: dict[str, str],
-        *,
-        retries_remaining: int = 3,
-    ) -> httpx.Response:
-        """
-        Perform a GET request with optimistic retry on connection errors.
-
-        When a request fails due to a connection error, checks if another task
-        already reset the client. If so, retries immediately without consuming
-        the retry budget ("free retry"). If the client hasn't been reset, this
-        task resets it and retries with decremented budget.
-
-        This approach prevents in-flight requests from failing when another task
-        closes the shared client, ensuring equities get retried with the fresh
-        client instead of being marked as permanent failures.
-
-        Args:
-            url (str): The absolute URL to request.
-            params (dict[str, str]): Query parameters for the request.
-            retries_remaining (int): Number of retries left with fresh client.
-
-        Returns:
-            httpx.Response: The successful HTTP response.
-
-        Raises:
-            LookupError: If all retry attempts fail due to connection errors.
-        """
-        if retries_remaining <= 0:
-            raise LookupError("Connection failed after retries") from None
-
-        await self._client_ready.wait()
-
-        async with self._client_lock:
-            client = self._client
-            client_id = id(client)
-
-        try:
-            return await client.get(url, params=params)
-        except (httpx.ProtocolError, RuntimeError):
-            was_stale = await self._handle_connection_error(client_id)
-            next_retries = retries_remaining if was_stale else retries_remaining - 1
-            return await self._safe_get(url, params, retries_remaining=next_retries)
-
-    async def _handle_connection_error(self, failed_client_id: int) -> bool:
-        """
-        Handle HTTP/2 connection errors by resetting clients if needed.
-
-        Checks if the client was already reset by another task (stale client). If
-        stale, logs and returns True to indicate a free retry. If not stale, this
-        task triggers the reset and returns False to indicate retry budget should
-        be consumed.
-
-        Args:
-            failed_client_id (int): The id() of the client that failed.
-
-        Returns:
-            bool: True if another client already reset the client (free retry),
-            otherwise False if this task reset it (counts against retries).
-        """
-        async with self._client_lock:
-            already_reset = failed_client_id != id(self._client)
-
-        if already_reset:
-            return True
-
-        logger.debug("CLIENT_RESET: HTTP/2 connection broken, resetting client")
-        await self._reset_client()
-        return False
 
     async def _fetch_with_retry(
         self,
         url: str,
-        params: Mapping[str, str],
+        params: dict[str, str],
     ) -> httpx.Response:
         """
         Perform GET request with unified 401 and rate limit handling.
@@ -225,7 +141,7 @@ class YFSession:
 
         Args:
             url (str): The absolute URL to request.
-            params (Mapping[str, str]): Query parameters.
+            params (dict[str, str]): Query parameters (mutated with crumb).
 
         Returns:
             httpx.Response: The successful HTTP response.
@@ -233,12 +149,10 @@ class YFSession:
         Raises:
             LookupError: If response is still retryable after all attempts.
         """
-        params = dict(params)
         max_backoff_attempts = 5
+        delays = [0, *backoff_delays(attempts=max_backoff_attempts)]
 
-        for backoff_attempt, delay in enumerate(
-            [0, *backoff_delays(attempts=max_backoff_attempts)],
-        ):
+        for backoff_attempt, delay in enumerate(delays):
             if delay > 0:
                 logger.debug(
                     "RATE_LIMIT: YFinance feed data request paused. "
@@ -249,7 +163,7 @@ class YFSession:
                 )
                 await asyncio.sleep(delay)
 
-            response = await self._safe_get(url, params)
+            response = await self._transport.get(url, params)
 
             # Handle 401 by renewing crumb (could happen after client reset)
             if response.status_code == httpx.codes.UNAUTHORIZED:
@@ -261,37 +175,6 @@ class YFSession:
 
         # All attempts exhausted, response still retryable
         raise LookupError(f"HTTP {response.status_code} after retries for {url}")
-
-    async def _reset_client(self) -> None:
-        """
-        Reset the HTTP client instance asynchronously.
-
-        Closes the current client and creates a new one. Also clears the crumb
-        to ensure session state is refreshed after protocol errors.
-
-        Args:
-            None
-
-        Returns:
-            None
-        """
-        async with self._client_lock:
-            old_client = self._client
-            self._client_ready.clear()
-            try:
-                new_client = make_client()
-
-                # Verify new client can actually connect
-                await new_client.get("https://finance.yahoo.com", timeout=5.0)
-
-            except Exception:
-                self._client_ready.set()
-                raise
-
-            self._client = new_client
-            self._crumb = None
-            self._client_ready.set()
-        await old_client.aclose()
 
     async def _renew_crumb_once(
         self,
@@ -313,11 +196,11 @@ class YFSession:
         """
         ticker: str = self._extract_ticker(url)
 
-        await self._bootstrap_and_fetch_crumb(ticker)
+        crumb = await self._auth.ensure_crumb(ticker, self._transport.get)
 
-        params["crumb"] = self._crumb
+        params["crumb"] = crumb
 
-        return await self._safe_get(url, params)
+        return await self._transport.get(url, params)
 
     def _extract_ticker(self, url: str) -> str:
         """
@@ -334,35 +217,3 @@ class YFSession:
         first_segment: str = remainder.split("/", 1)[0]
 
         return first_segment.split("?", 1)[0].split("#", 1)[0]
-
-    async def _bootstrap_and_fetch_crumb(self, ticker: str) -> None:
-        """
-        Initialise session cookies and retrieve the anti-CSRF crumb.
-
-        This method primes the session by making requests to Yahoo Finance endpoints
-        using the provided ticker, then fetches the crumb required for authenticated
-        requests. The crumb is cached for future use and protected by a lock.
-
-        Args:
-            ticker (str): Symbol used to prime the session.
-
-        Returns:
-            None
-        """
-        if self._crumb is not None:
-            return
-
-        async with self._crumb_lock:
-            if self._crumb is not None:
-                return
-            seeds: tuple[str, ...] = (
-                "https://fc.yahoo.com",
-                "https://finance.yahoo.com",
-                f"https://finance.yahoo.com/quote/{ticker}",
-            )
-            for seed in seeds:
-                await self._safe_get(seed, {})
-
-            resp: httpx.Response = await self._safe_get(self._config.crumb_url, {})
-            resp.raise_for_status()
-            self._crumb = resp.text.strip().strip('"')

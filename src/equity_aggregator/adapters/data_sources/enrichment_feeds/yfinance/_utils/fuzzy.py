@@ -1,4 +1,4 @@
-# utils/fuzzy.py
+# _utils/fuzzy.py
 
 from rapidfuzz import fuzz, utils
 
