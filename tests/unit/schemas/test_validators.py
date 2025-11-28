@@ -183,17 +183,18 @@ def test_to_unsigned_decimal_negative_raises() -> None:
         validators.to_unsigned_decimal(value, info)
 
 
-def test_to_unsigned_decimal_invalid_raises() -> None:
+def test_to_unsigned_decimal_invalid_returns_none() -> None:
     """
     ARRANGE: non-numeric string
     ACT:     to_unsigned_decimal
-    ASSERT:  raises ValueError
+    ASSERT:  returns None
     """
     info = type("Info", (), {"field_name": "field"})()
     value = "not_a_number"
 
-    with pytest.raises(ValueError):
-        validators.to_unsigned_decimal(value, info)
+    actual = validators.to_unsigned_decimal(value, info)
+
+    assert actual is None
 
 
 def test_to_analyst_rating_valid_buy() -> None:
@@ -348,3 +349,43 @@ def test__convert_separators_eu_large() -> None:
     actual = validators._convert_separators(value)
 
     assert actual == "1234567.89"
+
+
+def test__parse_numeric_text_only_plus_sign() -> None:
+    """
+    ARRANGE: string containing only '+'
+    ACT:     _parse_numeric_text
+    ASSERT:  returns None
+    """
+    value = "+"
+
+    actual = validators._parse_numeric_text(value)
+
+    assert actual is None
+
+
+def test_to_mic_accepts_none() -> None:
+    """
+    ARRANGE: None value
+    ACT:     to_mic
+    ASSERT:  returns None
+    """
+    value = None
+
+    actual = validators.to_mic(value)
+
+    assert actual is None
+
+
+def test_to_signed_decimal_valid() -> None:
+    """
+    ARRANGE: valid numeric string
+    ACT:     to_signed_decimal
+    ASSERT:  returns Decimal
+    """
+    info = type("Info", (), {"field_name": "price"})()
+    value = "123.45"
+
+    actual = validators.to_signed_decimal(value, info)
+
+    assert actual == Decimal("123.45")

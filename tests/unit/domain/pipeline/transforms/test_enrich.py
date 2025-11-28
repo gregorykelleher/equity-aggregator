@@ -710,3 +710,55 @@ def test_convert_to_usd_or_fallback_handles_converter_returning_none() -> None:
     actual = asyncio.run(_convert_to_usd_or_fallback(validated, source, "FxFeed"))
 
     assert actual is source
+
+
+def test_convert_to_usd_or_fallback_logs_success_on_enrichment() -> None:
+    """
+    ARRANGE: validated equity differs from source (enrichment occurred) with EUR currency
+    ACT:     call _convert_to_usd_or_fallback
+    ASSERT:  returns the converted equity in USD and logs success
+    """
+    source = RawEquity(
+        name="SRC",
+        symbol="SRC",
+        isin="ISIN00000011",
+        mics=["XLON"],
+        currency="EUR",
+        last_price=Decimal("10"),
+        market_cap=None,
+    )
+
+    validated = RawEquity(
+        name="SRC",
+        symbol="SRC",
+        isin="ISIN00000011",
+        mics=["XLON"],
+        currency="EUR",
+        last_price=Decimal("10"),
+        market_cap=Decimal("1000"),
+    )
+
+    actual = asyncio.run(_convert_to_usd_or_fallback(validated, source, "TestFeed"))
+
+    assert actual.currency == "USD"
+
+
+def test_convert_to_usd_or_fallback_no_log_when_same_object() -> None:
+    """
+    ARRANGE: validated is the same object as source (no enrichment occurred)
+    ACT:     call _convert_to_usd_or_fallback
+    ASSERT:  returns converted equity without logging success
+    """
+    source = RawEquity(
+        name="SAME",
+        symbol="SAME",
+        isin="ISIN00000012",
+        mics=["XLON"],
+        currency="EUR",
+        last_price=Decimal("100"),
+        market_cap=Decimal("5000"),
+    )
+
+    actual = asyncio.run(_convert_to_usd_or_fallback(source, source, "TestFeed"))
+
+    assert actual.currency == "USD"

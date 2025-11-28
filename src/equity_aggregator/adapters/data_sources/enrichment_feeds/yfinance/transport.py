@@ -10,8 +10,9 @@ from equity_aggregator.adapters.data_sources._utils import make_client
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Type alias for reset callback
+# Type aliases
 OnResetFn = Callable[[], None]
+ClientFactory = Callable[[], httpx.AsyncClient]
 
 
 class HttpTransport:
@@ -25,17 +26,21 @@ class HttpTransport:
     Args:
         client (httpx.AsyncClient | None): Optional pre-configured HTTP client.
         on_reset (OnResetFn | None): Optional callback invoked after client reset.
+        client_factory (ClientFactory | None): Optional factory function to create
+            new clients during reset. Defaults to make_client.
 
     Returns:
         None
     """
 
-    __slots__ = ("_client", "_lock", "_on_reset", "_ready")
+    __slots__ = ("_client", "_client_factory", "_lock", "_on_reset", "_ready")
 
     def __init__(
         self,
         client: httpx.AsyncClient | None = None,
         on_reset: OnResetFn | None = None,
+        *,
+        client_factory: ClientFactory | None = None,
     ) -> None:
         """
         Initialise HttpTransport with optional client and reset callback.
@@ -43,11 +48,14 @@ class HttpTransport:
         Args:
             client (httpx.AsyncClient | None): Optional pre-configured HTTP client.
             on_reset (OnResetFn | None): Optional callback invoked after client reset.
+            client_factory (ClientFactory | None): Optional factory function to create
+                new clients during reset. Defaults to make_client.
 
         Returns:
             None
         """
-        self._client: httpx.AsyncClient = client or make_client()
+        self._client_factory: ClientFactory = client_factory or make_client
+        self._client: httpx.AsyncClient = client or self._client_factory()
         self._lock: asyncio.Lock = asyncio.Lock()
         self._ready: asyncio.Event = asyncio.Event()
         self._ready.set()
@@ -160,7 +168,7 @@ class HttpTransport:
 
             try:
                 # Create and verify new client with health check
-                new_client = make_client()
+                new_client = self._client_factory()
                 await new_client.get("https://finance.yahoo.com", timeout=5.0)
 
             except Exception:

@@ -21,7 +21,7 @@ def test_search_url_default() -> None:
     """
     config = FeedConfig()
 
-    assert config.search_url == "https://query1.finance.yahoo.com/v1/finance/search"
+    assert config.search_url == "https://query2.finance.yahoo.com/v1/finance/search"
 
 
 def test_dataclass_is_frozen() -> None:
@@ -69,7 +69,7 @@ def test_override_keeps_other_defaults() -> None:
     config = FeedConfig(modules=("price",))
 
     assert (
-        config.quote_summary_url
+        config.quote_summary_primary_url
         == "https://query2.finance.yahoo.com/v10/finance/quoteSummary/"
     )
 

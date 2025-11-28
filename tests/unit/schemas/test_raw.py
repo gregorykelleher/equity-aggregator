@@ -518,11 +518,11 @@ def test_last_price_rejects_negative() -> None:
         RawEquity(**payload)
 
 
-def test_last_price_rejects_invalid() -> None:
+def test_last_price_converts_invalid_to_none() -> None:
     """
     ARRANGE: last_price invalid string
     ACT:     construct RawEquity
-    ASSERT:  raises ValidationError
+    ASSERT:  last_price is set to None
     """
     payload = {
         "name": "ACME CORP",
@@ -530,8 +530,9 @@ def test_last_price_rejects_invalid() -> None:
         "last_price": "not_a_number",
     }
 
-    with pytest.raises(ValidationError):
-        RawEquity(**payload)
+    actual = RawEquity(**payload)
+
+    assert actual.last_price is None
 
 
 def test_isin_rejects_invalid_format() -> None:

@@ -61,8 +61,7 @@ def to_signed_decimal(
 ) -> Decimal | None:
     """
     Converts a numeric string to a Decimal, accepting both EU and US formats.
-    Rejects negative values and returns None for invalid input. Raises a ValueError
-    with a field-specific message if conversion fails.
+    Returns None for invalid input.
 
     Args:
         value: The input value to convert, expected as a string or number.
@@ -70,18 +69,11 @@ def to_signed_decimal(
 
     Returns:
         Decimal or None: The converted Decimal value, or None if input is invalid.
-
-    Raises:
-        ValueError: If the input cannot be converted to Decimal, with field name in
-            the error message.
     """
     text = _parse_numeric_text(value)
     if text is None:
         return None
-    try:
-        return Decimal(text)
-    except (InvalidOperation, ValueError):
-        raise ValueError(f"invalid {info.field_name}: {value!r}") from None
+    return Decimal(text)
 
 
 def to_unsigned_decimal(

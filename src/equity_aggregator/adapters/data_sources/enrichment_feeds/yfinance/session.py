@@ -35,7 +35,6 @@ class YFSession:
     # Limit HTTP/2 concurrent streams to 10 for maximum throughput.
     _concurrent_streams: asyncio.Semaphore = asyncio.Semaphore(10)
 
-    # Define retryable status codes once to avoid duplication
     _RETRYABLE_STATUS_CODES: frozenset[int] = frozenset(
         {
             httpx.codes.TOO_MANY_REQUESTS,  # 429
@@ -130,6 +129,8 @@ class YFSession:
         self,
         url: str,
         params: dict[str, str],
+        *,
+        delays: list[float] | None = None,
     ) -> httpx.Response:
         """
         Perform GET request with unified 401 and rate limit handling.
@@ -142,6 +143,8 @@ class YFSession:
         Args:
             url (str): The absolute URL to request.
             params (dict[str, str]): Query parameters (mutated with crumb).
+            delays (list[float] | None): Optional delay sequence for testing.
+                If None, uses exponential backoff with 5 retry attempts.
 
         Returns:
             httpx.Response: The successful HTTP response.
@@ -150,7 +153,9 @@ class YFSession:
             LookupError: If response is still retryable after all attempts.
         """
         max_backoff_attempts = 5
-        delays = [0, *backoff_delays(attempts=max_backoff_attempts)]
+
+        if delays is None:
+            delays = [0, *backoff_delays(attempts=max_backoff_attempts)]
 
         for backoff_attempt, delay in enumerate(delays):
             if delay > 0:
@@ -163,11 +168,7 @@ class YFSession:
                 )
                 await asyncio.sleep(delay)
 
-            response = await self._transport.get(url, params)
-
-            # Handle 401 by renewing crumb (could happen after client reset)
-            if response.status_code == httpx.codes.UNAUTHORIZED:
-                response = await self._renew_crumb_once(url, params)
+            response = await self._attempt_request(url, params)
 
             # If response is not retryable, return it (success or permanent error)
             if response.status_code not in self._RETRYABLE_STATUS_CODES:
@@ -175,6 +176,29 @@ class YFSession:
 
         # All attempts exhausted, response still retryable
         raise LookupError(f"HTTP {response.status_code} after retries for {url}")
+
+    async def _attempt_request(
+        self,
+        url: str,
+        params: dict[str, str],
+    ) -> httpx.Response:
+        """
+        Perform a single request attempt with 401 handling.
+
+        Args:
+            url (str): The absolute URL to request.
+            params (dict[str, str]): Query parameters (mutated with crumb on 401).
+
+        Returns:
+            httpx.Response: The HTTP response.
+        """
+        response = await self._transport.get(url, params)
+
+        # Handle 401 by renewing crumb (could happen after client reset)
+        if response.status_code == httpx.codes.UNAUTHORIZED:
+            response = await self._renew_crumb_once(url, params)
+
+        return response
 
     async def _renew_crumb_once(
         self,

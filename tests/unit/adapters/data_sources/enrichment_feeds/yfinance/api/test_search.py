@@ -1,6 +1,4 @@
-# _test_api/test_search.py
-
-import asyncio
+# api/test_search.py
 
 import httpx
 import pytest
@@ -29,13 +27,13 @@ async def test_search_quotes_filters_non_equity() -> None:
         ],
     }
 
-    excepted_quote_count = 2
+    expected_quote_count = 2
 
     session = make_session(lambda r: httpx.Response(200, json=payload, request=r))
 
     actual = await search_quotes(session, "msft")
 
-    assert len(actual) == excepted_quote_count
+    assert len(actual) == expected_quote_count
 
 
 async def test_search_quotes_handles_missing_quotes_field() -> None:
@@ -53,53 +51,23 @@ async def test_search_quotes_handles_missing_quotes_field() -> None:
 
 async def test_search_quotes_raises_for_unexpected_status() -> None:
     """
-    ARRANGE: mock 500 response, patch sleep to zero delay
+    ARRANGE: mock 500 response
     ACT:     call search_quotes
-    ASSERT:  LookupError is raised after retries
+    ASSERT:  LookupError is raised
     """
-    real_sleep = asyncio.sleep
+    session = make_session(lambda r: httpx.Response(500, json={}, request=r))
 
-    async def _instant(_delay: float) -> None:
-        return None
+    with pytest.raises(LookupError) as exc_info:
+        await search_quotes(session, "fail")
 
-    asyncio.sleep = _instant
-
-    try:
-        session = make_session(lambda r: httpx.Response(500, json={}, request=r))
-
-        with pytest.raises(LookupError):
-            await search_quotes(session, "fail")
-    finally:
-        asyncio.sleep = real_sleep
+    assert "HTTP 500" in str(exc_info.value)
 
 
-async def test_search_quotes_raises_for_too_many_requests() -> None:
-    """
-    ARRANGE: mock 429 response; patch sleep to zero delay
-    ACT:     call search_quotes
-    ASSERT:  LookupError is raised after retries
-    """
-    real_sleep = asyncio.sleep
-
-    async def _instant(_delay: float) -> None:
-        return None
-
-    asyncio.sleep = _instant
-
-    try:
-        session = make_session(lambda r: httpx.Response(429, json={}, request=r))
-
-        with pytest.raises(LookupError):
-            await search_quotes(session, "QUERY429")
-    finally:
-        asyncio.sleep = real_sleep
-
-
-async def test_search_quotes_returns_empty_list_on_429() -> None:
+async def test_search_quotes_raises_on_429() -> None:
     """
     ARRANGE: session stub that always yields a 429 response
     ACT:     invoke search_quotes
-    ASSERT:  an empty list is returned
+    ASSERT:  LookupError with 'HTTP 429' is raised
     """
 
     response_429 = httpx.Response(
@@ -121,6 +89,7 @@ async def test_search_quotes_returns_empty_list_on_429() -> None:
 
     session = _StubSession(response_429)
 
-    actual = await search_quotes(session, "throttled")
+    with pytest.raises(LookupError) as exc_info:
+        await search_quotes(session, "throttled")
 
-    assert actual == []
+    assert "HTTP 429" in str(exc_info.value)
