@@ -176,7 +176,10 @@ async def _process_stream(
         RawEquity: Enriched equities as they complete.
     """
     async with asyncio.TaskGroup() as tg:
-        tasks = [tg.create_task(_enrich_equity(eq, feeds)) async for eq in equities]
+        tasks = [
+            tg.create_task(_enrich_equity(eq, feeds), name=eq.symbol)
+            async for eq in equities
+        ]
         for coro in asyncio.as_completed(tasks):
             yield await coro
 
@@ -436,11 +439,12 @@ def _log_outcome(
         level: Logging level (default: logging.DEBUG).
     """
     status = "SUCCESS" if error is None else "FAILURE"
+    prefix = f"[{feed_name}:{source.symbol}]"
 
     msg = (
-        f"{status}: {feed_name} feed for symbol={source.symbol}, name={source.name} "
-        f"(isin={source.isin or '<none>'}, cusip={source.cusip or '<none>'}, "
-        f"cik={source.cik or '<none>'}, "
+        f"{prefix:<24} {status}: {feed_name} feed for symbol={source.symbol}, "
+        f"name={source.name} (isin={source.isin or '<none>'}, "
+        f"cusip={source.cusip or '<none>'}, cik={source.cik or '<none>'}, "
         f"share_class_figi={source.share_class_figi or '<none>'})"
     )
 
