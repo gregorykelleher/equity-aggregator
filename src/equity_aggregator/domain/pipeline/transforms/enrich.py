@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import NamedTuple
 
 from equity_aggregator.adapters import open_yfinance_feed
@@ -16,437 +16,435 @@ logger = logging.getLogger(__name__)
 # Type alias for an async function that fetches enrichment data for an equity
 type FetchFunc = Callable[..., Awaitable[dict[str, object]]]
 
-# Type alias for a factory that creates an async feed context manager
-type FeedFactory = Callable[[], AsyncIterator[object]]
 
-# Type alias for a tuple describing a feed: (factory, model, concurrency limit)
-type FeedSpec = tuple[FeedFactory, type, int]
+class FeedSpec(NamedTuple):
+    """
+    Static specification for an enrichment feed.
 
-# Type alias for a function that validates and converts feed data to RawEquity
-type ValidatorFunc = Callable[[dict[str, object], RawEquity], RawEquity]
+    Attributes:
+        factory: Async context manager factory that yields a feed instance.
+        model: Pydantic model for validating feed data.
+        limit: Maximum number of concurrent requests to this feed.
+    """
 
-# List of enrichment feeds to use, each with its factory, model, and concurrency limit
-feed_specs: list[FeedSpec] = [
-    (
-        open_yfinance_feed,  # factory for creating YFinance feed context
-        YFinanceFeedData,  # data model for YFinance feed data
-        20,  # concurrency limit (max simultaneous requests to YFinance)
-    ),
-]
+    factory: Callable
+    model: type
+    limit: int
 
 
 class EnrichmentFeed(NamedTuple):
     """
-    Represents a feed for enrichment in a data pipeline.
+    Runtime instance of an enrichment feed with rate limiting applied.
 
-    Args:
-        fetch (FetchFunc): A callable responsible for fetching enrichment data.
-        model (type): The type of model to use for enrichment.
-        semaphore (asyncio.Semaphore): Semaphore to control concurrency for fetch.
-
-    Returns:
-        EnrichmentFeed: A named tuple containing fetch, model, and semaphore.
+    Attributes:
+        fetch: Rate-limited async function to fetch enrichment data.
+        model: Pydantic model for validating feed data.
     """
 
     fetch: FetchFunc
     model: type
-    semaphore: asyncio.Semaphore
+
+
+# Specification for all enrichment feeds
+enrichment_feed_specs: tuple[FeedSpec, ...] = (
+    FeedSpec(open_yfinance_feed, YFinanceFeedData, 20),
+)
 
 
 async def enrich(
     raw_equities: AsyncIterable[RawEquity],
 ) -> AsyncIterable[RawEquity]:
     """
-    Enrich a stream of RawEquity objects concurrently using configured feeds.
+    Enrich a stream of RawEquity objects concurrently using enrichment feeds.
 
     Each RawEquity is scheduled for enrichment and yielded as soon as its
     enrichment completes. Enrichment is performed concurrently, respecting
     per-feed concurrency limits.
 
     Args:
-        raw_equities (AsyncIterable[RawEquity]):
-            Async iterable stream of RawEquity objects to enrich.
+        raw_equities: Async iterable stream of RawEquity objects to enrich.
 
-    Returns:
-        AsyncIterable[RawEquity]: Yields each enriched RawEquity as soon as
-        enrichment finishes.
+    Yields:
+        RawEquity: Each enriched RawEquity as soon as enrichment finishes.
+    """
+    async with _open_feeds(enrichment_feed_specs) as feeds:
+        async for enriched in _process_stream(raw_equities, feeds):
+            yield enriched
+
+
+@asynccontextmanager
+async def _open_feeds(
+    specs: tuple[FeedSpec, ...],
+) -> AsyncIterator[tuple[EnrichmentFeed, ...]]:
+    """
+    Open and initialise all enrichment feeds with lifecycle management.
+
+    Creates an async context that initialises each feed with rate-limited fetch
+    functions, manages their lifecycle through AsyncExitStack, and logs completion
+    when the context exits. All feeds are initialised sequentially to ensure
+    proper resource allocation.
+
+    Args:
+        specs: Tuple of feed specifications to initialise.
+
+    Yields:
+        tuple[EnrichmentFeed, ...]: Initialised feeds with rate limiting applied,
+            ready for concurrent enrichment operations.
     """
     async with AsyncExitStack() as stack:
-        feeds: list[EnrichmentFeed] = [
-            EnrichmentFeed(
-                fetch=(await stack.enter_async_context(factory())).fetch_equity,
-                model=model,
-                semaphore=asyncio.Semaphore(limit),
-            )
-            for factory, model, limit in feed_specs
-        ]
-
-        # launch enrichment tasks and yield results as they complete
-        async with asyncio.TaskGroup() as enrich_tasks:
-            tasks: list[asyncio.Task[RawEquity]] = []
-            async for equity in raw_equities:
-                tasks.append(
-                    enrich_tasks.create_task(_enrich_equity(equity, feeds)),
-                )
-
-            for completed in asyncio.as_completed(tasks):
-                enriched = await completed
-                yield enriched
+        feeds = tuple([await _init_feed(spec, stack) for spec in specs])
+        yield feeds
 
     logger.info(
-        "Enrichment finished for %d equities using enrichment feeds: %s",
-        len(tasks),
-        ", ".join(feed.model.__name__.removesuffix("FeedData") for feed in feeds),
+        "Enrichment finished using feeds: %s",
+        ", ".join(_feed_name(f.model) for f in feeds),
     )
+
+
+async def _init_feed(spec: FeedSpec, stack: AsyncExitStack) -> EnrichmentFeed:
+    """
+    Initialise a single enrichment feed with rate limiting and lifecycle management.
+
+    Opens the feed using its factory, registers it with the provided AsyncExitStack
+    for automatic cleanup, wraps the fetch function with semaphore-based rate
+    limiting, and returns a ready-to-use EnrichmentFeed instance.
+
+    Args:
+        spec: Feed specification containing factory, model, and concurrency limit.
+        stack: AsyncExitStack to manage the feed's async context lifecycle.
+
+    Returns:
+        EnrichmentFeed: Initialised feed with rate-limited fetch function and
+            validation model.
+    """
+    feed_instance = await stack.enter_async_context(spec.factory())
+
+    return EnrichmentFeed(
+        fetch=_rate_limited(feed_instance.fetch_equity, asyncio.Semaphore(spec.limit)),
+        model=spec.model,
+    )
+
+
+def _rate_limited(fn: FetchFunc, semaphore: asyncio.Semaphore) -> FetchFunc:
+    """
+    Wrap an async fetch function with semaphore-based rate limiting.
+
+    Args:
+        fn: Async function to wrap.
+        semaphore: Semaphore to control concurrent calls.
+
+    Returns:
+        FetchFunc: Wrapped function that acquires semaphore before calling fn.
+    """
+
+    async def wrapper(*args: object, **kwargs: object) -> object:
+        async with semaphore:
+            return await fn(*args, **kwargs)
+
+    return wrapper
+
+
+def _feed_name(model: type) -> str:
+    """
+    Extract a concise feed name from a model class.
+
+    Args:
+        model: The Pydantic model class (e.g., YFinanceFeedData).
+
+    Returns:
+        str: The feed name (e.g., "YFinance").
+    """
+    return model.__name__.removesuffix("FeedData")
+
+
+async def _process_stream(
+    equities: AsyncIterable[RawEquity],
+    feeds: tuple[EnrichmentFeed, ...],
+) -> AsyncIterable[RawEquity]:
+    """
+    Schedule enrichment for each equity and yield results as they complete.
+
+    Creates an enrichment task for each equity in the input stream, then
+    yields enriched equities as their tasks complete (potentially out of
+    original order).
+
+    Args:
+        equities: Stream of equities to enrich.
+        feeds: Active feeds to use for enrichment.
+
+    Yields:
+        RawEquity: Enriched equities as they complete.
+    """
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(_enrich_equity(eq, feeds)) async for eq in equities]
+        for coro in asyncio.as_completed(tasks):
+            yield await coro
 
 
 async def _enrich_equity(
     source: RawEquity,
-    feeds: list[EnrichmentFeed],
+    feeds: tuple[EnrichmentFeed, ...],
 ) -> RawEquity:
     """
-    Enrich a RawEquity instance concurrently using all configured enrichment feeds.
+    Enrich a single equity from all enrichment feeds and merge results.
 
-    For each feed, fetch and validate data for the given equity. Merge results with
-    the source, preferring non-None fields from the source.
-
-    Args:
-        source (RawEquity): The RawEquity object to enrich (assumed USD-denominated).
-        feeds (list[EnrichmentFeed]): List of enrichment feeds to use.
-
-    Returns:
-        RawEquity: The enriched RawEquity with missing fields filled where possible.
-    """
-
-    async def run(feed: EnrichmentFeed) -> RawEquity:
-        """
-        Enrich a RawEquity using a single feed, respecting the feed's concurrency
-        limit.
-
-        Args:
-            feed (EnrichmentFeed): The enrichment feed containing the fetch function,
-                model, and semaphore for concurrency control.
-
-        Returns:
-            RawEquity: The enriched RawEquity instance, or the original if enrichment
-                fails.
-        """
-        async with feed.semaphore:
-            return await _enrich_with_feed(source, feed.fetch, feed.model)
-
-    enriched_equities = await asyncio.gather(*(run(feed) for feed in feeds))
-
-    # merge all feed‐enriched RawEquity instances into one
-    merged_from_feeds = merge(enriched_equities)
-
-    # replace only the none‐fields in source with values from merged_from_feeds
-    return _replace_none_with_enriched(source, merged_from_feeds)
-
-
-async def _enrich_with_feed(
-    source: RawEquity,
-    fetch_func: FetchFunc,
-    feed_model: type,
-) -> RawEquity:
-    """
-    Enrich a RawEquity using a feed: fetch, validate, and convert to USD.
-
-    If the source has no missing fields, returns it unchanged. Otherwise, fetches
-    data from the feed, validates it, and converts to USD. If any step fails,
-    returns the original source.
+    If the source has no missing fields, returns it unchanged. Otherwise,
+    fetches enrichment data from all feeds concurrently, merges the results,
+    and fills in missing fields from the source.
 
     Args:
-        source (RawEquity): The equity to enrich, possibly with missing fields.
-        fetch_func (FetchFunc): Async function to fetch enrichment data.
-        feed_model (type): Pydantic model class for validating feed data.
+        source: The equity to enrich, possibly with missing fields.
+        feeds: Active feeds to use for enrichment.
 
     Returns:
-        RawEquity: The enriched RawEquity in USD, or the original source if
-        enrichment fails or is unnecessary.
+        RawEquity: The enriched equity with missing fields filled where possible.
     """
-    # if source has no missing fields, skip enrichment
     if not _has_missing_fields(source):
         return source
 
-    # derive a concise feed name for logging (e.g. "YFinance" from "YFinanceFeedData")
-    feed_name = feed_model.__name__.removesuffix("FeedData")
+    enriched_from_feeds = await asyncio.gather(
+        *(_enrich_from_feed(source, feed) for feed in feeds),
+    )
+    return _replace_none_fields(source, merge(enriched_from_feeds))
 
-    # fetch the raw data, with timeout and exception handling
-    fetched_raw_data = await _safe_fetch(source, fetch_func, feed_name)
 
-    # if no data was fetched, fall back to source
-    if not fetched_raw_data:
+def _has_missing_fields(equity: RawEquity) -> bool:
+    """
+    Check if any field in a RawEquity instance is missing (set to None).
+
+    Args:
+        equity: The RawEquity instance to check for missing fields.
+
+    Returns:
+        bool: True if any field is None, indicating a missing value; False
+            otherwise.
+    """
+    return any(v is None for v in equity.model_dump().values())
+
+
+async def _enrich_from_feed(
+    source: RawEquity,
+    feed: EnrichmentFeed,
+) -> RawEquity:
+    """
+    Fetch, validate, and convert enrichment data from a single feed.
+
+    Attempts to enrich the source equity using the provided feed. Returns
+    the original source if any step fails.
+
+    Args:
+        source: The equity to enrich.
+        feed: The active feed to use.
+
+    Returns:
+        RawEquity: The enriched equity in USD, or the original source if
+            enrichment fails.
+    """
+    feed_name = _feed_name(feed.model)
+
+    fetched = await _safe_fetch(source, feed.fetch, feed_name)
+    if not fetched:
         return source
 
-    # validate the fetched data against the feed model
-    validated = _make_validator(feed_model)(fetched_raw_data, source)
+    validated = _validate(fetched, source, feed.model, feed_name)
+    if validated is source:
+        return source
 
-    # always convert the validated feed‐record to USD or else fall back to source
-    return await _convert_to_usd_or_fallback(validated, source, feed_name)
+    return await _to_usd(validated, source, feed_name)
+
+
+def _replace_none_fields(
+    source: RawEquity,
+    enriched: RawEquity,
+) -> RawEquity:
+    """
+    Fill missing fields in source with values from enriched.
+
+    For each field, if source has a non-None value, it is kept. If source
+    has None, the value from enriched is used, but only if it is not None.
+    None values in enriched never overwrite any value in source.
+
+    Args:
+        source: The original RawEquity instance, possibly with missing fields.
+        enriched: The RawEquity instance to use for filling missing fields.
+
+    Returns:
+        RawEquity: A new RawEquity instance with missing fields filled from
+            enriched.
+    """
+    updates = {
+        k: v
+        for k, v in enriched.model_dump(exclude_none=True).items()
+        if getattr(source, k) is None
+    }
+    return source.model_copy(update=updates)
 
 
 async def _safe_fetch(
     source: RawEquity,
-    fetcher: FetchFunc,
+    fetch: FetchFunc,
     feed_name: str,
     *,
-    wait_timeout: float = 300.0,
+    fetch_timeout: float = 300.0,
 ) -> dict[str, object] | None:
     """
-    Safely fetch raw data for a RawEquity from an enrichment feed, handling
-    timeouts and errors.
+    Safely fetch raw data for a RawEquity from an enrichment feed.
+
+    Handles timeouts and errors, returning None on failure. Logs all errors
+    with appropriate context.
 
     Note:
         The CIK (Central Index Key) is intentionally omitted as an identifier
         for enrichment feeds, as it lacks broad support.
 
     Args:
-        source (RawEquity): The RawEquity instance to fetch data for.
-        fetcher (FetchFunc): The async fetch function for the enrichment feed.
-        feed_name (str): The name of the enrichment feed for logging context.
-        wait_timeout (float, optional): Maximum time to wait for the fetch, in
-            seconds.
+        source: The RawEquity instance to fetch data for.
+        fetch: The async fetch function for the enrichment feed.
+        feed_name: The name of the enrichment feed for logging context.
+        fetch_timeout: Maximum time to wait for the fetch, in seconds.
 
     Returns:
-        dict[str, object] | None: The fetched data as a dictionary, or None if an
-        exception occurs or the data is empty.
+        dict[str, object] | None: The fetched data as a dictionary, or None if
+            an exception occurs or the data is empty.
     """
-    data: dict[str, object] | None = None
-
     try:
-        data = await asyncio.wait_for(
-            fetcher(
+        return await asyncio.wait_for(
+            fetch(
                 symbol=source.symbol,
                 name=source.name,
                 isin=source.isin,
                 cusip=source.cusip,
             ),
-            timeout=wait_timeout,
+            timeout=fetch_timeout,
         )
 
-    except LookupError as error:
-        _log_enrichment_outcome(
-            feed_name,
-            source,
-            error,
-        )
+    except LookupError as e:
+        _log_outcome(feed_name, source, e)
 
     except TimeoutError:
         logger.error(
-            "Timed out after %.0f s while fetching from %s.",
-            wait_timeout,
+            "Timed out after %.0fs fetching from %s.",
+            fetch_timeout,
             feed_name,
         )
 
-    except Exception as error:
+    except Exception as e:
         logger.error(
             "Error fetching from %s: %s: %s",
             feed_name,
-            type(error).__name__,
-            error or "<empty error message>",
+            type(e).__name__,
+            e or "<empty>",
         )
 
-    return data
+    return None
 
 
-def _make_validator(
-    feed_model: type,
-) -> ValidatorFunc:
-    """
-    Create a validator function for a given feed model to validate and coerce records.
-
-    Args:
-        feed_model (type): The Pydantic model class used to validate and coerce
-            input records. The model should define the expected schema for the feed
-            data.
-
-    Returns:
-        ValidatorFunc: A function that takes a record dictionary and a RawEquity
-            source, validates and coerces the record using the feed model, and
-            returns a RawEquity instance if successful. If validation fails, log
-            and returns the original source.
-    """
-    feed_name = feed_model.__name__.removesuffix("FeedData")
-
-    def validate(record: dict[str, object], source: RawEquity) -> RawEquity:
-        """
-        Validate and coerce a record using the feed model, returning a RawEquity.
-
-        Args:
-            record (dict[str, object]): The raw record to validate and coerce.
-            source (RawEquity): The original RawEquity to return on failure.
-
-        Returns:
-            RawEquity: The validated RawEquity, or the original source if
-                validation fails.
-        """
-        try:
-            # validate the record against the feed model, coercing types as needed
-            coerced = feed_model.model_validate(record).model_dump()
-
-            # convert the coerced data to a RawEquity instance
-            return RawEquity.model_validate(coerced)
-
-        except Exception as error:
-            if hasattr(error, "errors"):
-                fields = {err["loc"][0] for err in error.errors()}
-                summary = f"invalid {', '.join(sorted(fields))}"
-            else:
-                summary = str(error)
-
-            _log_enrichment_outcome(
-                feed_name,
-                source,
-                summary,
-            )
-            return source
-
-    return validate
-
-
-def _has_missing_fields(equity: RawEquity) -> bool:
-    """
-    Checks if any field in a RawEquity instance is missing (i.e., set to None).
-
-    Args:
-        equity (RawEquity): The RawEquity instance to check for missing fields.
-
-    Returns:
-        bool: True if any field is None, indicating a missing value; False otherwise.
-    """
-    return any(value is None for value in equity.model_dump().values())
-
-
-def _replace_none_with_enriched(
+def _validate(
+    record: dict[str, object],
     source: RawEquity,
-    enriched: RawEquity,
+    model: type,
+    feed_name: str,
 ) -> RawEquity:
     """
-    Return new RawEquity instance with missing fields from `source` filled in from
-    `enriched`.
+    Validate record against model schema and convert to RawEquity.
 
-    For each field, if `source` has a non-None value, it is kept. If `source` has None,
-    the value from `enriched` is used, but only if it is not None. None values in
-    `enriched` never overwrite any value in `source`.
+    Validates the fetched record using the feed's Pydantic model, then
+    converts the validated data to a RawEquity instance. Returns the
+    original source on validation failure.
 
     Args:
-        source (RawEquity): The original RawEquity instance, possibly with missing
-            fields.
-        enriched (RawEquity): The RawEquity instance to use for filling missing fields.
+        record: The raw record to validate and coerce.
+        source: The original RawEquity to return on failure.
+        model: Pydantic model class for validating feed data.
+        feed_name: The name of the feed for logging context.
 
     Returns:
-        RawEquity: A new RawEquity instance with missing fields filled from `enriched`.
+        RawEquity: The validated RawEquity, or the original source if
+            validation fails.
     """
-    # dump enriched, don’t include any None values
-    enriched_data = enriched.model_dump(exclude_none=True)
+    try:
+        coerced = model.model_validate(record).model_dump()
+        return RawEquity.model_validate(coerced)
 
-    # pick only the keys where source is None
-    to_update = {
-        field: value
-        for field, value in enriched_data.items()
-        if getattr(source, field) is None
-    }
+    except Exception as e:
+        summary = (
+            f"invalid {', '.join(sorted(err['loc'][0] for err in e.errors()))}"
+            if hasattr(e, "errors")
+            else str(e)
+        )
 
-    # return a copy of source with just those missing fields filled in
-    return source.model_copy(update=to_update)
+        _log_outcome(feed_name, source, summary)
+
+        return source
 
 
-async def _convert_to_usd_or_fallback(
+async def _to_usd(
     validated: RawEquity,
     source: RawEquity,
     feed_name: str,
 ) -> RawEquity:
     """
-    Attempt to convert a validated RawEquity instance to USD. If conversion fails
-    due to a missing FX rate (ValueError), log and return the original
-    source RawEquity.
+    Convert a validated RawEquity instance to USD.
+
+    Applies currency conversion using the global USD converter. Falls back
+    to the original source on conversion failure.
 
     Args:
-        validated (RawEquity): The RawEquity instance to convert to USD.
-        source (RawEquity): The original RawEquity to return on conversion failure.
-        feed_name (str): The name of the enrichment feed for logging context.
+        validated: The RawEquity instance to convert to USD.
+        source: The original RawEquity to return on conversion failure.
+        feed_name: The name of the enrichment feed for logging context.
 
     Returns:
-        RawEquity: The USD-converted RawEquity if successful, otherwise the original
-        source RawEquity.
+        RawEquity: The USD-converted RawEquity if successful, otherwise the
+            original source RawEquity.
     """
-    # Check if enrichment actually occurred (validated != source)
-    enrichment_succeeded = validated is not source
-
     converter = await get_usd_converter()
 
     try:
         converted = converter(validated)
 
         if converted is None:
-            raise ValueError("USD conversion failed")
+            raise ValueError("USD conversion returned None")
 
-        # Only log success if actual enrichment happened
-        if enrichment_succeeded:
-            _log_enrichment_outcome(
-                feed_name,
-                source,
-                error=None,
-            )
+        _log_outcome(feed_name, source, None)
 
         return converted
 
-    except Exception as error:
-        _log_enrichment_outcome(
-            feed_name,
-            source,
-            error,
-        )
+    except Exception as e:
+        _log_outcome(feed_name, source, e)
         return source
 
 
-def _log_enrichment_outcome(
+def _log_outcome(
     feed_name: str,
     source: RawEquity,
-    error: object | None = None,
+    error: object | None,
     *,
     level: int = logging.DEBUG,
 ) -> None:
     """
     Log a standardised message for enrichment feed data retrieval outcomes.
 
-    Logs SUCCESS when data is retrieved successfully (error is None), or FAILURE
-    when enrichment fails with error details.
+    Logs SUCCESS when data is retrieved successfully (error is None), or
+    FAILURE when enrichment fails with error details.
 
     Args:
-        feed_name (str): Name of the enrichment feed.
-        source (RawEquity): Equity instance with identifying fields.
-        error (object | None, optional): Error or context for failed retrieval.
-            If None, logs success; otherwise logs failure with error details.
-        level (int, optional): Logging level (default: logging.DEBUG).
-
-    Returns:
-        None
+        feed_name: Name of the enrichment feed.
+        source: Equity instance with identifying fields.
+        error: Error or context for failed retrieval. If None, logs success;
+            otherwise logs failure with error details.
+        level: Logging level (default: logging.DEBUG).
     """
-    if error is None:
-        logger.log(
-            level,
-            "SUCCESS: %s feed data retrieved for symbol=%s, name=%s "
-            "(isin=%s, cusip=%s, cik=%s, share_class_figi=%s).",
-            feed_name,
-            source.symbol,
-            source.name,
-            source.isin or "<none>",
-            source.cusip or "<none>",
-            source.cik or "<none>",
-            source.share_class_figi or "<none>",
-        )
-    else:
-        logger.log(
-            level,
-            "FAILURE: No %s feed data retrieved for symbol=%s, name=%s "
-            "(isin=%s, cusip=%s, cik=%s, share_class_figi=%s). %s",
-            feed_name,
-            source.symbol,
-            source.name,
-            source.isin or "<none>",
-            source.cusip or "<none>",
-            source.cik or "<none>",
-            source.share_class_figi or "<none>",
-            error,
-        )
+    status = "SUCCESS" if error is None else "FAILURE"
+
+    msg = (
+        f"{status}: {feed_name} feed for symbol={source.symbol}, name={source.name} "
+        f"(isin={source.isin or '<none>'}, cusip={source.cusip or '<none>'}, "
+        f"cik={source.cik or '<none>'}, "
+        f"share_class_figi={source.share_class_figi or '<none>'})"
+    )
+
+    if error is not None:
+        msg += f". {error}"
+
+    logger.log(level, msg)

@@ -1,4 +1,4 @@
-# tests/test_enrich.py
+# transforms/test_enrich.py
 
 import asyncio
 from collections.abc import AsyncIterable
@@ -7,13 +7,14 @@ from decimal import Decimal
 import pytest
 
 from equity_aggregator.domain.pipeline.transforms.enrich import (
-    ValidatorFunc,
-    _convert_to_usd_or_fallback,
-    _enrich_with_feed,
+    EnrichmentFeed,
+    _enrich_equity,
+    _enrich_from_feed,
     _has_missing_fields,
-    _make_validator,
-    _replace_none_with_enriched,
+    _replace_none_fields,
     _safe_fetch,
+    _to_usd,
+    _validate,
     enrich,
 )
 from equity_aggregator.schemas.raw import RawEquity
@@ -59,21 +60,6 @@ class ErrorFeedData:
                 return [{"loc": ("currency",)}, {"loc": ("market_cap",)}]
 
         raise _ValidationError("validation failed")
-
-
-def _create_validator(
-    model_cls: type,
-) -> ValidatorFunc:
-    """
-    Creates and returns a validator function for the specified feed model class.
-
-    Args:
-        model_cls (type): The class of the feed model for which to create a validator.
-
-    Returns:
-        ValidatorFunc: A function that validates instances of the given model class.
-    """
-    return _make_validator(model_cls)
 
 
 def test_has_missing_fields_true_when_any_field_none() -> None:
@@ -144,10 +130,100 @@ def test_has_missing_fields_false_when_all_fields_present() -> None:
     assert _has_missing_fields(complete) is False
 
 
-def test_enrich_with_feed_short_circuits_when_equity_complete() -> None:
+def test_enrich_from_feed_falls_back_on_validation_failure() -> None:
+    """
+    ARRANGE: source with missing fields, fetcher returns data that fails validation
+    ACT:     call _enrich_from_feed
+    ASSERT:  returns the original source after validation fails
+    """
+
+    async def bad_data_fetcher(
+        symbol: str,
+        name: str,
+        isin: str | None,
+        cusip: str | None,
+    ) -> dict[str, object]:
+        # Return non-empty data that will fail validation
+        return {"invalid": "data", "more": "fields"}
+
+    source = RawEquity(
+        name="BAD",
+        symbol="BAD",
+        isin="ISIN00000014",
+        mics=["XLON"],
+        currency="USD",
+        last_price=None,
+        market_cap=None,
+    )
+
+    mock_feed = EnrichmentFeed(fetch=bad_data_fetcher, model=BadFeedData)
+
+    actual = asyncio.run(_enrich_from_feed(source, mock_feed))
+
+    assert actual is source
+
+
+def test_enrich_equity_returns_source_when_no_missing_fields() -> None:
+    """
+    ARRANGE: complete RawEquity, feed that errors if called
+    ACT:     call _enrich_equity
+    ASSERT:  returns source unchanged, feed never invoked
+    """
+
+    async def should_not_be_called(**_: object) -> dict[str, object]:
+        raise AssertionError("feed was called")
+
+    complete = RawEquity(
+        name="FULL",
+        symbol="FULL",
+        isin="US0378331005",
+        cusip="037833100",
+        cik="0000320193",
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("150"),
+        market_cap=Decimal("250000000000"),
+        fifty_two_week_min=Decimal("120"),
+        fifty_two_week_max=Decimal("180"),
+        dividend_yield=Decimal("0.006"),
+        market_volume=Decimal("20000000"),
+        held_insiders=Decimal("0.10"),
+        held_institutions=Decimal("0.60"),
+        short_interest=Decimal("0.01"),
+        share_float=Decimal("16000000000"),
+        shares_outstanding=Decimal("17000000000"),
+        revenue_per_share=Decimal("20"),
+        profit_margin=Decimal("0.22"),
+        gross_margin=Decimal("0.43"),
+        operating_margin=Decimal("0.30"),
+        free_cash_flow=Decimal("95000000000"),
+        operating_cash_flow=Decimal("110000000000"),
+        return_on_equity=Decimal("0.28"),
+        return_on_assets=Decimal("0.18"),
+        performance_1_year=Decimal("0.12"),
+        total_debt=Decimal("98000000000"),
+        revenue=Decimal("1000000000"),
+        ebitda=Decimal("120000000000"),
+        trailing_pe=Decimal("28"),
+        price_to_book=Decimal("35"),
+        trailing_eps=Decimal("5.40"),
+        analyst_rating="BUY",
+        industry="TECH",
+        sector="TECHNOLOGY",
+    )
+
+    mock_feed = EnrichmentFeed(fetch=should_not_be_called, model=object)
+
+    actual = asyncio.run(_enrich_equity(complete, (mock_feed,)))
+
+    assert actual is complete
+
+
+def test_enrich_from_feed_short_circuits_when_equity_complete() -> None:
     """
     ARRANGE: RawEquity with all fields and a fetcher that errors if called
-    ACT:     call _enrich_with_feed
+    ACT:     call _enrich_from_feed
     ASSERT:  the original object is returned and the fetcher is *not* executed
     """
     complete = RawEquity(
@@ -190,20 +266,23 @@ def test_enrich_with_feed_short_circuits_when_equity_complete() -> None:
         sector="TECHNOLOGY",
     )
 
-    async def must_not_call(**_: dict[str, object]) -> dict[str, object]:
-        raise AssertionError("fetcher was called")
+    class MockFeed:
+        async def fetch_equity(self, **_: dict[str, object]) -> dict[str, object]:
+            raise AssertionError("fetcher was called")
 
-    actual = asyncio.run(
-        _enrich_with_feed(complete, must_not_call, object),  # feed_model is irrelevant
-    )
+        model = object
+
+    mock_feed = EnrichmentFeed(fetch=MockFeed().fetch_equity, model=object)
+
+    actual = asyncio.run(_enrich_from_feed(complete, mock_feed))
 
     assert actual is complete
 
 
-def test_replace_none_with_enriched_fills_only_none_fields() -> None:
+def test_replace_none_fields_fills_only_none_fields() -> None:
     """
     ARRANGE: source with last_price None, enriched with both fields set
-    ACT:     call _replace_none_with_enriched
+    ACT:     call _replace_none_fields
     ASSERT:  new object has last_price from enriched, but keeps source market_cap
     """
     source = RawEquity(
@@ -226,7 +305,7 @@ def test_replace_none_with_enriched_fills_only_none_fields() -> None:
         market_cap=Decimal("999"),
     )
 
-    merged = _replace_none_with_enriched(source, enriched)
+    merged = _replace_none_fields(source, enriched)
 
     assert (merged.last_price, merged.market_cap) == (
         Decimal("25"),
@@ -274,10 +353,10 @@ def test_enrich_passes_through_when_no_missing_fields() -> None:
     assert symbols == ["ONE", "TWO"]
 
 
-def test__enrich_with_feed_skips_when_no_missing() -> None:
+def test__enrich_from_feed_skips_when_no_missing() -> None:
     """
     ARRANGE: fully populated RawEquity, dummy fetcher that would error if called
-    ACT:     call _enrich_with_feed
+    ACT:     call _enrich_from_feed
     ASSERT:  returns the same object without calling fetcher
     """
 
@@ -297,7 +376,9 @@ def test__enrich_with_feed_skips_when_no_missing() -> None:
         market_cap=Decimal("40"),
     )
 
-    actual = asyncio.run(_enrich_with_feed(full, should_not_be_called, object))
+    mock_feed = EnrichmentFeed(fetch=should_not_be_called, model=object)
+
+    actual = asyncio.run(_enrich_from_feed(full, mock_feed))
 
     assert actual is full
 
@@ -305,7 +386,7 @@ def test__enrich_with_feed_skips_when_no_missing() -> None:
 def test_safe_fetch_timeout_returns_none() -> None:
     """
     ARRANGE: a slow fetcher that exceeds the timeout
-    ACT:     call _safe_fetch with a small wait_timeout
+    ACT:     call _safe_fetch with a small fetch_timeout
     ASSERT:  returns None
     """
 
@@ -325,7 +406,7 @@ def test_safe_fetch_timeout_returns_none() -> None:
         market_cap=Decimal("20"),
     )
 
-    actual = asyncio.run(_safe_fetch(src, slow_fetcher, "Slow", wait_timeout=0.01))
+    actual = asyncio.run(_safe_fetch(src, slow_fetcher, "Slow", fetch_timeout=0.01))
 
     assert actual is None
 
@@ -352,7 +433,7 @@ def test_safe_fetch_exception_returns_none() -> None:
         market_cap=Decimal("20"),
     )
 
-    actual = asyncio.run(_safe_fetch(source, bad_fetcher, "Bad", wait_timeout=1.0))
+    actual = asyncio.run(_safe_fetch(source, bad_fetcher, "Bad", fetch_timeout=1.0))
 
     assert actual is None
 
@@ -384,7 +465,7 @@ def test_safe_fetch_success_returns_dict() -> None:
         market_cap=Decimal("1"),
     )
 
-    actual = asyncio.run(_safe_fetch(source, quick_fetcher, "Quick", wait_timeout=1.0))
+    actual = asyncio.run(_safe_fetch(source, quick_fetcher, "Quick", fetch_timeout=1.0))
 
     assert actual == {"foo": "bar"}
 
@@ -427,10 +508,10 @@ def test_has_missing_fields_counts_optional_fields() -> None:
     assert _has_missing_fields(incomplete) is True
 
 
-def test_replace_none_with_enriched_leaves_none_when_enriched_also_none() -> None:
+def test_replace_none_fields_leaves_none_when_enriched_also_none() -> None:
     """
     ARRANGE: source has two None fields, enriched also None for those
-    ACT:     call _replace_none_with_enriched
+    ACT:     call _replace_none_fields
     ASSERT:  both fields remain None
     """
     source = RawEquity(
@@ -455,7 +536,7 @@ def test_replace_none_with_enriched_leaves_none_when_enriched_also_none() -> Non
         market_cap=None,
     )
 
-    merged = _replace_none_with_enriched(source, enriched)
+    merged = _replace_none_fields(source, enriched)
 
     assert (
         merged.isin,
@@ -470,14 +551,12 @@ def test_replace_none_with_enriched_leaves_none_when_enriched_also_none() -> Non
     )
 
 
-def test_make_validator_returns_raw_equity() -> None:
+def test_validate_returns_raw_equity() -> None:
     """
-    ARRANGE: a validator from GoodFeedData
-    ACT:     validate a record
+    ARRANGE: a record and GoodFeedData model
+    ACT:     call _validate
     ASSERT:  returns a RawEquity
     """
-    validator = _create_validator(GoodFeedData)
-
     raw_record = {
         "name": "VAL",
         "symbol": "VAL",
@@ -488,18 +567,18 @@ def test_make_validator_returns_raw_equity() -> None:
         "market_cap": Decimal("30"),
     }
     source = RawEquity.model_validate(raw_record)
-    validator = _create_validator(GoodFeedData)
-    assert isinstance(validator(raw_record, source), RawEquity)
+
+    actual = _validate(raw_record, source, GoodFeedData, "GoodFeed")
+
+    assert isinstance(actual, RawEquity)
 
 
-def test_make_validator_returns_none_on_error() -> None:
+def test_validate_returns_source_on_error() -> None:
     """
-    ARRANGE: a validator from BadFeedData
-    ACT:     validate a record
-    ASSERT:  returns None
+    ARRANGE: a record and BadFeedData model
+    ACT:     call _validate
+    ASSERT:  returns source
     """
-    validator = _create_validator(BadFeedData)
-
     raw_record = {
         "name": "VAL",
         "symbol": "VAL",
@@ -511,15 +590,16 @@ def test_make_validator_returns_none_on_error() -> None:
     }
 
     source = RawEquity.model_validate(raw_record)
-    validator = _create_validator(BadFeedData)
 
-    assert validator(raw_record, source) is source
+    actual = _validate(raw_record, source, BadFeedData, "BadFeed")
+
+    assert actual is source
 
 
-def test_enrich_with_feed_falls_back_on_empty_dict() -> None:
+def test_enrich_from_feed_falls_back_on_empty_dict() -> None:
     """
     ARRANGE: a RawEquity instance
-    ACT:     call _enrich_with_feed with an empty fetcher
+    ACT:     call _enrich_from_feed with an empty fetcher
     ASSERT:  returns the original RawEquity unchanged
     """
 
@@ -537,7 +617,9 @@ def test_enrich_with_feed_falls_back_on_empty_dict() -> None:
         market_cap=None,
     )
 
-    actual = asyncio.run(_enrich_with_feed(source, empty_fetcher, GoodFeedData))
+    mock_feed = EnrichmentFeed(fetch=empty_fetcher, model=GoodFeedData)
+
+    actual = asyncio.run(_enrich_from_feed(source, mock_feed))
 
     assert actual is source
 
@@ -545,7 +627,7 @@ def test_enrich_with_feed_falls_back_on_empty_dict() -> None:
 def test_safe_fetch_times_out_and_returns_none() -> None:
     """
     ARRANGE: slow fetcher that honours the signature and sleeps past the timeout
-    ACT:     call _safe_fetch with a tight wait_timeout
+    ACT:     call _safe_fetch with a tight fetch_timeout
     ASSERT:  returns None (TimeoutError branch)
     """
 
@@ -565,15 +647,15 @@ def test_safe_fetch_times_out_and_returns_none() -> None:
         market_cap=Decimal("0"),
     )
 
-    actual = asyncio.run(_safe_fetch(src, slow_fetcher, "Slow", wait_timeout=0.01))
+    actual = asyncio.run(_safe_fetch(src, slow_fetcher, "Slow", fetch_timeout=0.01))
 
     assert actual is None
 
 
-def test_enrich_with_feed_completes_success_path() -> None:
+def test_enrich_from_feed_completes_success_path() -> None:
     """
     ARRANGE:  source missing financials; fetcher returns a full record
-    ACT:      call _enrich_with_feed
+    ACT:      call _enrich_from_feed
     ASSERT:   enriched RawEquity contains the fetched last_price & market_cap
     """
 
@@ -606,7 +688,9 @@ def test_enrich_with_feed_completes_success_path() -> None:
         market_cap=None,
     )
 
-    enriched = asyncio.run(_enrich_with_feed(source, good_fetcher, GoodFeedData))
+    mock_feed = EnrichmentFeed(fetch=good_fetcher, model=GoodFeedData)
+
+    enriched = asyncio.run(_enrich_from_feed(source, mock_feed))
 
     assert (enriched.last_price, enriched.market_cap) == (
         Decimal("123"),
@@ -618,7 +702,7 @@ def test_safe_fetch_lookup_error_returns_none() -> None:
     """
     ARRANGE: a fetcher that raises LookupError
     ACT:     call _safe_fetch
-    ASSERT:  returns None  (the call routes through _log_no_feed_data)
+    ASSERT:  returns None  (the call routes through _log_outcome)
     """
 
     async def not_found_fetcher(
@@ -640,20 +724,18 @@ def test_safe_fetch_lookup_error_returns_none() -> None:
     )
 
     actual = asyncio.run(
-        _safe_fetch(src, not_found_fetcher, "NotFoundFeed", wait_timeout=1.0),
+        _safe_fetch(src, not_found_fetcher, "NotFoundFeed", fetch_timeout=1.0),
     )
 
     assert actual is None
 
 
-def test_make_validator_handles_error_feed() -> None:
+def test_validate_handles_error_feed() -> None:
     """
-    ARRANGE: validator from ErrorFeedData that raises with .errors()
-    ACT:     validate a record to trigger the exception
+    ARRANGE: ErrorFeedData model that raises with .errors()
+    ACT:     call _validate to trigger the exception
     ASSERT:  returns the original RawEquity (handles hasattr(error, "errors"))
     """
-    validator = _make_validator(ErrorFeedData)
-
     raw_record = {
         "name": "X",
         "symbol": "X",
@@ -665,16 +747,16 @@ def test_make_validator_handles_error_feed() -> None:
     }
     source = RawEquity.model_validate(raw_record)
 
-    actual = validator(raw_record, source)
+    actual = _validate(raw_record, source, ErrorFeedData, "ErrorFeed")
 
     assert actual is source
 
 
-def test_convert_to_usd_or_fallback_handles_converter_returning_none() -> None:
+def test_to_usd_handles_converter_returning_none() -> None:
     """
     ARRANGE: a validated equity whose `model_copy` is overridden to return None,
              making the USD-converter return None.
-    ACT:     call _convert_to_usd_or_fallback
+    ACT:     call _to_usd
     ASSERT:  falls back to the original source object
     """
 
@@ -707,15 +789,15 @@ def test_convert_to_usd_or_fallback_handles_converter_returning_none() -> None:
         market_cap=Decimal("10"),
     )
 
-    actual = asyncio.run(_convert_to_usd_or_fallback(validated, source, "FxFeed"))
+    actual = asyncio.run(_to_usd(validated, source, "FxFeed"))
 
     assert actual is source
 
 
-def test_convert_to_usd_or_fallback_logs_success_on_enrichment() -> None:
+def test_to_usd_logs_success_on_enrichment() -> None:
     """
     ARRANGE: validated equity differs from source (enrichment occurred) with EUR currency
-    ACT:     call _convert_to_usd_or_fallback
+    ACT:     call _to_usd
     ASSERT:  returns the converted equity in USD and logs success
     """
     source = RawEquity(
@@ -738,16 +820,16 @@ def test_convert_to_usd_or_fallback_logs_success_on_enrichment() -> None:
         market_cap=Decimal("1000"),
     )
 
-    actual = asyncio.run(_convert_to_usd_or_fallback(validated, source, "TestFeed"))
+    actual = asyncio.run(_to_usd(validated, source, "TestFeed"))
 
     assert actual.currency == "USD"
 
 
-def test_convert_to_usd_or_fallback_no_log_when_same_object() -> None:
+def test_to_usd_converts_currency() -> None:
     """
-    ARRANGE: validated is the same object as source (no enrichment occurred)
-    ACT:     call _convert_to_usd_or_fallback
-    ASSERT:  returns converted equity without logging success
+    ARRANGE: source equity in EUR
+    ACT:     call _to_usd
+    ASSERT:  returns converted equity in USD
     """
     source = RawEquity(
         name="SAME",
@@ -759,6 +841,6 @@ def test_convert_to_usd_or_fallback_no_log_when_same_object() -> None:
         market_cap=Decimal("5000"),
     )
 
-    actual = asyncio.run(_convert_to_usd_or_fallback(source, source, "TestFeed"))
+    actual = asyncio.run(_to_usd(source, source, "TestFeed"))
 
     assert actual.currency == "USD"
