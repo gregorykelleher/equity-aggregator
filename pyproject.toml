@@ -68,7 +68,6 @@ omit = [
   "*/__init__.py",
   "*/__main__.py",
   "*/logging_config.py",
-  "*/cli/signals.py"
 ]
 
 [tool.coverage.report]

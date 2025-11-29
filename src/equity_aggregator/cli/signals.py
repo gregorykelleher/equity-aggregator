@@ -5,7 +5,7 @@ import sys
 from types import FrameType
 
 
-def handle_sigint(signum: int, frame: FrameType | None) -> None:
+def handle_sigint(signum: int, frame: FrameType | None) -> None:  # pragma: no cover
     """
     Handle SIGINT (Ctrl+C) by exiting immediately.
 
