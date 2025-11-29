@@ -87,7 +87,7 @@ for equity in equities[:3]:  # Show first 3
 
 **Example Output:**
 ```
-Retrieved 9547 canonical equities
+Retrieved 10000 canonical equities
 AAPL: APPLE INC
 MSFT: MICROSOFT CORP
 GOOGL: ALPHABET INC
@@ -228,7 +228,7 @@ equity-aggregator seed
 ```
 
 > [!IMPORTANT]
-> Note that the `seed` command processes thousands of equities and is intentionally rate-limited to respect external API constraints. A full run typically takes 90 minutes depending on network conditions and API response times.
+> Note that the `seed` command processes thousands of equities and is intentionally rate-limited to respect external API constraints. A full run typically takes 60 minutes depending on network conditions and API response times.
 >
 > This is mitigated by the automated nightly CI pipeline that runs `seed` and publishes the latest canonical equity dataset. Users can download this pre-built data using `equity-aggregator download` instead of running the full aggregation pipeline locally.
 

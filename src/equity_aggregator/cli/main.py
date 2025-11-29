@@ -1,6 +1,5 @@
 # cli/main.py
 
-import os
 import signal
 
 from equity_aggregator.logging_config import configure_logging
@@ -8,6 +7,7 @@ from equity_aggregator.logging_config import configure_logging
 from .config import determine_log_level
 from .dispatcher import dispatch_command
 from .parser import create_parser
+from .signals import handle_sigint
 
 
 def main() -> None:
@@ -29,8 +29,8 @@ def main() -> None:
     Raises:
         SystemExit: When command execution fails or invalid arguments provided.
     """
-    # Immediate force exit on Ctrl+C
-    signal.signal(signal.SIGINT, lambda s, f: os._exit(130))
+    # Install signal handler for clean Ctrl+C handling
+    signal.signal(signal.SIGINT, handle_sigint)
 
     # Create the argument parser with all CLI options and subcommands
     parser = create_parser()
