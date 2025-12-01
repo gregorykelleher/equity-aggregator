@@ -125,21 +125,32 @@ async def _init_feed(spec: FeedSpec, stack: AsyncExitStack) -> EnrichmentFeed:
     )
 
 
-def _rate_limited(fn: FetchFunc, semaphore: asyncio.Semaphore) -> FetchFunc:
+def _rate_limited(
+    fn: FetchFunc,
+    semaphore: asyncio.Semaphore,
+    *,
+    timeout: float = 300.0,
+) -> FetchFunc:
     """
-    Wrap an async fetch function with semaphore-based rate limiting.
+    Wrap an async fetch function with semaphore-based rate limiting and timeout.
+
+    The timeout applies only to the actual fetch operation, not the semaphore
+    wait time. This ensures tasks waiting in the queue don't timeout before
+    they get their turn to execute.
 
     Args:
         fn: Async function to wrap.
         semaphore: Semaphore to control concurrent calls.
+        timeout: Maximum time in seconds for the fetch operation (default: 300s).
 
     Returns:
-        FetchFunc: Wrapped function that acquires semaphore before calling fn.
+        FetchFunc: Wrapped function that acquires semaphore before calling fn
+            with timeout protection.
     """
 
     async def wrapper(*args: object, **kwargs: object) -> object:
         async with semaphore:
-            return await fn(*args, **kwargs)
+            return await asyncio.wait_for(fn(*args, **kwargs), timeout=timeout)
 
     return wrapper
 
@@ -287,14 +298,12 @@ async def _safe_fetch(
     source: RawEquity,
     fetch: FetchFunc,
     feed_name: str,
-    *,
-    fetch_timeout: float = 300.0,
 ) -> dict[str, object] | None:
     """
     Safely fetch raw data for a RawEquity from an enrichment feed.
 
-    Handles timeouts and errors, returning None on failure. Logs all errors
-    with appropriate context.
+    Handles errors, returning None on failure. Logs all errors with
+    appropriate context. Timeout is handled by the _rate_limited wrapper.
 
     Note:
         The CIK (Central Index Key) is intentionally omitted as an identifier
@@ -302,23 +311,20 @@ async def _safe_fetch(
 
     Args:
         source: The RawEquity instance to fetch data for.
-        fetch: The async fetch function for the enrichment feed.
+        fetch: The async fetch function for the enrichment feed (already
+            wrapped with timeout protection via _rate_limited).
         feed_name: The name of the enrichment feed for logging context.
-        fetch_timeout: Maximum time to wait for the fetch, in seconds.
 
     Returns:
         dict[str, object] | None: The fetched data as a dictionary, or None if
             an exception occurs or the data is empty.
     """
     try:
-        return await asyncio.wait_for(
-            fetch(
-                symbol=source.symbol,
-                name=source.name,
-                isin=source.isin,
-                cusip=source.cusip,
-            ),
-            timeout=fetch_timeout,
+        return await fetch(
+            symbol=source.symbol,
+            name=source.name,
+            isin=source.isin,
+            cusip=source.cusip,
         )
 
     except LookupError as e:
@@ -326,15 +332,19 @@ async def _safe_fetch(
 
     except TimeoutError:
         logger.error(
-            "Timed out after %.0fs fetching from %s.",
-            fetch_timeout,
+            "Timed out fetching from %s for symbol=%s (isin=%s, cusip=%s). "
+            "Request exceeded timeout waiting for response.",
             feed_name,
+            source.symbol,
+            source.isin or "<none>",
+            source.cusip or "<none>",
         )
 
     except Exception as e:
         logger.error(
-            "Error fetching from %s: %s: %s",
+            "Error fetching from %s for symbol=%s: %s: %s",
             feed_name,
+            source.symbol,
             type(e).__name__,
             e or "<empty>",
         )
@@ -406,8 +416,10 @@ async def _to_usd(
     try:
         converted = converter(validated)
 
-        if converted is None:
-            raise ValueError("USD conversion returned None")
+        if converted is None or converted.currency != "USD":
+            raise ValueError(
+                f"USD conversion failed: {converted.currency if converted else None}",
+            )
 
         _log_outcome(feed_name, source, None)
 

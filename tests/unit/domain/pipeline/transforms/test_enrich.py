@@ -385,14 +385,18 @@ def test__enrich_from_feed_skips_when_no_missing() -> None:
 
 def test_safe_fetch_timeout_returns_none() -> None:
     """
-    ARRANGE: a slow fetcher that exceeds the timeout
-    ACT:     call _safe_fetch with a small fetch_timeout
+    ARRANGE: a slow fetcher wrapped with timeout that raises TimeoutError
+    ACT:     call _safe_fetch
     ASSERT:  returns None
     """
 
-    async def slow_fetcher() -> dict[str, object]:
+    async def slow_fetcher(**kwargs: object) -> dict[str, object]:
         await asyncio.sleep(0.05)
         return {"foo": "bar"}
+
+    async def timeout_fetcher(**kwargs: object) -> dict[str, object]:
+        # Simulate what _rate_limited does with timeout
+        return await asyncio.wait_for(slow_fetcher(**kwargs), timeout=0.01)
 
     src = RawEquity(
         name="TST",
@@ -406,7 +410,7 @@ def test_safe_fetch_timeout_returns_none() -> None:
         market_cap=Decimal("20"),
     )
 
-    actual = asyncio.run(_safe_fetch(src, slow_fetcher, "Slow", fetch_timeout=0.01))
+    actual = asyncio.run(_safe_fetch(src, timeout_fetcher, "Slow"))
 
     assert actual is None
 
@@ -418,7 +422,7 @@ def test_safe_fetch_exception_returns_none() -> None:
     ASSERT:  returns None
     """
 
-    async def bad_fetcher() -> dict[str, object]:
+    async def bad_fetcher(**kwargs: object) -> dict[str, object]:
         raise RuntimeError("failure")
 
     source = RawEquity(
@@ -433,7 +437,7 @@ def test_safe_fetch_exception_returns_none() -> None:
         market_cap=Decimal("20"),
     )
 
-    actual = asyncio.run(_safe_fetch(source, bad_fetcher, "Bad", fetch_timeout=1.0))
+    actual = asyncio.run(_safe_fetch(source, bad_fetcher, "Bad"))
 
     assert actual is None
 
@@ -465,7 +469,7 @@ def test_safe_fetch_success_returns_dict() -> None:
         market_cap=Decimal("1"),
     )
 
-    actual = asyncio.run(_safe_fetch(source, quick_fetcher, "Quick", fetch_timeout=1.0))
+    actual = asyncio.run(_safe_fetch(source, quick_fetcher, "Quick"))
 
     assert actual == {"foo": "bar"}
 
@@ -626,8 +630,8 @@ def test_enrich_from_feed_falls_back_on_empty_dict() -> None:
 
 def test_safe_fetch_times_out_and_returns_none() -> None:
     """
-    ARRANGE: slow fetcher that honours the signature and sleeps past the timeout
-    ACT:     call _safe_fetch with a tight fetch_timeout
+    ARRANGE: slow fetcher wrapped with timeout that raises TimeoutError
+    ACT:     call _safe_fetch
     ASSERT:  returns None (TimeoutError branch)
     """
 
@@ -636,6 +640,10 @@ def test_safe_fetch_times_out_and_returns_none() -> None:
     ) -> dict[str, object]:
         await asyncio.sleep(0.05)
         return {"ignored": True}
+
+    async def timeout_fetcher(**kwargs: object) -> dict[str, object]:
+        # Simulate what _rate_limited does with timeout
+        return await asyncio.wait_for(slow_fetcher(**kwargs), timeout=0.01)
 
     src = RawEquity(
         name="TO",
@@ -647,7 +655,7 @@ def test_safe_fetch_times_out_and_returns_none() -> None:
         market_cap=Decimal("0"),
     )
 
-    actual = asyncio.run(_safe_fetch(src, slow_fetcher, "Slow", fetch_timeout=0.01))
+    actual = asyncio.run(_safe_fetch(src, timeout_fetcher, "Slow"))
 
     assert actual is None
 
@@ -724,7 +732,7 @@ def test_safe_fetch_lookup_error_returns_none() -> None:
     )
 
     actual = asyncio.run(
-        _safe_fetch(src, not_found_fetcher, "NotFoundFeed", fetch_timeout=1.0),
+        _safe_fetch(src, not_found_fetcher, "NotFoundFeed"),
     )
 
     assert actual is None
