@@ -1,0 +1,309 @@
+{
+  "explains": [],
+  "count": 15,
+  "quotes": [
+    {
+      "exchange": "NMS",
+      "shortname": "Apple Inc.",
+      "quoteType": "EQUITY",
+      "symbol": "AAPL",
+      "index": "quotes",
+      "score": 12244500.0,
+      "typeDisp": "Equity",
+      "longname": "Apple Inc.",
+      "exchDisp": "NASDAQ",
+      "sector": "Technology",
+      "sectorDisp": "Technology",
+      "industry": "Consumer Electronics",
+      "industryDisp": "Consumer Electronics",
+      "dispSecIndFlag": true,
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "NGM",
+      "shortname": "Direxion Daily AAPL Bull 2X Sha",
+      "quoteType": "ETF",
+      "symbol": "AAPU",
+      "index": "quotes",
+      "score": 20007.0,
+      "typeDisp": "ETF",
+      "longname": "Direxion Daily AAPL Bull 2X Shares",
+      "exchDisp": "NASDAQ",
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "OPR",
+      "shortname": "AAPL Dec 2025 282.500 call",
+      "quoteType": "OPTION",
+      "symbol": "AAPL251205C00282500",
+      "index": "quotes",
+      "score": 20003.0,
+      "typeDisp": "Option",
+      "longname": "AAPL Dec 2025 282.500 call",
+      "exchDisp": "OPR",
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "OPR",
+      "shortname": "AAPL Feb 2026 285.000 call",
+      "quoteType": "OPTION",
+      "symbol": "AAPL260220C00285000",
+      "index": "quotes",
+      "score": 20003.0,
+      "typeDisp": "Option",
+      "exchDisp": "OPR",
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "OPR",
+      "shortname": "AAPL Jan 2026 285.000 put",
+      "quoteType": "OPTION",
+      "symbol": "AAPL260116P00285000",
+      "index": "quotes",
+      "score": 20002.0,
+      "typeDisp": "Option",
+      "longname": "AAPL Jan 2026 285.000 put",
+      "exchDisp": "OPR",
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "OPR",
+      "shortname": "AAPL Jun 2026 310.000 call",
+      "quoteType": "OPTION",
+      "symbol": "AAPL260618C00310000",
+      "index": "quotes",
+      "score": 20002.0,
+      "typeDisp": "Option",
+      "longname": "AAPL Jun 2026 310.000 call",
+      "exchDisp": "OPR",
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "OPR",
+      "shortname": "AAPL Jan 2026 165.000 call",
+      "quoteType": "OPTION",
+      "symbol": "AAPL260116C00165000",
+      "index": "quotes",
+      "score": 20002.0,
+      "typeDisp": "Option",
+      "longname": "AAPL Jan 2026 165.000 call",
+      "exchDisp": "OPR",
+      "isYahooFinance": true
+    }
+  ],
+  "news": [
+    {
+      "uuid": "4630ba80-3df4-3243-8e8e-a310d219f8a7",
+      "title": "Market Chatter: Apple Trying to Delay Antitrust Proceedings in India",
+      "publisher": "MT Newswires",
+      "link": "https://finance.yahoo.com/news/market-chatter-apple-trying-delay-105715729.html",
+      "providerPublishTime": 1764586635,
+      "type": "STORY",
+      "relatedTickers": [
+        "AAPL"
+      ]
+    },
+    {
+      "uuid": "9453beff-7a7b-31f9-a255-d2a3a84346f2",
+      "title": "Top Analysts Break Up 'Magnificent 7': Only Nvidia, Microsoft, and Apple Lead the Market",
+      "publisher": "GuruFocus.com",
+      "link": "https://finance.yahoo.com/news/top-analysts-break-magnificent-7-105352281.html",
+      "providerPublishTime": 1764586432,
+      "type": "STORY",
+      "thumbnail": {
+        "resolutions": [
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/TmwzWnbiiLMX4H6E8MgK_w--~B/aD01MDA7dz01MDA7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/en/us.finance.gurufocus/528af7acf1b685a79f0a0ee8c34ab69c",
+            "width": 500,
+            "height": 500,
+            "tag": "original"
+          },
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/Tc90qU.5Pv2ecZCkrAaTvw--~B/Zmk9ZmlsbDtoPTE0MDtweW9mZj0wO3c9MTQwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/us.finance.gurufocus/528af7acf1b685a79f0a0ee8c34ab69c",
+            "width": 140,
+            "height": 140,
+            "tag": "140x140"
+          }
+        ]
+      },
+      "relatedTickers": [
+        "NVDA",
+        "MSFT",
+        "AAPL",
+        "^GSPC",
+        "GOOG",
+        "META",
+        "TSLA",
+        "AMZN"
+      ]
+    },
+    {
+      "uuid": "5c642b86-fe97-31ab-9edc-4fe4c3cf0299",
+      "title": "Warren Buffett Is Rapidly Selling Apple Stock. Here Are 2 Reasons Why.",
+      "publisher": "Motley Fool",
+      "link": "https://finance.yahoo.com/m/5c642b86-fe97-31ab-9edc-4fe4c3cf0299/warren-buffett-is-rapidly.html",
+      "providerPublishTime": 1764584580,
+      "type": "STORY",
+      "thumbnail": {
+        "resolutions": [
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/cADRu7eSHhOswmiiLNaRmg--~B/aD05MzM7dz0xNDAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/motleyfool.com/aeded7265f76eae882728c372cceb0b1",
+            "width": 1400,
+            "height": 933,
+            "tag": "original"
+          },
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/Ae.eClmX3y1EQe8MkOnboA--~B/Zmk9ZmlsbDtoPTE0MDtweW9mZj0wO3c9MTQwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/motleyfool.com/aeded7265f76eae882728c372cceb0b1",
+            "width": 140,
+            "height": 140,
+            "tag": "140x140"
+          }
+        ]
+      },
+      "relatedTickers": [
+        "AAPL"
+      ]
+    },
+    {
+      "uuid": "97a43de8-f227-3fa9-83cc-8056cb096ca1",
+      "title": "Prediction: These 5 Stocks Will Be Worth More Than $8 Trillion by 2030",
+      "publisher": "Motley Fool",
+      "link": "https://finance.yahoo.com/m/97a43de8-f227-3fa9-83cc-8056cb096ca1/prediction%3A-these-5-stocks.html",
+      "providerPublishTime": 1764582240,
+      "type": "STORY",
+      "thumbnail": {
+        "resolutions": [
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/d0lTVkxXXj0zCXjDmS_l9Q--~B/aD05MzM7dz0xNDAwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/motleyfool.com/83d68323b407d41d25d9d03d2991ef79",
+            "width": 1400,
+            "height": 933,
+            "tag": "original"
+          },
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/LcNe1scxPne5BK7SdM41Nw--~B/Zmk9ZmlsbDtoPTE0MDtweW9mZj0wO3c9MTQwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/motleyfool.com/83d68323b407d41d25d9d03d2991ef79",
+            "width": 140,
+            "height": 140,
+            "tag": "140x140"
+          }
+        ]
+      },
+      "relatedTickers": [
+        "NVDA",
+        "GOOG",
+        "AAPL",
+        "MSFT"
+      ]
+    },
+    {
+      "uuid": "ca8808f5-d8c6-3c2c-97df-0b1b5a6f8606",
+      "title": "US Construction Industry Report 2025: Output to Register an AAGR of 1.9% During 2026-2029, Supported by Investments in the Development of AI Infrastructure, Data Center Demand and Power Generation",
+      "publisher": "GlobeNewswire",
+      "link": "https://finance.yahoo.com/news/us-construction-industry-report-2025-091300148.html",
+      "providerPublishTime": 1764580380,
+      "type": "STORY",
+      "thumbnail": {
+        "resolutions": [
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/HP.E8HUfnyGeLtMAKwLgAQ--~B/aD01ODt3PTQ4MDthcHBpZD15dGFjaHlvbg--/https://media.zenfs.com/en/globenewswire.com/93d5b27580f67db722dd7c112e43e8bc",
+            "width": 480,
+            "height": 58,
+            "tag": "original"
+          },
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/KPtVInxraKsLNBMRw1U5aw--~B/Zmk9ZmlsbDtoPTE0MDtweW9mZj0wO3c9MTQwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/globenewswire.com/93d5b27580f67db722dd7c112e43e8bc",
+            "width": 140,
+            "height": 140,
+            "tag": "140x140"
+          }
+        ]
+      },
+      "relatedTickers": [
+        "AAPL"
+      ]
+    },
+    {
+      "uuid": "c60e8d23-866c-38e2-a6d7-3c35e0520fc4",
+      "title": "Caesars Entertainment Launches Caesars Sportsbook Mobile App in Missouri",
+      "publisher": "MT Newswires",
+      "link": "https://finance.yahoo.com/news/caesars-entertainment-launches-caesars-sportsbook-085704300.html",
+      "providerPublishTime": 1764579424,
+      "type": "STORY",
+      "relatedTickers": [
+        "CZR",
+        "AAPL"
+      ]
+    },
+    {
+      "uuid": "7eb3511e-1d9e-32d5-bb2b-5f71dba010e4",
+      "title": "ByteDance rolls out AI voice assistant for Chinese smartphones",
+      "publisher": "Reuters",
+      "link": "https://finance.yahoo.com/m/7eb3511e-1d9e-32d5-bb2b-5f71dba010e4/bytedance-rolls-out-ai-voice.html",
+      "providerPublishTime": 1764576347,
+      "type": "STORY",
+      "thumbnail": {
+        "resolutions": [
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/NoleKxPr6PmyH7zmgInKRw--~B/aD01MzM7dz04MDA7YXBwaWQ9eXRhY2h5b24-/https://media.zenfs.com/en/reuters.com/ecdec79454bad5bd6b20179503f3c5e4",
+            "width": 800,
+            "height": 533,
+            "tag": "original"
+          },
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/1KFpf3wmhb3Rjx_rI2Np6Q--~B/Zmk9ZmlsbDtoPTE0MDtweW9mZj0wO3c9MTQwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/reuters.com/ecdec79454bad5bd6b20179503f3c5e4",
+            "width": 140,
+            "height": 140,
+            "tag": "140x140"
+          }
+        ]
+      },
+      "relatedTickers": [
+        "ZTCOF",
+        "XIACF",
+        "BABA",
+        "AAPL"
+      ]
+    },
+    {
+      "uuid": "33b1cc8d-274c-3db4-bccb-3eb8a2faecbe",
+      "title": "Is Apple\u2019s Stock Still a Good Bet After 14.4% Rally in 2025?",
+      "publisher": "Simply Wall St.",
+      "link": "https://finance.yahoo.com/news/apple-stock-still-good-bet-041721797.html",
+      "providerPublishTime": 1764562641,
+      "type": "STORY",
+      "thumbnail": {
+        "resolutions": [
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/fBnY8upz5XxbZDDWlufZ9w--~B/aD00MzI7dz0xMTk0O2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/simply_wall_st__316/69084628647944e382f8e555f97913e8",
+            "width": 1194,
+            "height": 432,
+            "tag": "original"
+          },
+          {
+            "url": "https://s.yimg.com/uu/api/res/1.2/foN3eFZWC9tLTJfgfqJIuQ--~B/Zmk9ZmlsbDtoPTE0MDtweW9mZj0wO3c9MTQwO2FwcGlkPXl0YWNoeW9u/https://media.zenfs.com/en/simply_wall_st__316/69084628647944e382f8e555f97913e8",
+            "width": 140,
+            "height": 140,
+            "tag": "140x140"
+          }
+        ]
+      },
+      "relatedTickers": [
+        "AAPL"
+      ]
+    }
+  ],
+  "nav": [],
+  "lists": [],
+  "researchReports": [],
+  "screenerFieldResults": [],
+  "totalTime": 50,
+  "timeTakenForQuotes": 434,
+  "timeTakenForNews": 700,
+  "timeTakenForAlgowatchlist": 400,
+  "timeTakenForPredefinedScreener": 400,
+  "timeTakenForCrunchbase": 0,
+  "timeTakenForNav": 400,
+  "timeTakenForResearchReports": 0,
+  "timeTakenForScreenerField": 0,
+  "timeTakenForCulturalAssets": 0,
+  "timeTakenForSearchLists": 0
+}
