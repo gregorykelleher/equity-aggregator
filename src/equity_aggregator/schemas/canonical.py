@@ -27,7 +27,7 @@ class EquityIdentity(BaseModel):
     """
     Globally unique identity metadata for a single equity record.
 
-    The authoritative identifier is `share_class_figi`, which uniquely distinguishes
+    The definitive identifier is `share_class_figi`, which uniquely distinguishes
     the equity. Other local identifiers such as ISIN, CUSIP or CIK may also be present.
 
     Attributes:
@@ -41,7 +41,7 @@ class EquityIdentity(BaseModel):
     Args:
         name (UpperStrReq): Full name of the equity, required.
         symbol (UpperStrReq): Trading symbol, required.
-        share_class_figi (FIGIStrReq): Authoritative OpenFIGI identifier, required.
+        share_class_figi (FIGIStrReq): Definitive OpenFIGI identifier, required.
         isin (ISINStrOpt): ISIN code, if available.
         cusip (CUSIPStrOpt): CUSIP code, if available.
         cik (CIKStrOpt): CIK code, if available.
@@ -56,7 +56,7 @@ class EquityIdentity(BaseModel):
     name: UpperStrReq = Field(..., description="Equity name, required.")
     symbol: UpperStrReq = Field(..., description="Equity symbol, required.")
 
-    # required share_class_figi is the authoritative id uniquely identifying an equity.
+    # required share_class_figi is the definitive id uniquely identifying an equity.
     share_class_figi: FIGIStrReq = Field(
         ...,
         description="Equity share class FIGI, required.",

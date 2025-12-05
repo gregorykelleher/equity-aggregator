@@ -6,7 +6,7 @@ from .xetra_feed_data import XetraFeedData
 from .yfinance_feed_data import YFinanceFeedData
 
 __all__ = [
-    # authoritative feeds
+    # discovery feeds
     "LsegFeedData",
     "SecFeedData",
     "XetraFeedData",

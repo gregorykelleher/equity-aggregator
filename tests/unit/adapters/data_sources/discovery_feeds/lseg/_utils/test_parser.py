@@ -2,7 +2,7 @@
 
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lseg._utils.parser import (
+from equity_aggregator.adapters.data_sources.discovery_feeds.lseg._utils.parser import (
     _extract_equity_record,
     _find_content_item,
     _find_price_explorer_component,

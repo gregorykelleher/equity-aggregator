@@ -1,4 +1,4 @@
-# authoritative_feeds/sec/__init__.py
+# discovery_feeds/sec/__init__.py
 
 from .sec import fetch_equity_records
 

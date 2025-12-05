@@ -13,7 +13,7 @@ __all__ = [
     "EquityFinancials",
     "EquityIdentity",
     "CanonicalEquity",
-    # authoritative feeds
+    # discovery feeds
     "LsegFeedData",
     "SecFeedData",
     "XetraFeedData",

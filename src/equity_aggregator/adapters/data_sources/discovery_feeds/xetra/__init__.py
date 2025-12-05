@@ -1,4 +1,4 @@
-# authoritative_feeds/xetra/__init__.py
+# discovery_feeds/xetra/__init__.py
 
 from .xetra import fetch_equity_records
 

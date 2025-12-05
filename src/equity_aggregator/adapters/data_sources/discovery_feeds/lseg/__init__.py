@@ -1,4 +1,4 @@
-# authoritative_feeds/lseg/__init__.py
+# discovery_feeds/lseg/__init__.py
 
 from .lseg import fetch_equity_records
 

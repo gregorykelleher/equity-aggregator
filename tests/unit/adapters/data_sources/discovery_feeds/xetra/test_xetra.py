@@ -1,4 +1,4 @@
-# authoritative_feeds/xetra/test_xetra.py
+# discovery_feeds/xetra/test_xetra.py
 
 import asyncio
 import json
@@ -8,7 +8,7 @@ import httpx
 import pytest
 from httpx import AsyncClient, MockTransport
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.xetra.xetra import (
+from equity_aggregator.adapters.data_sources.discovery_feeds.xetra.xetra import (
     _build_payload,
     _consume_queue,
     _deduplicate_records,

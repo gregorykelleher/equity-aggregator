@@ -1691,3 +1691,79 @@ def test_merge_sector_best_cluster_appears_later() -> None:
     merged = merge(equities)
 
     assert merged.sector == "TECHNOLOGY"
+
+
+def test_merge_price_range_filters_inconsistent_record() -> None:
+    """
+    ARRANGE: two consistent records, one with price > 52W max
+    ACT:     merge
+    ASSERT:  inconsistent record filtered, merged max uses only consistent records
+    """
+    equities = [
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            last_price=Decimal("76.23"),
+            fifty_two_week_min=Decimal("40"),
+            fifty_two_week_max=Decimal("43"),  # Inconsistent
+        ),
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            last_price=Decimal("76.23"),
+            fifty_two_week_min=Decimal("50"),
+            fifty_two_week_max=Decimal("100"),
+        ),
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            last_price=Decimal("76.23"),
+            fifty_two_week_min=Decimal("45"),
+            fifty_two_week_max=Decimal("110"),
+        ),
+    ]
+
+    merged = merge(equities)
+
+    assert merged.fifty_two_week_max == Decimal("105")
+
+
+def test_merge_price_range_uses_consistent_last_price() -> None:
+    """
+    ARRANGE: two consistent records, one inconsistent
+    ACT:     merge
+    ASSERT:  merged last_price from consistent records only
+    """
+    equities = [
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            last_price=Decimal("150"),
+            fifty_two_week_min=Decimal("40"),
+            fifty_two_week_max=Decimal("43"),  # Inconsistent
+        ),
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            last_price=Decimal("76"),
+            fifty_two_week_min=Decimal("50"),
+            fifty_two_week_max=Decimal("100"),
+        ),
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            last_price=Decimal("78"),
+            fifty_two_week_min=Decimal("45"),
+            fifty_two_week_max=Decimal("110"),
+        ),
+    ]
+
+    merged = merge(equities)
+
+    assert merged.last_price == Decimal("77")

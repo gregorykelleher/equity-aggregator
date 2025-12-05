@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 async def aggregate_canonical_equities() -> list[CanonicalEquity]:
     """
-    Aggregates and processes raw equity data from authoritative feeds, returning
+    Aggregates and processes raw equity data from discovery feeds, returning
     a list of unique, canonical equities.
 
     The pipeline applies the following transforms in order:

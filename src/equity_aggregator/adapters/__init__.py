@@ -1,6 +1,6 @@
 # adapters/__init__.py
 
-from .data_sources.authoritative_feeds import (
+from .data_sources.discovery_feeds import (
     fetch_equity_records_lseg,
     fetch_equity_records_sec,
     fetch_equity_records_xetra,
@@ -14,7 +14,7 @@ from .data_sources.reference_lookup import (
 )
 
 __all__ = [
-    # authoritative feeds
+    # discovery feeds
     "fetch_equity_records_lseg",
     "fetch_equity_records_xetra",
     "fetch_equity_records_sec",

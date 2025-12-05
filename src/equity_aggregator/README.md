@@ -2,7 +2,7 @@
 
 ## Overview
 
-The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple authoritative sources (LSEG, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance.
+The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple discovery sources (LSEG, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance.
 
 ## Architecture & Design
 
@@ -37,7 +37,7 @@ Raw Data Sources → Parse → Convert → Identify → Deduplicate → Enrich �
 
 #### 1. **Resolve**
 
-Orchestrates parallel data fetching from authoritative feeds:
+Orchestrates parallel data fetching from discovery feeds:
 
 - Fetches data from LSEG, SEC, and XETRA concurrently
 - Combines all feed data into a single stream for processing
@@ -80,7 +80,7 @@ Merges duplicate equity records by FIGI identifier:
 Adds supplementary data from enrichment feeds:
 
 - Fetches additional data from Yahoo Finance
-- Only fills missing fields from authoritative sources
+- Only fills missing fields from discovery sources
 - Preserves data integrity and source hierarchy
 - Applies controlled concurrency to respect API limits
 
@@ -100,7 +100,7 @@ The pipeline uses asynchronous operations to process thousands of equity records
 
 **Parallel Data Fetching**
 
-- All authoritative feeds (LSEG, SEC, XETRA) are fetched simultaneously
+- All discovery feeds (LSEG, SEC, XETRA) are fetched simultaneously
 
 **Streaming Pipeline**
 
@@ -190,9 +190,9 @@ class LsegFeedData(BaseModel):
 4. **Enriched RawEquity** → Final canonicalisation
 5. **CanonicalEquity** → Database persistence
 
-## Authoritative vs Enrichment Feeds
+## Discovery vs Enrichment Feeds
 
-### Authoritative Feeds (Primary Sources)
+### Discovery Feeds (Primary Sources)
 
 - **LSEG**: London Stock Exchange Group trading platform
 - **XETRA**: Deutsche Börse Stock Exchange
@@ -210,10 +210,10 @@ class LsegFeedData(BaseModel):
 
 **Characteristics**
 
-- Only supplements missing data; never overwrites authoritative values
+- Only supplements missing data; never overwrites discovery values
 - Provides additional financial metrics (market cap, analyst ratings, etc.)
 - Respects data hierarchy and source priority
-- Applied after authoritative data processing is complete
+- Applied after discovery data processing is complete
 
 ## Equity Aggregator Components
 
@@ -233,7 +233,7 @@ class LsegFeedData(BaseModel):
 
 ### Adapters Layer
 
-- **data_sources/authoritative_feeds/**: Primary data source integrations
+- **data_sources/discovery_feeds/**: Primary data source integrations
 - **data_sources/enrichment_feeds/**: Supplementary data integrations
 - **data_sources/reference_lookup/**: External API services (OpenFIGI, exchange rates)
 

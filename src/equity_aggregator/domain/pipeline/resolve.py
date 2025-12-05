@@ -28,8 +28,8 @@ class FeedRecord(NamedTuple):
     raw_data: dict[str, object]
 
 
-# List of authoritative feed fetchers and their corresponding data models
-_AUTH_FEEDS: tuple[FeedPair] = [
+# List of discovery feed fetchers and their corresponding data models
+_DISCOVERY_FEEDS: tuple[FeedPair] = [
     (fetch_equity_records_xetra, XetraFeedData),
     (fetch_equity_records_lseg, LsegFeedData),
     (fetch_equity_records_sec, SecFeedData),
@@ -40,7 +40,7 @@ async def resolve(
     feeds: tuple[FeedPair, ...] | None = None,
 ) -> AsyncIterator[FeedRecord]:
     """
-    Merge all authoritative feed streams into a single asynchronous output.
+    Merge all discovery feed streams into a single asynchronous output.
 
     Args:
         feeds
@@ -53,9 +53,9 @@ async def resolve(
     items into a shared queue. Records are yielded as they arrive, ensuring
     minimal latency and efficient merging of multiple asynchronous sources.
     """
-    logger.info("Resolving raw equities from authoritative feeds...")
+    logger.info("Resolving raw equities from discovery feeds...")
 
-    feeds = feeds or _AUTH_FEEDS
+    feeds = feeds or _DISCOVERY_FEEDS
     queue: asyncio.Queue[FeedRecord | None] = asyncio.Queue()
 
     async with asyncio.TaskGroup() as task_group:

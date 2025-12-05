@@ -8,7 +8,7 @@
 
 ## Description
 
-Equity Aggregator is a financial data tool that collects and normalises raw equity data from authoritative sources (LSEG, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
+Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (LSEG, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
 
 Altogether, this tool makes it possible to retrieve up-to-date information on over 10,000+ equities from countries worldwide:
 
@@ -30,7 +30,7 @@ Equity Aggregator provides a comprehensive profile for each equity in its canoni
 |-------|-------------|
 | **name** | Full company name |
 | **symbol** | Trading symbol |
-| **share class figi** | Authoritative OpenFIGI identifier |
+| **share class figi** | Definitive OpenFIGI identifier |
 | **isin** | International Securities Identification Number |
 | **cusip** | CUSIP identifier |
 | **cik** | Central Index Key for SEC filings |
@@ -213,7 +213,7 @@ equity-aggregator export --output-dir /path/to/export/location
 
 #### Seed Command
 
-The `seed` command executes the complete equity aggregation pipeline, collecting raw data from authoritative sources (Euronext, LSEG, SEC, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
+The `seed` command executes the complete equity aggregation pipeline, collecting raw data from discovery sources (LSEG, SEC, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
 
 This command requires that the following API keys are set prior:
 
@@ -427,7 +427,7 @@ equity-aggregator/
 │   ├── domain/pipeline/             # Core aggregation pipeline
 │   │   └── transforms/              # Transformation stages
 │   ├── adapters/data_sources/       # External data integrations
-│   │   ├── authoritative_feeds/     # Primary sources (LSEG, SEC, XETRA)
+│   │   ├── discovery_feeds/         # Primary sources (LSEG, SEC, XETRA)
 │   │   └── enrichment_feeds/        # Yahoo Finance integration
 │   ├── schemas/                     # Data validation and types
 │   └── storage/                     # Database operations
@@ -441,9 +441,9 @@ equity-aggregator/
 
 The aggregation pipeline consists of six sequential transformation stages, each with a specific responsibility:
 
-1. **Parse**: Extract and validate raw equity data from authorative feed data
+1. **Parse**: Extract and validate raw equity data from discovery feed data
 2. **Convert**: Normalise currency values to USD reference currency using live exchange rates
-3. **Identify**: Attach authoritative identification metadata (i.e. Share Class FIGI) via OpenFIGI API integration
+3. **Identify**: Attach definitive identification metadata (i.e. Share Class FIGI) via OpenFIGI API integration
 4. **Deduplicate**: Merge duplicate equity records predicated on Share Class FIGI
 5. **Enrich**: Supplement core data with additional market metrics sourced from enrichment feeds
 6. **Canonicalise**: Transform enriched data into the final canonical equity schema

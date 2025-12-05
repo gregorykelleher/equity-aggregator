@@ -8,7 +8,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lseg.session import (
+from equity_aggregator.adapters.data_sources.discovery_feeds.lseg.session import (
     LsegSession,
 )
 

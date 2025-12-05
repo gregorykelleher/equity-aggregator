@@ -1,4 +1,4 @@
-# authoritative_feeds/sec/sec.py
+# discovery_feeds/sec/sec.py
 
 import logging
 
@@ -92,7 +92,7 @@ async def _stream_and_cache(
 
 async def _stream_sec(client: AsyncClient) -> RecordStream:
     """
-    Fetch and stream SEC equity records from the authoritative JSON endpoint.
+    Fetch and stream SEC equity records from the discovery JSON endpoint.
 
     Args:
         client (AsyncClient): HTTP client for making requests.

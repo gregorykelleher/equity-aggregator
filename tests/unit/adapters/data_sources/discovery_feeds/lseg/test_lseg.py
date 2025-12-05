@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lseg.lseg import (
+from equity_aggregator.adapters.data_sources.discovery_feeds.lseg.lseg import (
     _deduplicate_by_isin,
     _extract_total_pages,
     _fetch_all_records,
@@ -12,7 +12,7 @@ from equity_aggregator.adapters.data_sources.authoritative_feeds.lseg.lseg impor
     _stream_and_cache,
     fetch_equity_records,
 )
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lseg.session import (
+from equity_aggregator.adapters.data_sources.discovery_feeds.lseg.session import (
     LsegSession,
 )
 from equity_aggregator.storage import save_cache

@@ -1,11 +1,11 @@
-# authoritative_feeds/sec/test_sec.py
+# discovery_feeds/sec/test_sec.py
 
 from collections.abc import AsyncGenerator
 
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.sec.sec import (
+from equity_aggregator.adapters.data_sources.discovery_feeds.sec.sec import (
     _deduplicate_records,
     _parse_row,
     _stream_and_cache,
@@ -118,7 +118,8 @@ async def test_stream_and_cache_deduplicates_and_caches() -> None:
 
     async with httpx.AsyncClient(transport=transport) as client:
         records = [
-            record async for record in _stream_and_cache(client, cache_key="sec_test_cache")
+            record
+            async for record in _stream_and_cache(client, cache_key="sec_test_cache")
         ]
 
     assert len(records) == 1

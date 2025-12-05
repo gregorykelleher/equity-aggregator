@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-from equity_aggregator.adapters.data_sources.authoritative_feeds.lseg._utils.backoff import (
+from equity_aggregator.adapters.data_sources.discovery_feeds.lseg._utils.backoff import (
     backoff_delays,
 )
 

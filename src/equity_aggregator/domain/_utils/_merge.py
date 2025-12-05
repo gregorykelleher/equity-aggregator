@@ -43,6 +43,9 @@ def merge(group: Sequence[RawEquity]) -> RawEquity:
     # validate share_class_figi consistency first
     share_class_figi_value = _validate_share_class_figi(group)
 
+    # merge price range fields coherently for logical consistency
+    price_range_values = _merge_price_range(group)
+
     return RawEquity(
         name=_merge_name(group),
         symbol=_merge_symbol(group),
@@ -52,10 +55,10 @@ def merge(group: Sequence[RawEquity]) -> RawEquity:
         share_class_figi=share_class_figi_value,
         mics=_merge_mics(group),
         currency=_merge_currency(group),
-        last_price=_merge_decimal_field(group, "last_price"),
+        last_price=price_range_values["last_price"],
         market_cap=_merge_decimal_field(group, "market_cap"),
-        fifty_two_week_min=_merge_decimal_field(group, "fifty_two_week_min"),
-        fifty_two_week_max=_merge_decimal_field(group, "fifty_two_week_max"),
+        fifty_two_week_min=price_range_values["fifty_two_week_min"],
+        fifty_two_week_max=price_range_values["fifty_two_week_max"],
         dividend_yield=_merge_decimal_field(group, "dividend_yield"),
         market_volume=_merge_decimal_field(group, "market_volume"),
         held_insiders=_merge_decimal_field(group, "held_insiders"),
@@ -277,6 +280,80 @@ def _merge_currency(duplicate_group: Sequence[RawEquity]) -> str | None:
 
     # earliest among the non-null currencies with best frequency
     return next(currency for currency in currency_codes if freq[currency] == best_freq)
+
+
+def _merge_price_range(
+    duplicate_group: Sequence[RawEquity],
+) -> dict[str, Decimal | None]:
+    """
+    Merge last_price, fifty_two_week_min, and fifty_two_week_max as a coherent unit,
+    filtering out records where the price violates the 52-week range constraint.
+
+    Records missing any of the three fields are excluded from consistency checks.
+    A 10% tolerance above fifty_two_week_max accommodates timing drift between feeds.
+
+    Falls back to independent field-wise merge if no consistent complete records exist.
+    """
+    consistent = tuple(
+        filter(_is_price_consistent, filter(_is_price_complete, duplicate_group)),
+    )
+
+    if consistent:
+        return {
+            "last_price": median([eq.last_price for eq in consistent]),
+            "fifty_two_week_min": median([eq.fifty_two_week_min for eq in consistent]),
+            "fifty_two_week_max": median([eq.fifty_two_week_max for eq in consistent]),
+        }
+
+    return {
+        "last_price": _merge_decimal_field(duplicate_group, "last_price"),
+        "fifty_two_week_min": _merge_decimal_field(
+            duplicate_group,
+            "fifty_two_week_min",
+        ),
+        "fifty_two_week_max": _merge_decimal_field(
+            duplicate_group,
+            "fifty_two_week_max",
+        ),
+    }
+
+
+def _is_price_complete(eq: RawEquity) -> bool:
+    """
+    Checks if a RawEquity record has non-null values for last_price, fifty_two_week_min,
+    and fifty_two_week_max.
+
+    Args:
+        eq (RawEquity): The RawEquity instance to check.
+
+    Returns:
+        bool: True if all three price fields are not None, False otherwise.
+    """
+    return (
+        eq.last_price is not None
+        and eq.fifty_two_week_min is not None
+        and eq.fifty_two_week_max is not None
+    )
+
+
+def _is_price_consistent(eq: RawEquity) -> bool:
+    """
+    Checks if the last_price of a RawEquity record falls within its fifty_two_week_min
+    and fifty_two_week_max range, allowing a 10% tolerance above the max.
+
+    Args:
+        eq (RawEquity): The RawEquity instance to check.
+
+    Returns:
+        bool: True if last_price is between fifty_two_week_min and up to 10% above
+              fifty_two_week_max, False otherwise.
+    """
+    price_tolerance = Decimal("1.1")
+    return (
+        eq.fifty_two_week_min
+        <= eq.last_price
+        <= eq.fifty_two_week_max * price_tolerance
+    )
 
 
 def _merge_analyst_rating(duplicate_group: Sequence[RawEquity]) -> str | None:

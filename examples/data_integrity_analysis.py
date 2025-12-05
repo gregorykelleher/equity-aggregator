@@ -8,6 +8,7 @@ and highlights potential data integrity issues across financial metrics, identif
 and geographic distributions.
 """
 
+import re
 import sys
 from decimal import Decimal
 from statistics import median, stdev
@@ -438,6 +439,377 @@ def demo_data_quality_insights(equities: list[CanonicalEquity]) -> None:
         )
 
 
+def detect_temporal_anomalies(equities: list[CanonicalEquity]) -> None:
+    """Detect temporal anomalies in price range data."""
+    if not equities:
+        print("⚠️  No equities available for temporal analysis")
+        return
+
+    print_separator("⏰ TEMPORAL & RANGE ANOMALY DETECTION")
+
+    # 52-week range inversions (min > max)
+    print("🔄 52-WEEK RANGE INVERSIONS:")
+    inverted_ranges = [
+        eq
+        for eq in equities
+        if eq.financials.fifty_two_week_min
+        and eq.financials.fifty_two_week_max
+        and eq.financials.fifty_two_week_min > eq.financials.fifty_two_week_max
+    ]
+
+    if inverted_ranges:
+        print(
+            f"   ⚠️  CRITICAL: {len(inverted_ranges):,} equities with min > max (impossible)",
+        )
+        for eq in inverted_ranges[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): Min ${eq.financials.fifty_two_week_min}, Max ${eq.financials.fifty_two_week_max}",
+            )
+    else:
+        print("   ✅ No range inversions detected")
+
+    # Stale data indicators (price == min == max)
+    print("\n📊 STALE DATA INDICATORS:")
+    stale_data = [
+        eq
+        for eq in equities
+        if eq.financials.last_price
+        and eq.financials.fifty_two_week_min
+        and eq.financials.fifty_two_week_max
+        and eq.financials.last_price == eq.financials.fifty_two_week_min
+        and eq.financials.last_price == eq.financials.fifty_two_week_max
+    ]
+
+    if stale_data:
+        print(
+            f"   ⚠️  {len(stale_data):,} equities with identical price/min/max (possibly stale)",
+        )
+        for eq in stale_data[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): All values = ${eq.financials.last_price}",
+            )
+    else:
+        print("   ✅ No obvious stale data patterns detected")
+
+    # Price below 52-week min
+    print("\n📉 PRICE BELOW 52-WEEK MINIMUM:")
+    below_min = [
+        eq
+        for eq in equities
+        if eq.financials.last_price
+        and eq.financials.fifty_two_week_min
+        and eq.financials.last_price < (eq.financials.fifty_two_week_min * Decimal("0.9"))
+    ]
+
+    if below_min:
+        print(
+            f"   ⚠️  {len(below_min):,} equities with price significantly below 52W min",
+        )
+        for eq in below_min[:3]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): Price ${eq.financials.last_price}, Min ${eq.financials.fifty_two_week_min}",
+            )
+
+
+def detect_identifier_format_issues(equities: list[CanonicalEquity]) -> None:
+    """Validate identifier format compliance."""
+    if not equities:
+        print("⚠️  No equities available for identifier validation")
+        return
+
+    print_separator("🔍 IDENTIFIER FORMAT VALIDATION")
+
+    # ISIN format: 2-letter country code + 9 alphanumeric + 1 check digit
+    print("🌐 ISIN FORMAT VALIDATION:")
+    isin_pattern = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
+    invalid_isins = [
+        eq
+        for eq in equities
+        if eq.identity.isin and not isin_pattern.match(eq.identity.isin)
+    ]
+
+    if invalid_isins:
+        print(f"   ⚠️  {len(invalid_isins):,} equities with invalid ISIN format")
+        for eq in invalid_isins[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): ISIN={eq.identity.isin}",
+            )
+    else:
+        isin_count = len([eq for eq in equities if eq.identity.isin])
+        print(f"   ✅ All {isin_count:,} ISINs have valid format")
+
+    # CUSIP format: 9 characters (alphanumeric)
+    print("\n🇺🇸 CUSIP FORMAT VALIDATION:")
+    cusip_pattern = re.compile(r"^[A-Z0-9]{9}$")
+    invalid_cusips = [
+        eq
+        for eq in equities
+        if eq.identity.cusip and not cusip_pattern.match(eq.identity.cusip)
+    ]
+
+    if invalid_cusips:
+        print(f"   ⚠️  {len(invalid_cusips):,} equities with invalid CUSIP format")
+        for eq in invalid_cusips[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): CUSIP={eq.identity.cusip}",
+            )
+    else:
+        cusip_count = len([eq for eq in equities if eq.identity.cusip])
+        print(f"   ✅ All {cusip_count:,} CUSIPs have valid format")
+
+    # CIK format: numeric, typically 10 digits
+    print("\n📋 CIK FORMAT VALIDATION:")
+    cik_pattern = re.compile(r"^[0-9]{1,10}$")
+    invalid_ciks = [
+        eq for eq in equities if eq.identity.cik and not cik_pattern.match(eq.identity.cik)
+    ]
+
+    if invalid_ciks:
+        print(f"   ⚠️  {len(invalid_ciks):,} equities with invalid CIK format")
+        for eq in invalid_ciks[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): CIK={eq.identity.cik}",
+            )
+    else:
+        cik_count = len([eq for eq in equities if eq.identity.cik])
+        print(f"   ✅ All {cik_count:,} CIKs have valid format")
+
+    # Symbol anomalies
+    print("\n🏷️  SYMBOL ANOMALY DETECTION:")
+    very_long_symbols = [eq for eq in equities if len(eq.identity.symbol) > 10]
+    special_char_symbols = [
+        eq
+        for eq in equities
+        if not eq.identity.symbol.replace(".", "").replace("-", "").isalnum()
+    ]
+
+    if very_long_symbols:
+        print(f"   ⚠️  {len(very_long_symbols):,} symbols >10 characters (unusual)")
+        for eq in very_long_symbols[:3]:
+            print(
+                f"      • {eq.identity.symbol} ({eq.identity.name[:30]}...)",
+            )
+
+    if special_char_symbols:
+        print(
+            f"   ⚠️  {len(special_char_symbols):,} symbols with unusual characters",
+        )
+        for eq in special_char_symbols[:3]:
+            print(
+                f"      • {eq.identity.symbol} ({eq.identity.name[:30]}...)",
+            )
+
+
+def detect_cross_field_logic_issues(equities: list[CanonicalEquity]) -> None:
+    """Detect logical inconsistencies between related fields."""
+    if not equities:
+        print("⚠️  No equities available for cross-field analysis")
+        return
+
+    print_separator("🔗 CROSS-FIELD LOGICAL CONSISTENCY")
+
+    # Companies with price but no market cap
+    print("💰 PRICE WITHOUT MARKET CAP:")
+    price_no_cap = [
+        eq
+        for eq in equities
+        if eq.financials.last_price
+        and eq.financials.last_price > 0
+        and not eq.financials.market_cap
+    ]
+
+    if price_no_cap:
+        print(
+            f"   ⚠️  {len(price_no_cap):,} equities with price but missing market cap",
+        )
+        for eq in price_no_cap[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): Price ${eq.financials.last_price}, Cap=None",
+            )
+
+    # Companies with market cap but no price
+    print("\n📊 MARKET CAP WITHOUT PRICE:")
+    cap_no_price = [
+        eq
+        for eq in equities
+        if eq.financials.market_cap
+        and eq.financials.market_cap > 0
+        and not eq.financials.last_price
+    ]
+
+    if cap_no_price:
+        print(
+            f"   ⚠️  {len(cap_no_price):,} equities with market cap but missing price",
+        )
+        for eq in cap_no_price[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): Cap ${eq.financials.market_cap:,.0f}, Price=None",
+            )
+
+    # Missing both price and market cap
+    print("\n❌ MISSING BOTH PRICE AND MARKET CAP:")
+    missing_both = [
+        eq
+        for eq in equities
+        if not eq.financials.last_price and not eq.financials.market_cap
+    ]
+
+    if missing_both:
+        print(
+            f"   ⚠️  {len(missing_both):,} equities missing both price and market cap",
+        )
+        # Check if these have other financial data
+        with_other_data = [
+            eq
+            for eq in missing_both
+            if eq.financials.revenue
+            or eq.financials.trailing_pe
+            or eq.financials.dividend_yield
+        ]
+        if with_other_data:
+            print(
+                f"      ⚠️  {len(with_other_data):,} of these have other financial metrics (orphaned data)",
+            )
+
+    # Partial 52-week range (only min or only max)
+    print("\n📉 INCOMPLETE 52-WEEK RANGE:")
+    partial_range = [
+        eq
+        for eq in equities
+        if (eq.financials.fifty_two_week_min and not eq.financials.fifty_two_week_max)
+        or (eq.financials.fifty_two_week_max and not eq.financials.fifty_two_week_min)
+    ]
+
+    if partial_range:
+        print(
+            f"   ⚠️  {len(partial_range):,} equities with only min or max (incomplete range)",
+        )
+        for eq in partial_range[:3]:
+            min_val = (
+                f"${eq.financials.fifty_two_week_min}"
+                if eq.financials.fifty_two_week_min
+                else "None"
+            )
+            max_val = (
+                f"${eq.financials.fifty_two_week_max}"
+                if eq.financials.fifty_two_week_max
+                else "None"
+            )
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): Min={min_val}, Max={max_val}",
+            )
+
+
+def detect_extreme_financial_values(equities: list[CanonicalEquity]) -> None:
+    """Detect extreme or impossible financial values."""
+    if not equities:
+        print("⚠️  No equities available for extreme value detection")
+        return
+
+    print_separator("⚡ EXTREME FINANCIAL VALUE DETECTION")
+
+    # Extreme dividend yields (>15%)
+    print("💸 EXTREME DIVIDEND YIELDS:")
+    extreme_dividends = [
+        eq
+        for eq in equities
+        if eq.financials.dividend_yield and eq.financials.dividend_yield > 15
+    ]
+
+    if extreme_dividends:
+        print(
+            f"   ⚠️  {len(extreme_dividends):,} equities with dividend yield >15% (suspicious)",
+        )
+        for eq in sorted(
+            extreme_dividends,
+            key=lambda x: x.financials.dividend_yield,
+            reverse=True,
+        )[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): {eq.financials.dividend_yield:.2f}%",
+            )
+
+    # Very low stock prices (<$0.01)
+    print("\n💵 PENNY STOCK DETECTION:")
+    penny_stocks = [
+        eq
+        for eq in equities
+        if eq.financials.last_price
+        and eq.financials.last_price > 0
+        and eq.financials.last_price < Decimal("0.01")
+    ]
+
+    if penny_stocks:
+        print(
+            f"   ⚠️  {len(penny_stocks):,} equities with price <$0.01 (extreme penny stocks)",
+        )
+        for eq in penny_stocks[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): ${eq.financials.last_price}",
+            )
+
+    # Extreme profit margins
+    print("\n📊 EXTREME PROFIT MARGINS:")
+    extreme_margins = [
+        eq
+        for eq in equities
+        if eq.financials.profit_margin
+        and (
+            eq.financials.profit_margin > 100 or eq.financials.profit_margin < -100
+        )
+    ]
+
+    if extreme_margins:
+        print(
+            f"   ⚠️  {len(extreme_margins):,} equities with profit margin >100% or <-100%",
+        )
+        for eq in sorted(
+            extreme_margins,
+            key=lambda x: abs(x.financials.profit_margin),
+            reverse=True,
+        )[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): {eq.financials.profit_margin:.2f}%",
+            )
+
+    # Negative price-to-book
+    print("\n📖 NEGATIVE PRICE-TO-BOOK RATIO:")
+    negative_pb = [
+        eq
+        for eq in equities
+        if eq.financials.price_to_book and eq.financials.price_to_book < 0
+    ]
+
+    if negative_pb:
+        print(
+            f"   ⚠️  {len(negative_pb):,} equities with negative P/B ratio (possible distress)",
+        )
+        for eq in negative_pb[:5]:
+            print(
+                f"      • {eq.identity.name} ({eq.identity.symbol}): P/B={eq.financials.price_to_book:.2f}",
+            )
+
+    # Round number clustering (prices ending in .00)
+    print("\n🎯 ROUND NUMBER CLUSTERING:")
+    round_prices = [
+        eq
+        for eq in equities
+        if eq.financials.last_price
+        and eq.financials.last_price > 1
+        and eq.financials.last_price % 1 == 0
+    ]
+
+    if round_prices:
+        round_percentage = (len(round_prices) / len(equities)) * 100
+        print(
+            f"   ℹ️  {len(round_prices):,} equities with round dollar prices ({round_percentage:.1f}%)",
+        )
+        if round_percentage > 30:
+            print(
+                "      ⚠️  High concentration of round prices may indicate placeholder values",
+            )
+
+
 def main() -> None:
     """Main data integrity analysis function."""
     print("🚀 EQUITY AGGREGATOR - DATA INTEGRITY ANALYSIS TOOL")
@@ -460,7 +832,11 @@ def main() -> None:
 
     # Data integrity analysis suite
     detect_financial_outliers(equities)
+    detect_temporal_anomalies(equities)
+    detect_extreme_financial_values(equities)
     analyze_data_consistency(equities)
+    detect_identifier_format_issues(equities)
+    detect_cross_field_logic_issues(equities)
     demo_data_quality_insights(equities)
 
     # Keep original currency and geographic analysis as they're useful for integrity
@@ -492,8 +868,11 @@ def main() -> None:
     print("Analysis Summary:")
     print(f"• Analyzed {len(equities):,} canonical equities")
     print("• Detected outliers and anomalies in financial metrics")
-    print("• Validated data consistency across identifiers and formats")
-    print("• Identified potential data quality issues for review")
+    print("• Identified temporal anomalies and range inversions")
+    print("• Flagged extreme financial values and suspicious patterns")
+    print("• Validated identifier format compliance (ISIN, CUSIP, CIK)")
+    print("• Detected cross-field logical inconsistencies")
+    print("• Assessed data completeness and quality across all fields")
     print(
         "\nUse this analysis to improve data quality and identify cleaning opportunities.",
     )
