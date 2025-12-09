@@ -7,10 +7,32 @@ from decimal import Decimal
 from functools import cache
 from itertools import chain
 from statistics import median
+from typing import NamedTuple
 
 from rapidfuzz import fuzz
 
 from equity_aggregator.schemas.raw import RawEquity
+
+
+class EquityIdentifiers(NamedTuple):
+    """
+    Representative identifiers extracted from a group of RawEquity records.
+
+    Attributes:
+        symbol: Representative ticker symbol.
+        name: Representative equity name.
+        isin: Representative ISIN identifier.
+        cusip: Representative CUSIP identifier.
+        cik: Representative CIK identifier.
+        share_class_figi: Validated share class FIGI (must be identical across group).
+    """
+
+    symbol: str
+    name: str
+    isin: str | None
+    cusip: str | None
+    cik: str | None
+    share_class_figi: str
 
 
 def merge(group: Sequence[RawEquity]) -> RawEquity:
@@ -84,6 +106,37 @@ def merge(group: Sequence[RawEquity]) -> RawEquity:
         analyst_rating=_merge_analyst_rating(group),
         industry=_merge_industry(group),
         sector=_merge_sector(group),
+    )
+
+
+def extract_identifiers(group: Sequence[RawEquity]) -> EquityIdentifiers:
+    """
+    Compute representative identifiers from a group of RawEquity records.
+
+    Uses the same resolution algorithms as merge() — mode for IDs,
+    fuzzy clustering for name, frequency for symbol.
+
+    Args:
+        group: A non-empty sequence of RawEquity objects from which to extract
+            identifiers. All records must share the same share_class_figi.
+
+    Returns:
+        EquityIdentifiers: Representative identifiers resolved from the group.
+
+    Raises:
+        ValueError: If the group is empty or contains multiple distinct
+            share_class_figi values.
+    """
+    # Validate group first before attempting to extract identifiers
+    share_class_figi_value = _validate_share_class_figi(group)
+
+    return EquityIdentifiers(
+        symbol=_merge_symbol(group),
+        name=_merge_name(group),
+        isin=_merge_id(group, "isin"),
+        cusip=_merge_id(group, "cusip"),
+        cik=_merge_id(group, "cik"),
+        share_class_figi=share_class_figi_value,
     )
 
 

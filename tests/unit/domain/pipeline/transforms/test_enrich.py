@@ -6,12 +6,11 @@ from decimal import Decimal
 
 import pytest
 
+from equity_aggregator.domain._utils import EquityIdentifiers, extract_identifiers
 from equity_aggregator.domain.pipeline.transforms.enrich import (
     EnrichmentFeed,
-    _enrich_equity,
+    _enrich_equity_group,
     _enrich_from_feed,
-    _has_missing_fields,
-    _replace_none_fields,
     _safe_fetch,
     _to_usd,
     _validate,
@@ -38,19 +37,6 @@ class BadFeedData:
         raise ValueError("invalid")
 
 
-class PartialFeedData:
-    @staticmethod
-    def model_validate(record: dict[str, object]) -> "PartialFeedData":
-        class _Inner:
-            # drop market_cap so RawEquity.model_validate will fail
-            def model_dump(self) -> dict[str, object]:
-                d = record.copy()
-                d.pop("market_cap", None)
-                return d
-
-        return _Inner()
-
-
 class ErrorFeedData:
     @staticmethod
     def model_validate(record: dict[str, object]) -> "ErrorFeedData":
@@ -62,79 +48,83 @@ class ErrorFeedData:
         raise _ValidationError("validation failed")
 
 
-def test_has_missing_fields_true_when_any_field_none() -> None:
+def test_extract_identifiers_single_source() -> None:
     """
-    ARRANGE: a RawEquity with some None fields
-    ACT:     call _has_missing_fields
-    ASSERT:  returns True
+    ARRANGE: single RawEquity with identifiers
+    ACT:     call extract_identifiers
+    ASSERT:  returns EquityIdentifiers with all identifiers from that source
     """
-    incomplete = RawEquity(
-        name="ABC",
-        symbol="ABC",
-        isin=None,  # missing
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("10"),
-        market_cap=Decimal("1000"),
-    )
-
-    assert _has_missing_fields(incomplete) is True
-
-
-def test_has_missing_fields_false_when_all_fields_present() -> None:
-    """
-    ARRANGE: a RawEquity with no None fields
-    ACT:     call _has_missing_fields
-    ASSERT:  returns False
-    """
-    complete = RawEquity(
-        name="XYZ",
-        symbol="XYZ",
-        isin="ISIN00000001",
+    source = RawEquity(
+        name="TEST",
+        symbol="TST",
+        isin="US0378331005",
         cusip="037833100",
         cik="0000320193",
         share_class_figi="BBG000BLNNH6",
-        mics=["XLON"],
+        mics=["XNAS"],
         currency="USD",
-        last_price=Decimal("5"),
-        market_cap=Decimal("500"),
-        fifty_two_week_min=Decimal("1"),
-        fifty_two_week_max=Decimal("10"),
-        dividend_yield=Decimal("0.02"),
-        market_volume=Decimal("1000"),
-        held_insiders=Decimal("0.10"),
-        held_institutions=Decimal("0.60"),
-        short_interest=Decimal("0.05"),
-        share_float=Decimal("1000000"),
-        shares_outstanding=Decimal("1200000"),
-        revenue_per_share=Decimal("20"),
-        profit_margin=Decimal("0.15"),
-        gross_margin=Decimal("0.40"),
-        operating_margin=Decimal("0.25"),
-        free_cash_flow=Decimal("100000"),
-        operating_cash_flow=Decimal("150000"),
-        return_on_equity=Decimal("0.12"),
-        return_on_assets=Decimal("0.08"),
-        performance_1_year=Decimal("0.11"),
-        total_debt=Decimal("200000"),
-        revenue=Decimal("1000000"),
-        ebitda=Decimal("300000"),
-        trailing_pe=Decimal("15"),
-        price_to_book=Decimal("2"),
-        trailing_eps=Decimal("3.5"),
-        analyst_rating="HOLD",
-        industry="TECH",
-        sector="TECHNOLOGY",
+        last_price=Decimal("100"),
+        market_cap=Decimal("1000000"),
     )
 
-    assert _has_missing_fields(complete) is False
+    identifiers = extract_identifiers([source])
+
+    assert identifiers == EquityIdentifiers(
+        symbol="TST",
+        name="TEST",
+        isin="US0378331005",
+        cusip="037833100",
+        cik="0000320193",
+        share_class_figi="BBG000BLNNH6",
+    )
 
 
-def test_enrich_from_feed_falls_back_on_validation_failure() -> None:
+def test_extract_identifiers_multiple_sources() -> None:
     """
-    ARRANGE: source with missing fields, fetcher returns data that fails validation
+    ARRANGE: three RawEquity sources with different symbols
+    ACT:     call extract_identifiers
+    ASSERT:  returns representative symbol (most frequent)
+    """
+    first = RawEquity(
+        name="APPLE",
+        symbol="AAPL",
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("150"),
+        market_cap=Decimal("2500000000000"),
+    )
+
+    second = RawEquity(
+        name="APPLE INC",
+        symbol="AAPL",
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("151"),
+        market_cap=Decimal("2500000000000"),
+    )
+
+    third = RawEquity(
+        name="Apple Inc.",
+        symbol="AAPL.US",
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("150.5"),
+        market_cap=Decimal("2500000000000"),
+    )
+
+    identifiers = extract_identifiers([first, second, third])
+
+    assert identifiers.symbol == "AAPL"
+
+
+def test_enrich_from_feed_returns_none_on_validation_failure() -> None:
+    """
+    ARRANGE: EquityIdentifiers, fetcher returns data that fails validation
     ACT:     call _enrich_from_feed
-    ASSERT:  returns the original source after validation fails
+    ASSERT:  returns None after validation fails
     """
 
     async def bad_data_fetcher(
@@ -143,249 +133,81 @@ def test_enrich_from_feed_falls_back_on_validation_failure() -> None:
         isin: str | None,
         cusip: str | None,
     ) -> dict[str, object]:
-        # Return non-empty data that will fail validation
         return {"invalid": "data", "more": "fields"}
 
-    source = RawEquity(
-        name="BAD",
+    identifiers = EquityIdentifiers(
         symbol="BAD",
+        name="BAD",
         isin="ISIN00000014",
-        mics=["XLON"],
-        currency="USD",
-        last_price=None,
-        market_cap=None,
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
     )
 
     mock_feed = EnrichmentFeed(fetch=bad_data_fetcher, model=BadFeedData)
 
-    actual = asyncio.run(_enrich_from_feed(source, mock_feed))
+    actual = asyncio.run(_enrich_from_feed(identifiers, mock_feed))
 
-    assert actual is source
+    assert actual is None
 
 
-def test_enrich_equity_returns_source_when_no_missing_fields() -> None:
+def test_enrich_equity_group_merges_all_sources() -> None:
     """
-    ARRANGE: complete RawEquity, feed that errors if called
-    ACT:     call _enrich_equity
-    ASSERT:  returns source unchanged, feed never invoked
+    ARRANGE: two discovery sources with different data, good enrichment feed
+    ACT:     call _enrich_equity_group
+    ASSERT:  returns single merged RawEquity from all sources
     """
-
-    async def should_not_be_called(**_: object) -> dict[str, object]:
-        raise AssertionError("feed was called")
-
-    complete = RawEquity(
+    first_source = RawEquity(
         name="FULL",
         symbol="FULL",
         isin="US0378331005",
         cusip="037833100",
-        cik="0000320193",
         share_class_figi="BBG000BLNNH6",
         mics=["XNAS"],
         currency="USD",
         last_price=Decimal("150"),
-        market_cap=Decimal("250000000000"),
-        fifty_two_week_min=Decimal("120"),
-        fifty_two_week_max=Decimal("180"),
-        dividend_yield=Decimal("0.006"),
-        market_volume=Decimal("20000000"),
-        held_insiders=Decimal("0.10"),
-        held_institutions=Decimal("0.60"),
-        short_interest=Decimal("0.01"),
-        share_float=Decimal("16000000000"),
-        shares_outstanding=Decimal("17000000000"),
-        revenue_per_share=Decimal("20"),
-        profit_margin=Decimal("0.22"),
-        gross_margin=Decimal("0.43"),
-        operating_margin=Decimal("0.30"),
-        free_cash_flow=Decimal("95000000000"),
-        operating_cash_flow=Decimal("110000000000"),
-        return_on_equity=Decimal("0.28"),
-        return_on_assets=Decimal("0.18"),
-        performance_1_year=Decimal("0.12"),
-        total_debt=Decimal("98000000000"),
-        revenue=Decimal("1000000000"),
-        ebitda=Decimal("120000000000"),
-        trailing_pe=Decimal("28"),
-        price_to_book=Decimal("35"),
-        trailing_eps=Decimal("5.40"),
-        analyst_rating="BUY",
-        industry="TECH",
-        sector="TECHNOLOGY",
+        market_cap=None,
     )
 
-    mock_feed = EnrichmentFeed(fetch=should_not_be_called, model=object)
-
-    actual = asyncio.run(_enrich_equity(complete, (mock_feed,)))
-
-    assert actual is complete
-
-
-def test_enrich_from_feed_short_circuits_when_equity_complete() -> None:
-    """
-    ARRANGE: RawEquity with all fields and a fetcher that errors if called
-    ACT:     call _enrich_from_feed
-    ASSERT:  the original object is returned and the fetcher is *not* executed
-    """
-    complete = RawEquity(
-        name="FULL",
+    second_source = RawEquity(
+        name="FULL INC",
         symbol="FULL",
         isin="US0378331005",
-        cusip="037833100",
-        cik="0000320193",
         share_class_figi="BBG000BLNNH6",
         mics=["XNAS"],
-        currency="USD",
-        last_price=Decimal("150"),
-        market_cap=Decimal("250000000000"),
-        fifty_two_week_min=Decimal("120"),
-        fifty_two_week_max=Decimal("180"),
-        dividend_yield=Decimal("0.006"),
-        market_volume=Decimal("20000000"),
-        held_insiders=Decimal("0.10"),
-        held_institutions=Decimal("0.60"),
-        short_interest=Decimal("0.01"),
-        share_float=Decimal("16000000000"),
-        shares_outstanding=Decimal("17000000000"),
-        revenue_per_share=Decimal("20"),
-        profit_margin=Decimal("0.22"),
-        gross_margin=Decimal("0.43"),
-        operating_margin=Decimal("0.30"),
-        free_cash_flow=Decimal("95000000000"),
-        operating_cash_flow=Decimal("110000000000"),
-        return_on_equity=Decimal("0.28"),
-        return_on_assets=Decimal("0.18"),
-        performance_1_year=Decimal("0.12"),
-        total_debt=Decimal("98000000000"),
-        revenue=Decimal("365000000000"),
-        ebitda=Decimal("120000000000"),
-        trailing_pe=Decimal("28"),
-        price_to_book=Decimal("35"),
-        trailing_eps=Decimal("5.40"),
-        analyst_rating="BUY",
-        industry="TECH",
-        sector="TECHNOLOGY",
-    )
-
-    class MockFeed:
-        async def fetch_equity(self, **_: dict[str, object]) -> dict[str, object]:
-            raise AssertionError("fetcher was called")
-
-        model = object
-
-    mock_feed = EnrichmentFeed(fetch=MockFeed().fetch_equity, model=object)
-
-    actual = asyncio.run(_enrich_from_feed(complete, mock_feed))
-
-    assert actual is complete
-
-
-def test_replace_none_fields_fills_only_none_fields() -> None:
-    """
-    ARRANGE: source with last_price None, enriched with both fields set
-    ACT:     call _replace_none_fields
-    ASSERT:  new object has last_price from enriched, but keeps source market_cap
-    """
-    source = RawEquity(
-        name="SRC",
-        symbol="SRC",
-        isin="ISIN00000002",
-        mics=["XLON"],
         currency="USD",
         last_price=None,
-        market_cap=Decimal("300"),
+        market_cap=Decimal("250000000000"),
     )
 
-    enriched = RawEquity(
-        name="SRC",
-        symbol="SRC",
-        isin="ISIN00000002",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("25"),
-        market_cap=Decimal("999"),
-    )
+    async def good_fetcher(
+        symbol: str,
+        name: str,
+        isin: str | None,
+        cusip: str | None,
+    ) -> dict[str, object]:
+        return {
+            "name": name,
+            "symbol": symbol,
+            "isin": isin,
+            "cusip": cusip,
+            "mics": ["XNAS"],
+            "currency": "USD",
+            "last_price": Decimal("150"),
+            "market_cap": Decimal("250000000000"),
+            "fifty_two_week_min": Decimal("120"),
+        }
 
-    merged = _replace_none_fields(source, enriched)
+    mock_feed = EnrichmentFeed(fetch=good_fetcher, model=GoodFeedData)
 
-    assert (merged.last_price, merged.market_cap) == (
-        Decimal("25"),
-        Decimal("300"),
-    )
+    merged = asyncio.run(_enrich_equity_group([first_source, second_source], (mock_feed,)))
 
-
-def test_enrich_passes_through_when_no_missing_fields() -> None:
-    """
-    ARRANGE: an async stream of fully-populated RawEquity objects
-    ACT:     run enrich() over that stream
-    ASSERT:  yields the same objects in order, unchanged
-    """
-    first_equity = RawEquity(
-        name="ONE",
-        symbol="ONE",
-        isin="ISIN00000003",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("1"),
-        market_cap=Decimal("100"),
-    )
-
-    second_equity = RawEquity(
-        name="TWO",
-        symbol="TWO",
-        isin="ISIN00000004",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("2"),
-        market_cap=Decimal("200"),
-    )
-
-    async def source() -> AsyncIterable[RawEquity]:
-        yield first_equity
-        yield second_equity
-
-    async def runner() -> list[RawEquity]:
-        return [equity async for equity in enrich(source())]
-
-    actual = asyncio.run(runner())
-
-    symbols = sorted(equity.symbol for equity in actual)
-
-    assert symbols == ["ONE", "TWO"]
-
-
-def test__enrich_from_feed_skips_when_no_missing() -> None:
-    """
-    ARRANGE: fully populated RawEquity, dummy fetcher that would error if called
-    ACT:     call _enrich_from_feed
-    ASSERT:  returns the same object without calling fetcher
-    """
-
-    async def should_not_be_called() -> dict[str, object]:
-        raise AssertionError("Fetcher was called")
-
-    full = RawEquity(
-        name="FULL",
-        symbol="FULL",
-        isin="ISIN00000004",
-        cusip="037833100",
-        cik="0000320193",
-        share_class_figi="BBG000BLNNH6",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("4"),
-        market_cap=Decimal("40"),
-    )
-
-    mock_feed = EnrichmentFeed(fetch=should_not_be_called, model=object)
-
-    actual = asyncio.run(_enrich_from_feed(full, mock_feed))
-
-    assert actual is full
+    assert merged.fifty_two_week_min == Decimal("120")
 
 
 def test_safe_fetch_timeout_returns_none() -> None:
     """
-    ARRANGE: a slow fetcher wrapped with timeout that raises TimeoutError
+    ARRANGE: slow fetcher wrapped with timeout that raises TimeoutError
     ACT:     call _safe_fetch
     ASSERT:  returns None
     """
@@ -395,29 +217,25 @@ def test_safe_fetch_timeout_returns_none() -> None:
         return {"foo": "bar"}
 
     async def timeout_fetcher(**kwargs: object) -> dict[str, object]:
-        # Simulate what _rate_limited does with timeout
         return await asyncio.wait_for(slow_fetcher(**kwargs), timeout=0.01)
 
-    src = RawEquity(
-        name="TST",
+    identifiers = EquityIdentifiers(
         symbol="TST",
+        name="TST",
         isin="ISIN00000004",
         cusip="037833100",
+        cik=None,
         share_class_figi="BBG000BLNNH6",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("2"),
-        market_cap=Decimal("20"),
     )
 
-    actual = asyncio.run(_safe_fetch(src, timeout_fetcher, "Slow"))
+    actual = asyncio.run(_safe_fetch(identifiers, timeout_fetcher, "Slow"))
 
     assert actual is None
 
 
 def test_safe_fetch_exception_returns_none() -> None:
     """
-    ARRANGE: a fetcher that raises an exception
+    ARRANGE: fetcher that raises an exception
     ACT:     call _safe_fetch
     ASSERT:  returns None
     """
@@ -425,26 +243,23 @@ def test_safe_fetch_exception_returns_none() -> None:
     async def bad_fetcher(**kwargs: object) -> dict[str, object]:
         raise RuntimeError("failure")
 
-    source = RawEquity(
-        name="TST",
+    identifiers = EquityIdentifiers(
         symbol="TST",
+        name="TST",
         isin="ISIN00000004",
         cusip="037833100",
+        cik=None,
         share_class_figi="BBG000BLNNH6",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("2"),
-        market_cap=Decimal("20"),
     )
 
-    actual = asyncio.run(_safe_fetch(source, bad_fetcher, "Bad"))
+    actual = asyncio.run(_safe_fetch(identifiers, bad_fetcher, "Bad"))
 
     assert actual is None
 
 
 def test_safe_fetch_success_returns_dict() -> None:
     """
-    ARRANGE: a fetcher that returns quickly
+    ARRANGE: fetcher that returns quickly
     ACT:     call _safe_fetch
     ASSERT:  returns the dict unchanged
     """
@@ -458,174 +273,36 @@ def test_safe_fetch_success_returns_dict() -> None:
         _ = (symbol, name, isin, cusip)
         return {"foo": "bar"}
 
-    source = RawEquity(
-        name="A",
+    identifiers = EquityIdentifiers(
         symbol="A",
+        name="A",
         isin="ISIN00000004",
         cusip="037833100",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("1"),
-        market_cap=Decimal("1"),
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
     )
 
-    actual = asyncio.run(_safe_fetch(source, quick_fetcher, "Quick"))
+    actual = asyncio.run(_safe_fetch(identifiers, quick_fetcher, "Quick"))
 
     assert actual == {"foo": "bar"}
 
 
 def test_enrich_empty_stream_yields_nothing() -> None:
     """
-    ARRANGE: an async stream that never yields
+    ARRANGE: async stream that never yields
     ACT:     run enrich()
     ASSERT:  yields empty list
     """
 
-    async def empty_src() -> AsyncIterable[RawEquity]:
+    async def empty_src() -> AsyncIterable[list[RawEquity]]:
         if False:
             yield
 
     async def runner() -> list[RawEquity]:
-        return await asyncio.gather(*[equity async for equity in enrich(empty_src())])
+        return [equity async for equity in enrich(empty_src())]
 
     actual = asyncio.run(runner())
     assert actual == []
-
-
-def test_has_missing_fields_counts_optional_fields() -> None:
-    """
-    ARRANGE: a RawEquity missing an optional field (cusip)
-    ACT:     call _has_missing_fields
-    ASSERT:  returns True
-    """
-    # cusip and share_class_figi default to None if not provided
-    incomplete = RawEquity(
-        name="OPT",
-        symbol="OPT",
-        isin="ISIN00000004",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("1"),
-        market_cap=Decimal("10"),
-    )
-
-    assert _has_missing_fields(incomplete) is True
-
-
-def test_replace_none_fields_leaves_none_when_enriched_also_none() -> None:
-    """
-    ARRANGE: source has two None fields, enriched also None for those
-    ACT:     call _replace_none_fields
-    ASSERT:  both fields remain None
-    """
-    source = RawEquity(
-        name="SRC2",
-        symbol="SRC2",
-        isin=None,
-        cusip=None,
-        mics=["XLON"],
-        currency="USD",
-        last_price=None,
-        market_cap=None,
-    )
-
-    enriched = RawEquity(
-        name="SRC2",
-        symbol="SRC2",
-        isin=None,
-        cusip=None,
-        mics=["XLON"],
-        currency="USD",
-        last_price=None,
-        market_cap=None,
-    )
-
-    merged = _replace_none_fields(source, enriched)
-
-    assert (
-        merged.isin,
-        merged.cusip,
-        merged.last_price,
-        merged.market_cap,
-    ) == (
-        None,
-        None,
-        None,
-        None,
-    )
-
-
-def test_validate_returns_raw_equity() -> None:
-    """
-    ARRANGE: a record and GoodFeedData model
-    ACT:     call _validate
-    ASSERT:  returns a RawEquity
-    """
-    raw_record = {
-        "name": "VAL",
-        "symbol": "VAL",
-        "isin": "ISIN00000004",
-        "mics": ["XLON"],
-        "currency": "USD",
-        "last_price": Decimal("3"),
-        "market_cap": Decimal("30"),
-    }
-    source = RawEquity.model_validate(raw_record)
-
-    actual = _validate(raw_record, source, GoodFeedData, "GoodFeed")
-
-    assert isinstance(actual, RawEquity)
-
-
-def test_validate_returns_source_on_error() -> None:
-    """
-    ARRANGE: a record and BadFeedData model
-    ACT:     call _validate
-    ASSERT:  returns source
-    """
-    raw_record = {
-        "name": "VAL",
-        "symbol": "VAL",
-        "isin": "ISIN00000004",
-        "mics": ["XLON"],
-        "currency": "USD",
-        "last_price": Decimal("3"),
-        "market_cap": Decimal("30"),
-    }
-
-    source = RawEquity.model_validate(raw_record)
-
-    actual = _validate(raw_record, source, BadFeedData, "BadFeed")
-
-    assert actual is source
-
-
-def test_enrich_from_feed_falls_back_on_empty_dict() -> None:
-    """
-    ARRANGE: a RawEquity instance
-    ACT:     call _enrich_from_feed with an empty fetcher
-    ASSERT:  returns the original RawEquity unchanged
-    """
-
-    async def empty_fetcher() -> dict[str, object]:
-        return {}
-
-    source = RawEquity(
-        name="E",
-        symbol="E",
-        isin=None,
-        cusip=None,
-        mics=["XLON"],
-        currency="USD",
-        last_price=None,
-        market_cap=None,
-    )
-
-    mock_feed = EnrichmentFeed(fetch=empty_fetcher, model=GoodFeedData)
-
-    actual = asyncio.run(_enrich_from_feed(source, mock_feed))
-
-    assert actual is source
 
 
 def test_safe_fetch_times_out_and_returns_none() -> None:
@@ -642,29 +319,27 @@ def test_safe_fetch_times_out_and_returns_none() -> None:
         return {"ignored": True}
 
     async def timeout_fetcher(**kwargs: object) -> dict[str, object]:
-        # Simulate what _rate_limited does with timeout
         return await asyncio.wait_for(slow_fetcher(**kwargs), timeout=0.01)
 
-    src = RawEquity(
-        name="TO",
+    identifiers = EquityIdentifiers(
         symbol="TO",
+        name="TO",
         isin="ISIN00000005",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("0"),
-        market_cap=Decimal("0"),
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
     )
 
-    actual = asyncio.run(_safe_fetch(src, timeout_fetcher, "Slow"))
+    actual = asyncio.run(_safe_fetch(identifiers, timeout_fetcher, "Slow"))
 
     assert actual is None
 
 
 def test_enrich_from_feed_completes_success_path() -> None:
     """
-    ARRANGE:  source missing financials; fetcher returns a full record
-    ACT:      call _enrich_from_feed
-    ASSERT:   enriched RawEquity contains the fetched last_price & market_cap
+    ARRANGE: identifiers dict, fetcher returns full record
+    ACT:     call _enrich_from_feed
+    ASSERT:  enriched RawEquity contains the fetched last_price & market_cap
     """
 
     async def good_fetcher(
@@ -680,25 +355,23 @@ def test_enrich_from_feed_completes_success_path() -> None:
             "isin": isin,
             "cusip": cusip,
             "mics": ["XLON"],
-            "currency": "USD",  # already USD ⇒ converter is no-op
+            "currency": "USD",
             "last_price": Decimal("123"),
             "market_cap": Decimal("4567"),
         }
 
-    source = RawEquity(
-        name="OK",
+    identifiers = EquityIdentifiers(
         symbol="OK",
+        name="OK",
         isin="ISIN00000006",
         cusip="037833100",
-        mics=["XLON"],
-        currency="USD",
-        last_price=None,
-        market_cap=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
     )
 
     mock_feed = EnrichmentFeed(fetch=good_fetcher, model=GoodFeedData)
 
-    enriched = asyncio.run(_enrich_from_feed(source, mock_feed))
+    enriched = asyncio.run(_enrich_from_feed(identifiers, mock_feed))
 
     assert (enriched.last_price, enriched.market_cap) == (
         Decimal("123"),
@@ -708,9 +381,9 @@ def test_enrich_from_feed_completes_success_path() -> None:
 
 def test_safe_fetch_lookup_error_returns_none() -> None:
     """
-    ARRANGE: a fetcher that raises LookupError
+    ARRANGE: fetcher that raises LookupError
     ACT:     call _safe_fetch
-    ASSERT:  returns None  (the call routes through _log_outcome)
+    ASSERT:  returns None (the call routes through _log_outcome)
     """
 
     async def not_found_fetcher(
@@ -721,19 +394,109 @@ def test_safe_fetch_lookup_error_returns_none() -> None:
     ) -> dict[str, object]:
         raise LookupError("no data")
 
-    src = RawEquity(
-        name="NF",
+    identifiers = EquityIdentifiers(
         symbol="NF",
+        name="NF",
         isin="ISIN00000007",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("0"),
-        market_cap=Decimal("0"),
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
     )
 
     actual = asyncio.run(
-        _safe_fetch(src, not_found_fetcher, "NotFoundFeed"),
+        _safe_fetch(identifiers, not_found_fetcher, "NotFoundFeed"),
     )
+
+    assert actual is None
+
+
+def test_validate_returns_raw_equity() -> None:
+    """
+    ARRANGE: record and GoodFeedData model
+    ACT:     call _validate
+    ASSERT:  returns a RawEquity
+    """
+    raw_record = {
+        "name": "VAL",
+        "symbol": "VAL",
+        "isin": "ISIN00000004",
+        "mics": ["XLON"],
+        "currency": "USD",
+        "last_price": Decimal("3"),
+        "market_cap": Decimal("30"),
+    }
+
+    identifiers = EquityIdentifiers(
+        symbol="VAL",
+        name="VAL",
+        isin="ISIN00000004",
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    actual = _validate(raw_record, GoodFeedData, "GoodFeed", identifiers)
+
+    assert isinstance(actual, RawEquity)
+
+
+def test_validate_returns_none_on_error() -> None:
+    """
+    ARRANGE: record and BadFeedData model
+    ACT:     call _validate
+    ASSERT:  returns None
+    """
+    raw_record = {
+        "name": "VAL",
+        "symbol": "VAL",
+        "isin": "ISIN00000004",
+        "mics": ["XLON"],
+        "currency": "USD",
+        "last_price": Decimal("3"),
+        "market_cap": Decimal("30"),
+    }
+
+    identifiers = EquityIdentifiers(
+        symbol="VAL",
+        name="VAL",
+        isin="ISIN00000004",
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    actual = _validate(raw_record, BadFeedData, "BadFeed", identifiers)
+
+    assert actual is None
+
+
+def test_enrich_from_feed_returns_none_on_empty_dict() -> None:
+    """
+    ARRANGE: identifiers dict
+    ACT:     call _enrich_from_feed with an empty fetcher
+    ASSERT:  returns None (fetch returns empty dict, validation fails)
+    """
+
+    async def empty_fetcher(
+        symbol: str,
+        name: str,
+        isin: str | None,
+        cusip: str | None,
+    ) -> dict[str, object]:
+        return {}
+
+    identifiers = EquityIdentifiers(
+        symbol="E",
+        name="E",
+        isin=None,
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    mock_feed = EnrichmentFeed(fetch=empty_fetcher, model=GoodFeedData)
+
+    actual = asyncio.run(_enrich_from_feed(identifiers, mock_feed))
 
     assert actual is None
 
@@ -742,7 +505,7 @@ def test_validate_handles_error_feed() -> None:
     """
     ARRANGE: ErrorFeedData model that raises with .errors()
     ACT:     call _validate to trigger the exception
-    ASSERT:  returns the original RawEquity (handles hasattr(error, "errors"))
+    ASSERT:  returns None (handles hasattr(error, "errors"))
     """
     raw_record = {
         "name": "X",
@@ -753,19 +516,27 @@ def test_validate_handles_error_feed() -> None:
         "last_price": Decimal("9"),
         "market_cap": Decimal("90"),
     }
-    source = RawEquity.model_validate(raw_record)
 
-    actual = _validate(raw_record, source, ErrorFeedData, "ErrorFeed")
+    identifiers = EquityIdentifiers(
+        symbol="X",
+        name="X",
+        isin="ISIN00000008",
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
 
-    assert actual is source
+    actual = _validate(raw_record, ErrorFeedData, "ErrorFeed", identifiers)
+
+    assert actual is None
 
 
 def test_to_usd_handles_converter_returning_none() -> None:
     """
-    ARRANGE: a validated equity whose `model_copy` is overridden to return None,
+    ARRANGE: validated equity whose `model_copy` is overridden to return None,
              making the USD-converter return None.
     ACT:     call _to_usd
-    ASSERT:  falls back to the original source object
+    ASSERT:  returns None
     """
 
     class _NoCopyRawEquity(RawEquity):
@@ -787,59 +558,27 @@ def test_to_usd_handles_converter_returning_none() -> None:
         market_cap=None,
     )
 
-    source = RawEquity(
-        name="NONE",
+    identifiers = EquityIdentifiers(
         symbol="NONE",
+        name="NONE",
         isin="ISIN00000010",
-        mics=["XLON"],
-        currency="USD",
-        last_price=Decimal("1"),
-        market_cap=Decimal("10"),
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
     )
 
-    actual = asyncio.run(_to_usd(validated, source, "FxFeed"))
+    actual = asyncio.run(_to_usd(validated, "FxFeed", identifiers))
 
-    assert actual is source
-
-
-def test_to_usd_logs_success_on_enrichment() -> None:
-    """
-    ARRANGE: validated equity differs from source (enrichment occurred) with EUR currency
-    ACT:     call _to_usd
-    ASSERT:  returns the converted equity in USD and logs success
-    """
-    source = RawEquity(
-        name="SRC",
-        symbol="SRC",
-        isin="ISIN00000011",
-        mics=["XLON"],
-        currency="EUR",
-        last_price=Decimal("10"),
-        market_cap=None,
-    )
-
-    validated = RawEquity(
-        name="SRC",
-        symbol="SRC",
-        isin="ISIN00000011",
-        mics=["XLON"],
-        currency="EUR",
-        last_price=Decimal("10"),
-        market_cap=Decimal("1000"),
-    )
-
-    actual = asyncio.run(_to_usd(validated, source, "TestFeed"))
-
-    assert actual.currency == "USD"
+    assert actual is None
 
 
 def test_to_usd_converts_currency() -> None:
     """
-    ARRANGE: source equity in EUR
+    ARRANGE: equity in EUR
     ACT:     call _to_usd
     ASSERT:  returns converted equity in USD
     """
-    source = RawEquity(
+    validated = RawEquity(
         name="SAME",
         symbol="SAME",
         isin="ISIN00000012",
@@ -849,6 +588,86 @@ def test_to_usd_converts_currency() -> None:
         market_cap=Decimal("5000"),
     )
 
-    actual = asyncio.run(_to_usd(source, source, "TestFeed"))
+    identifiers = EquityIdentifiers(
+        symbol="SAME",
+        name="SAME",
+        isin="ISIN00000012",
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    actual = asyncio.run(_to_usd(validated, "TestFeed", identifiers))
 
     assert actual.currency == "USD"
+
+
+def test_enrich_passes_through_groups() -> None:
+    """
+    ARRANGE: async stream of equity groups
+    ACT:     run enrich() over that stream
+    ASSERT:  yields merged equities
+    """
+    first_equity = RawEquity(
+        name="ONE",
+        symbol="ONE",
+        share_class_figi="FIGI00000001",
+        mics=["XLON"],
+        currency="USD",
+        last_price=Decimal("1"),
+        market_cap=Decimal("100"),
+    )
+
+    second_equity = RawEquity(
+        name="TWO",
+        symbol="TWO",
+        share_class_figi="FIGI00000002",
+        mics=["XLON"],
+        currency="USD",
+        last_price=Decimal("2"),
+        market_cap=Decimal("200"),
+    )
+
+    async def source() -> AsyncIterable[list[RawEquity]]:
+        yield [first_equity]
+        yield [second_equity]
+
+    async def runner() -> list[RawEquity]:
+        return [equity async for equity in enrich(source())]
+
+    actual = asyncio.run(runner())
+
+    symbols = sorted(equity.symbol for equity in actual)
+
+    assert symbols == ["ONE", "TWO"]
+
+
+def test_extract_identifiers_handles_none_values() -> None:
+    """
+    ARRANGE: sources with None identifiers
+    ACT:     call extract_identifiers
+    ASSERT:  returns EquityIdentifiers with None for missing identifiers
+    """
+    source = RawEquity(
+        name="INCOMPLETE",
+        symbol="INC",
+        isin=None,
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("100"),
+        market_cap=Decimal("1000000"),
+    )
+
+    identifiers = extract_identifiers([source])
+
+    assert identifiers == EquityIdentifiers(
+        symbol="INC",
+        name="INCOMPLETE",
+        isin=None,
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )

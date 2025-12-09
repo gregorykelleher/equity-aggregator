@@ -30,7 +30,7 @@ src/equity_aggregator/
 The system processes equity data through a six-stage async streaming pipeline:
 
 ```
-Raw Data Sources → Parse → Convert → Identify → Deduplicate → Enrich → Canonicalise → Storage
+Raw Data Sources → Parse → Convert → Identify → Group → Enrich → Canonicalise → Storage
 ```
 
 ### Pipeline Stages
@@ -67,21 +67,23 @@ Enriches records with global identification metadata:
 - Adds CUSIP, ISIN, and other standard identifiers
 - Creates globally unique equity identities
 
-#### 5. **Deduplicate**
+#### 5. **Group**
 
-Merges duplicate equity records by FIGI identifier:
+Groups equities by Share Class FIGI:
 
 - Groups records with identical share_class_figi values
-- Uses fuzzy matching to merge similar company names within groups
-- Preserves the most complete data when merging
+- Preserves all discovery feed source data for later merging
+- Each group represents the same equity from multiple discovery sources
+- Yields groups as `list[RawEquity]` for enrichment processing
 
 #### 6. **Enrich**
 
-Adds supplementary data from enrichment feeds:
+Fetches enrichment data and performs comprehensive single merge:
 
-- Fetches additional data from Yahoo Finance
-- Only fills missing fields from discovery sources
-- Preserves data integrity and source hierarchy
+- Extracts representative identifiers from discovery sources using merge algorithms
+- Queries enrichment feeds (Yahoo Finance) with these identifiers
+- Performs single merge of all sources (discovery + enrichment) for optimal data quality
+- Uses same merge logic for identifiers and final merge (mode for IDs, fuzzy clustering for names, frequency for symbols)
 - Applies controlled concurrency to respect API limits
 
 #### 7. **Canonicalise**
@@ -119,12 +121,12 @@ Illustration of Pipeline Flow:
 
 ```python
 async def aggregate_canonical_equities() -> list[CanonicalEquity]:
-    
+
     # Resolve creates an async stream from multiple sources
     stream = resolve()
 
     # Each transform receives and returns an async iterator
-    transforms = (parse, convert, identify, deduplicate, enrich, canonicalise)
+    transforms = (parse, convert, identify, group, enrich, canonicalise)
 
     # Pipe stream through each transform sequentially
     for stage in transforms:
@@ -200,9 +202,8 @@ class LsegFeedData(BaseModel):
 
 **Characteristics**:
 
-- Provide core equity data (names, symbols, identifiers)
-- Considered source of truth for fundamental information
-- Data from these feeds is **never** overwritten by enrichment
+- Provide core equity identifier data (names, symbols, codes)
+- Multiple discovery sources for the same equity are merged with enrichment data
 
 ### Enrichment Feeds (Supplementary Sources)
 
@@ -210,10 +211,9 @@ class LsegFeedData(BaseModel):
 
 **Characteristics**
 
-- Only supplements missing data; never overwrites discovery values
 - Provides additional financial metrics (market cap, analyst ratings, etc.)
-- Respects data hierarchy and source priority
-- Applied after discovery data processing is complete
+- Uses representative identifiers from discovery sources for lookup
+- Applied after grouping but before final merge
 
 ## Equity Aggregator Components
 

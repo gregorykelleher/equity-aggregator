@@ -4,6 +4,7 @@ from decimal import Decimal
 
 import pytest
 
+from equity_aggregator.domain._utils import EquityIdentifiers, extract_identifiers
 from equity_aggregator.domain._utils._merge import merge
 from equity_aggregator.schemas.raw import RawEquity
 
@@ -1767,3 +1768,142 @@ def test_merge_price_range_uses_consistent_last_price() -> None:
     merged = merge(equities)
 
     assert merged.last_price == Decimal("77")
+
+
+def test_extract_identifiers_empty_group_raises() -> None:
+    """
+    ARRANGE: no equities
+    ACT:     extract_identifiers
+    ASSERT:  raises ValueError
+    """
+    with pytest.raises(ValueError):
+        extract_identifiers([])
+
+
+def test_extract_identifiers_single_source() -> None:
+    """
+    ARRANGE: single RawEquity with full identifiers
+    ACT:     extract_identifiers
+    ASSERT:  returns all identifiers from that source
+    """
+    equity = RawEquity(
+        name="APPLE INC",
+        symbol="AAPL",
+        isin="US0378331005",
+        cusip="037833100",
+        cik="0000320193",
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("150"),
+        market_cap=Decimal("2500000000000"),
+    )
+
+    identifiers = extract_identifiers([equity])
+
+    assert identifiers == EquityIdentifiers(
+        symbol="AAPL",
+        name="APPLE INC",
+        isin="US0378331005",
+        cusip="037833100",
+        cik="0000320193",
+        share_class_figi="BBG000BLNNH6",
+    )
+
+
+def test_extract_identifiers_multiple_sources_most_frequent_symbol() -> None:
+    """
+    ARRANGE: three sources with two different symbols (AAPL appears twice)
+    ACT:     extract_identifiers
+    ASSERT:  returns most frequent symbol (AAPL)
+    """
+    equities = [
+        RawEquity(
+            name="APPLE",
+            symbol="AAPL",
+            share_class_figi="BBG000BLNNH6",
+            mics=["XNAS"],
+            currency="USD",
+            last_price=Decimal("150"),
+            market_cap=Decimal("2500000000000"),
+        ),
+        RawEquity(
+            name="APPLE INC",
+            symbol="AAPL",
+            share_class_figi="BBG000BLNNH6",
+            mics=["XNAS"],
+            currency="USD",
+            last_price=Decimal("151"),
+            market_cap=Decimal("2500000000000"),
+        ),
+        RawEquity(
+            name="Apple Inc.",
+            symbol="AAPL.US",
+            share_class_figi="BBG000BLNNH6",
+            mics=["XNAS"],
+            currency="USD",
+            last_price=Decimal("150.5"),
+            market_cap=Decimal("2500000000000"),
+        ),
+    ]
+
+    identifiers = extract_identifiers(equities)
+
+    assert identifiers.symbol == "AAPL"
+
+
+def test_extract_identifiers_validates_share_class_figi() -> None:
+    """
+    ARRANGE: two sources with different share_class_figi values
+    ACT:     extract_identifiers
+    ASSERT:  raises ValueError
+    """
+    equities = [
+        RawEquity(
+            name="COMPANY A",
+            symbol="A",
+            share_class_figi="FIGI00000001",
+            mics=["XNAS"],
+            currency="USD",
+            last_price=Decimal("100"),
+            market_cap=Decimal("1000000"),
+        ),
+        RawEquity(
+            name="COMPANY B",
+            symbol="B",
+            share_class_figi="FIGI00000002",
+            mics=["XNAS"],
+            currency="USD",
+            last_price=Decimal("200"),
+            market_cap=Decimal("2000000"),
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="identical share_class_figi"):
+        extract_identifiers(equities)
+
+
+def test_extract_identifiers_handles_none_identifiers() -> None:
+    """
+    ARRANGE: source with None identifiers
+    ACT:     extract_identifiers
+    ASSERT:  returns EquityIdentifiers with None values
+    """
+    equity = RawEquity(
+        name="INCOMPLETE CORP",
+        symbol="INC",
+        isin=None,
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("100"),
+        market_cap=Decimal("1000000"),
+    )
+
+    identifiers = extract_identifiers([equity])
+
+    assert identifiers.isin is None
+    assert identifiers.cusip is None
+    assert identifiers.cik is None

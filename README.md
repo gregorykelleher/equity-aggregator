@@ -444,8 +444,8 @@ The aggregation pipeline consists of six sequential transformation stages, each 
 1. **Parse**: Extract and validate raw equity data from discovery feed data
 2. **Convert**: Normalise currency values to USD reference currency using live exchange rates
 3. **Identify**: Attach definitive identification metadata (i.e. Share Class FIGI) via OpenFIGI API integration
-4. **Deduplicate**: Merge duplicate equity records predicated on Share Class FIGI
-5. **Enrich**: Supplement core data with additional market metrics sourced from enrichment feeds
+4. **Group**: Group equities by Share Class FIGI, preserving all discovery feed sources
+5. **Enrich**: Fetch enrichment data and perform single comprehensive merge of all sources (discovery + enrichment)
 6. **Canonicalise**: Transform enriched data into the final canonical equity schema
 
 ### Clean Architecture Layers

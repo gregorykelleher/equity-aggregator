@@ -7,7 +7,12 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from typing import NamedTuple
 
 from equity_aggregator.adapters import open_yfinance_feed
-from equity_aggregator.domain._utils import get_usd_converter, merge
+from equity_aggregator.domain._utils import (
+    EquityIdentifiers,
+    extract_identifiers,
+    get_usd_converter,
+    merge,
+)
 from equity_aggregator.schemas import YFinanceFeedData
 from equity_aggregator.schemas.raw import RawEquity
 
@@ -52,23 +57,23 @@ enrichment_feed_specs: tuple[FeedSpec, ...] = (
 
 
 async def enrich(
-    raw_equities: AsyncIterable[RawEquity],
+    equity_groups: AsyncIterable[list[RawEquity]],
 ) -> AsyncIterable[RawEquity]:
     """
-    Enrich a stream of RawEquity objects concurrently using enrichment feeds.
+    Enrich equity groups and merge all sources (discovery + enrichment).
 
-    Each RawEquity is scheduled for enrichment and yielded as soon as its
-    enrichment completes. Enrichment is performed concurrently, respecting
-    per-feed concurrency limits.
+    For each group of discovery feed equities, computes median identifiers,
+    queries enrichment feeds, then performs a single merge of all sources
+    for optimal data quality.
 
     Args:
-        raw_equities: Async iterable stream of RawEquity objects to enrich.
+        equity_groups: Stream of equity groups (discovery feed sources).
 
     Yields:
-        RawEquity: Each enriched RawEquity as soon as enrichment finishes.
+        RawEquity: Fully merged and enriched equities.
     """
     async with _open_feeds(enrichment_feed_specs) as feeds:
-        async for enriched in _process_stream(raw_equities, feeds):
+        async for enriched in _process_stream(equity_groups, feeds):
             yield enriched
 
 
@@ -169,138 +174,104 @@ def _feed_name(model: type) -> str:
 
 
 async def _process_stream(
-    equities: AsyncIterable[RawEquity],
+    equity_groups: AsyncIterable[list[RawEquity]],
     feeds: tuple[EnrichmentFeed, ...],
 ) -> AsyncIterable[RawEquity]:
     """
-    Schedule enrichment for each equity and yield results as they complete.
+    Schedule enrichment for each equity group and yield merged results.
 
-    Creates an enrichment task for each equity in the input stream, then
+    Creates an enrichment task for each group in the input stream, then
     yields enriched equities as their tasks complete (potentially out of
     original order).
 
     Args:
-        equities: Stream of equities to enrich.
+        equity_groups: Stream of equity groups to enrich.
         feeds: Active feeds to use for enrichment.
 
     Yields:
-        RawEquity: Enriched equities as they complete.
+        RawEquity: Merged equities from all sources (discovery + enrichment).
     """
     async with asyncio.TaskGroup() as tg:
         tasks = [
-            tg.create_task(_enrich_equity(eq, feeds), name=eq.symbol)
-            async for eq in equities
+            tg.create_task(_enrich_equity_group(group, feeds))
+            async for group in equity_groups
         ]
         for coro in asyncio.as_completed(tasks):
             yield await coro
 
 
-async def _enrich_equity(
-    source: RawEquity,
+async def _enrich_equity_group(
+    discovery_sources: list[RawEquity],
     feeds: tuple[EnrichmentFeed, ...],
 ) -> RawEquity:
     """
-    Enrich a single equity from all enrichment feeds and merge results.
+    Enrich an equity group and merge all sources.
 
-    If the source has no missing fields, returns it unchanged. Otherwise,
-    fetches enrichment data from all feeds concurrently, merges the results,
-    and fills in missing fields from the source.
+    Extracts representative identifiers from discovery sources, queries
+    enrichment feeds with those identifiers, then performs a single merge
+    of all data points (discovery + enrichment).
 
     Args:
-        source: The equity to enrich, possibly with missing fields.
-        feeds: Active feeds to use for enrichment.
+        discovery_sources: Discovery feed equities for this group.
+        feeds: Active enrichment feeds.
 
     Returns:
-        RawEquity: The enriched equity with missing fields filled where possible.
+        RawEquity: Merged equity from all available sources.
     """
-    if not _has_missing_fields(source):
-        return source
+    # Extract representative identifiers for enrichment queries
+    identifiers = extract_identifiers(discovery_sources)
 
-    enriched_from_feeds = await asyncio.gather(
-        *(_enrich_from_feed(source, feed) for feed in feeds),
+    # Fetch enrichment data using identifiers
+    enrichment_results = await asyncio.gather(
+        *(_enrich_from_feed(identifiers, feed) for feed in feeds),
     )
-    return _replace_none_fields(source, merge(enriched_from_feeds))
 
+    # Filter out None results (failed enrichment attempts)
+    enrichment_sources = [r for r in enrichment_results if r is not None]
 
-def _has_missing_fields(equity: RawEquity) -> bool:
-    """
-    Check if any field in a RawEquity instance is missing (set to None).
-
-    Args:
-        equity: The RawEquity instance to check for missing fields.
-
-    Returns:
-        bool: True if any field is None, indicating a missing value; False
-            otherwise.
-    """
-    return any(v is None for v in equity.model_dump().values())
+    # Single merge of all sources: discovery + enrichment
+    all_sources = discovery_sources + enrichment_sources
+    return merge(all_sources)
 
 
 async def _enrich_from_feed(
-    source: RawEquity,
+    identifiers: EquityIdentifiers,
     feed: EnrichmentFeed,
-) -> RawEquity:
+) -> RawEquity | None:
     """
     Fetch, validate, and convert enrichment data from a single feed.
 
-    Attempts to enrich the source equity using the provided feed. Returns
-    the original source if any step fails.
+    Uses representative identifiers to query the feed, validates the response,
+    converts to USD, and returns the enriched equity. Returns None on
+    any failure.
 
     Args:
-        source: The equity to enrich.
-        feed: The active feed to use.
+        identifiers: Representative identifiers for querying the feed.
+        feed: Active feed to use.
 
     Returns:
-        RawEquity: The enriched equity in USD, or the original source if
-            enrichment fails.
+        RawEquity | None: Enriched equity in USD, or None if enrichment fails.
     """
     feed_name = _feed_name(feed.model)
 
-    fetched = await _safe_fetch(source, feed.fetch, feed_name)
+    fetched = await _safe_fetch(identifiers, feed.fetch, feed_name)
     if not fetched:
-        return source
+        return None
 
-    validated = _validate(fetched, source, feed.model, feed_name)
-    if validated is source:
-        return source
+    validated = _validate(fetched, feed.model, feed_name, identifiers)
+    if validated is None:
+        return None
 
-    return await _to_usd(validated, source, feed_name)
-
-
-def _replace_none_fields(
-    source: RawEquity,
-    enriched: RawEquity,
-) -> RawEquity:
-    """
-    Fill missing fields in source with values from enriched.
-
-    For each field, if source has a non-None value, it is kept. If source
-    has None, the value from enriched is used, but only if it is not None.
-    None values in enriched never overwrite any value in source.
-
-    Args:
-        source: The original RawEquity instance, possibly with missing fields.
-        enriched: The RawEquity instance to use for filling missing fields.
-
-    Returns:
-        RawEquity: A new RawEquity instance with missing fields filled from
-            enriched.
-    """
-    updates = {
-        k: v
-        for k, v in enriched.model_dump(exclude_none=True).items()
-        if getattr(source, k) is None
-    }
-    return source.model_copy(update=updates)
+    return await _to_usd(validated, feed_name, identifiers)
 
 
 async def _safe_fetch(
-    source: RawEquity,
+    identifiers: EquityIdentifiers,
     fetch: FetchFunc,
     feed_name: str,
 ) -> dict[str, object] | None:
     """
-    Safely fetch raw data for a RawEquity from an enrichment feed.
+    Safely fetch raw data using identifiers from an enrichment feed.
 
     Handles errors, returning None on failure. Logs all errors with
     appropriate context. Timeout is handled by the _rate_limited wrapper.
@@ -310,41 +281,40 @@ async def _safe_fetch(
         for enrichment feeds, as it lacks broad support.
 
     Args:
-        source: The RawEquity instance to fetch data for.
-        fetch: The async fetch function for the enrichment feed (already
+        identifiers: Representative identifiers for the equity.
+        fetch: Async fetch function for the enrichment feed (already
             wrapped with timeout protection via _rate_limited).
-        feed_name: The name of the enrichment feed for logging context.
+        feed_name: Feed name for logging context.
 
     Returns:
-        dict[str, object] | None: The fetched data as a dictionary, or None if
-            an exception occurs or the data is empty.
+        dict[str, object] | None: Fetched data as dictionary, or None on failure.
     """
     try:
         return await fetch(
-            symbol=source.symbol,
-            name=source.name,
-            isin=source.isin,
-            cusip=source.cusip,
+            symbol=identifiers.symbol,
+            name=identifiers.name,
+            isin=identifiers.isin,
+            cusip=identifiers.cusip,
         )
 
     except LookupError as e:
-        _log_outcome(feed_name, source, e)
+        _log_outcome(feed_name, identifiers, e)
 
     except TimeoutError:
         logger.error(
             "Timed out fetching from %s for symbol=%s (isin=%s, cusip=%s). "
             "Request exceeded timeout waiting for response.",
             feed_name,
-            source.symbol,
-            source.isin or "<none>",
-            source.cusip or "<none>",
+            identifiers.symbol,
+            identifiers.isin or "<none>",
+            identifiers.cusip or "<none>",
         )
 
     except Exception as e:
         logger.error(
             "Error fetching from %s for symbol=%s: %s: %s",
             feed_name,
-            source.symbol,
+            identifiers.symbol,
             type(e).__name__,
             e or "<empty>",
         )
@@ -354,29 +324,32 @@ async def _safe_fetch(
 
 def _validate(
     record: dict[str, object],
-    source: RawEquity,
     model: type,
     feed_name: str,
-) -> RawEquity:
+    identifiers: EquityIdentifiers,
+) -> RawEquity | None:
     """
     Validate record against model schema and convert to RawEquity.
 
     Validates the fetched record using the feed's Pydantic model, then
-    converts the validated data to a RawEquity instance. Returns the
-    original source on validation failure.
+    converts the validated data to a RawEquity instance. Injects the
+    share_class_figi from identifiers since enrichment feeds don't provide
+    it. Returns None on validation failure.
 
     Args:
-        record: The raw record to validate and coerce.
-        source: The original RawEquity to return on failure.
+        record: Raw record to validate.
         model: Pydantic model class for validating feed data.
-        feed_name: The name of the feed for logging context.
+        feed_name: Feed name for logging context.
+        identifiers: Representative identifiers for logging context and share_class_figi.
 
     Returns:
-        RawEquity: The validated RawEquity, or the original source if
-            validation fails.
+        RawEquity | None: Validated equity with share_class_figi injected, or None
+            on failure.
     """
     try:
         coerced = model.model_validate(record).model_dump()
+        # Inject share_class_figi from discovery sources for merge compatibility
+        coerced["share_class_figi"] = identifiers.share_class_figi
         return RawEquity.model_validate(coerced)
 
     except Exception as e:
@@ -385,31 +358,28 @@ def _validate(
             if hasattr(e, "errors")
             else str(e)
         )
-
-        _log_outcome(feed_name, source, summary)
-
-        return source
+        _log_outcome(feed_name, identifiers, summary)
+        return None
 
 
 async def _to_usd(
     validated: RawEquity,
-    source: RawEquity,
     feed_name: str,
-) -> RawEquity:
+    identifiers: EquityIdentifiers,
+) -> RawEquity | None:
     """
     Convert a validated RawEquity instance to USD.
 
-    Applies currency conversion using the global USD converter. Falls back
-    to the original source on conversion failure.
+    Applies currency conversion using the global USD converter. Returns
+    None on conversion failure.
 
     Args:
-        validated: The RawEquity instance to convert to USD.
-        source: The original RawEquity to return on conversion failure.
-        feed_name: The name of the enrichment feed for logging context.
+        validated: RawEquity instance to convert to USD.
+        feed_name: Feed name for logging context.
+        identifiers: Representative identifiers for logging context.
 
     Returns:
-        RawEquity: The USD-converted RawEquity if successful, otherwise the
-            original source RawEquity.
+        RawEquity | None: USD-converted equity or None on failure.
     """
     converter = await get_usd_converter()
 
@@ -421,18 +391,17 @@ async def _to_usd(
                 f"USD conversion failed: {converted.currency if converted else None}",
             )
 
-        _log_outcome(feed_name, source, None)
-
+        _log_outcome(feed_name, identifiers, None)
         return converted
 
     except Exception as e:
-        _log_outcome(feed_name, source, e)
-        return source
+        _log_outcome(feed_name, identifiers, e)
+        return None
 
 
 def _log_outcome(
     feed_name: str,
-    source: RawEquity,
+    identifiers: EquityIdentifiers,
     error: object | None,
     *,
     level: int = logging.DEBUG,
@@ -445,19 +414,21 @@ def _log_outcome(
 
     Args:
         feed_name: Name of the enrichment feed.
-        source: Equity instance with identifying fields.
+        identifiers: Representative identifiers for logging context.
         error: Error or context for failed retrieval. If None, logs success;
             otherwise logs failure with error details.
         level: Logging level (default: logging.DEBUG).
     """
     status = "SUCCESS" if error is None else "FAILURE"
-    prefix = f"[{feed_name}:{source.symbol}]"
+    symbol = identifiers.symbol
+    prefix = f"[{feed_name}:{symbol}]"
 
     msg = (
-        f"{prefix:<24} {status}: {feed_name} feed for symbol={source.symbol}, "
-        f"name={source.name} (isin={source.isin or '<none>'}, "
-        f"cusip={source.cusip or '<none>'}, cik={source.cik or '<none>'}, "
-        f"share_class_figi={source.share_class_figi or '<none>'})"
+        f"{prefix:<24} {status}: {feed_name} feed for symbol={symbol}, "
+        f"name={identifiers.name} "
+        f"(isin={identifiers.isin or '<none>'}, "
+        f"cusip={identifiers.cusip or '<none>'}, "
+        f"cik={identifiers.cik or '<none>'})"
     )
 
     if error is not None:

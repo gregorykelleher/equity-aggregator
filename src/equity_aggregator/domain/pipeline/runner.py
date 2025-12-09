@@ -5,7 +5,7 @@ import logging
 from equity_aggregator.domain.pipeline.resolve import resolve
 from equity_aggregator.schemas import CanonicalEquity
 
-from .transforms import canonicalise, convert, deduplicate, enrich, identify, parse
+from .transforms import canonicalise, convert, enrich, group, identify, parse
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ async def aggregate_canonical_equities() -> list[CanonicalEquity]:
       - parse: Parse raw equity data.
       - convert: Convert prices to reference currency (USD).
       - identify: Attach identification metadata.
-      - deduplicate: Merge duplicate equities.
+      - group: Group equities by share_class_figi.
       - enrich: Add supplementary data.
       - canonicalise: Convert to canonical equity format.
 
@@ -37,7 +37,7 @@ async def aggregate_canonical_equities() -> list[CanonicalEquity]:
         parse,
         convert,
         identify,
-        deduplicate,
+        group,
         enrich,
         canonicalise,
     )
