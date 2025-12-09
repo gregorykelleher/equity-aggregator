@@ -1883,11 +1883,11 @@ def test_extract_identifiers_validates_share_class_figi() -> None:
         extract_identifiers(equities)
 
 
-def test_extract_identifiers_handles_none_identifiers() -> None:
+def test_extract_identifiers_handles_none_isin() -> None:
     """
-    ARRANGE: source with None identifiers
+    ARRANGE: source with None isin
     ACT:     extract_identifiers
-    ASSERT:  returns EquityIdentifiers with None values
+    ASSERT:  returns EquityIdentifiers with None isin
     """
     equity = RawEquity(
         name="INCOMPLETE CORP",
@@ -1905,5 +1905,51 @@ def test_extract_identifiers_handles_none_identifiers() -> None:
     identifiers = extract_identifiers([equity])
 
     assert identifiers.isin is None
+
+
+def test_extract_identifiers_handles_none_cusip() -> None:
+    """
+    ARRANGE: source with None cusip
+    ACT:     extract_identifiers
+    ASSERT:  returns EquityIdentifiers with None cusip
+    """
+    equity = RawEquity(
+        name="INCOMPLETE CORP",
+        symbol="INC",
+        isin=None,
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("100"),
+        market_cap=Decimal("1000000"),
+    )
+
+    identifiers = extract_identifiers([equity])
+
     assert identifiers.cusip is None
+
+
+def test_extract_identifiers_handles_none_cik() -> None:
+    """
+    ARRANGE: source with None cik
+    ACT:     extract_identifiers
+    ASSERT:  returns EquityIdentifiers with None cik
+    """
+    equity = RawEquity(
+        name="INCOMPLETE CORP",
+        symbol="INC",
+        isin=None,
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("100"),
+        market_cap=Decimal("1000000"),
+    )
+
+    identifiers = extract_identifiers([equity])
+
     assert identifiers.cik is None

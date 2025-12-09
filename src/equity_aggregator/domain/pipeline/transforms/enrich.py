@@ -340,7 +340,7 @@ def _validate(
         record: Raw record to validate.
         model: Pydantic model class for validating feed data.
         feed_name: Feed name for logging context.
-        identifiers: Representative identifiers for logging context and share_class_figi.
+        identifiers: Representative ids for logging context and share_class_figi.
 
     Returns:
         RawEquity | None: Validated equity with share_class_figi injected, or None
