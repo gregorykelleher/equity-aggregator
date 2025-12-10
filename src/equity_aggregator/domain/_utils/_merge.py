@@ -3,13 +3,24 @@
 
 from collections.abc import Sequence
 from decimal import Decimal
-from enum import Enum, auto
 from functools import partial
 from typing import NamedTuple
 
 from equity_aggregator.schemas.raw import RawEquity
 
-from ._strategies import fuzzy_cluster_mode, median_decimal, mode_first, union_ordered
+from ._merge_config import (
+    FIELD_CONFIG,
+    PRICE_RANGE_FIELDS,
+    FieldSpec,
+    Strategy,
+)
+from ._strategies import (
+    filter_by_deviation,
+    fuzzy_cluster_mode,
+    median_decimal,
+    mode_first,
+    union_ordered,
+)
 
 
 def _extract_field(
@@ -56,90 +67,6 @@ class EquityIdentifiers(NamedTuple):
     cusip: str | None
     cik: str | None
     share_class_figi: str
-
-
-class Strategy(Enum):
-    """
-    Enumeration of available merge strategies for RawEquity fields.
-
-    Attributes:
-        MODE: Most frequent value, ties broken by first occurrence.
-        MEDIAN: Median of numeric values.
-        FUZZY_CLUSTER: Fuzzy clustering with frequency weighting.
-        UNION: Union of all lists, order-preserving and deduplicated.
-    """
-
-    MODE = auto()
-    MEDIAN = auto()
-    FUZZY_CLUSTER = auto()
-    UNION = auto()
-
-
-class FieldSpec(NamedTuple):
-    """
-    Specification for how to merge a particular field.
-
-    Attributes:
-        strategy: The merge strategy to apply.
-        threshold: Similarity threshold for FUZZY_CLUSTER strategy (0-100).
-            Ignored for other strategies.
-    """
-
-    strategy: Strategy
-    threshold: int = 90
-
-
-# Field-to-strategy mapping for all RawEquity fields
-FIELD_CONFIG: dict[str, FieldSpec] = {
-    # Identifier and metadata fields
-    "name": FieldSpec(Strategy.FUZZY_CLUSTER),
-    "symbol": FieldSpec(Strategy.MODE),
-    "isin": FieldSpec(Strategy.MODE),
-    "cusip": FieldSpec(Strategy.MODE),
-    "cik": FieldSpec(Strategy.MODE),
-    "currency": FieldSpec(Strategy.MODE),
-    "analyst_rating": FieldSpec(Strategy.MODE),
-    "industry": FieldSpec(Strategy.FUZZY_CLUSTER),
-    "sector": FieldSpec(Strategy.FUZZY_CLUSTER),
-    "mics": FieldSpec(Strategy.UNION),
-    # Decimal financial metrics (all use MEDIAN strategy)
-    "market_cap": FieldSpec(Strategy.MEDIAN),
-    "dividend_yield": FieldSpec(Strategy.MEDIAN),
-    "market_volume": FieldSpec(Strategy.MEDIAN),
-    "held_insiders": FieldSpec(Strategy.MEDIAN),
-    "held_institutions": FieldSpec(Strategy.MEDIAN),
-    "short_interest": FieldSpec(Strategy.MEDIAN),
-    "share_float": FieldSpec(Strategy.MEDIAN),
-    "shares_outstanding": FieldSpec(Strategy.MEDIAN),
-    "revenue_per_share": FieldSpec(Strategy.MEDIAN),
-    "profit_margin": FieldSpec(Strategy.MEDIAN),
-    "gross_margin": FieldSpec(Strategy.MEDIAN),
-    "operating_margin": FieldSpec(Strategy.MEDIAN),
-    "free_cash_flow": FieldSpec(Strategy.MEDIAN),
-    "operating_cash_flow": FieldSpec(Strategy.MEDIAN),
-    "return_on_equity": FieldSpec(Strategy.MEDIAN),
-    "return_on_assets": FieldSpec(Strategy.MEDIAN),
-    "performance_1_year": FieldSpec(Strategy.MEDIAN),
-    "total_debt": FieldSpec(Strategy.MEDIAN),
-    "revenue": FieldSpec(Strategy.MEDIAN),
-    "ebitda": FieldSpec(Strategy.MEDIAN),
-    "trailing_pe": FieldSpec(Strategy.MEDIAN),
-    "price_to_book": FieldSpec(Strategy.MEDIAN),
-    "trailing_eps": FieldSpec(Strategy.MEDIAN),
-    # Price range fields (merged via _merge_price_range for coherent validation)
-    "last_price": FieldSpec(Strategy.MEDIAN),
-    "fifty_two_week_min": FieldSpec(Strategy.MEDIAN),
-    "fifty_two_week_max": FieldSpec(Strategy.MEDIAN),
-}
-
-# Coherent field groups requiring joint validation
-PRICE_RANGE_FIELDS: frozenset[str] = frozenset(
-    {
-        "last_price",
-        "fifty_two_week_min",
-        "fifty_two_week_max",
-    },
-)
 
 
 def merge(group: Sequence[RawEquity]) -> RawEquity:
@@ -249,6 +176,8 @@ def _apply_strategy(
     Apply a specific merge strategy to a field.
 
     Extracts field values from the group and applies the configured strategy.
+    If fewer than min_sources non-None values exist, returns None to prevent
+    accepting dubious single-source data.
 
     Args:
         group (Sequence[RawEquity]): Sequence of RawEquity objects to merge.
@@ -256,9 +185,15 @@ def _apply_strategy(
         spec (FieldSpec): Strategy specification for this field.
 
     Returns:
-        object: The merged value for this field.
+        object: The merged value for this field, or None if quorum not met.
     """
     values = _extract_field(group, field, filter_none=(spec.strategy != Strategy.UNION))
+
+    if spec.max_deviation is not None and spec.strategy == Strategy.MEDIAN:
+        values = filter_by_deviation(values, spec.max_deviation)
+
+    if len(values) < spec.min_sources:
+        return None
 
     dispatch = {
         Strategy.MODE: mode_first,
@@ -272,6 +207,7 @@ def _apply_strategy(
 
 def _merge_price_range(
     group: Sequence[RawEquity],
+    min_consistent: int = 2,
 ) -> dict[str, Decimal | None]:
     """
     Merge last_price, fifty_two_week_min, and fifty_two_week_max as a coherent unit,
@@ -280,20 +216,24 @@ def _merge_price_range(
     Records missing any of the three fields are excluded from consistency checks.
     A 10% tolerance above fifty_two_week_max accommodates timing drift between feeds.
 
-    Falls back to independent field-wise merge if no consistent complete records exist.
+    Requires a quorum of consistent complete records (default: 2). If quorum not met,
+    returns None for all three fields to avoid incoherent cross-source combinations.
 
     Args:
         group (Sequence[RawEquity]): Sequence of RawEquity objects to merge.
+        min_consistent (int): Minimum number of consistent complete records required.
+            Defaults to 2.
 
     Returns:
         dict[str, Decimal | None]: Dictionary containing merged last_price,
-            fifty_two_week_min, and fifty_two_week_max values.
+            fifty_two_week_min, and fifty_two_week_max values, or all None if
+            quorum not met.
     """
     consistent = tuple(
         filter(_is_price_consistent, filter(_is_price_complete, group)),
     )
 
-    if consistent:
+    if len(consistent) >= min_consistent:
         return {
             "last_price": median_decimal([eq.last_price for eq in consistent]),
             "fifty_two_week_min": median_decimal(
@@ -305,15 +245,9 @@ def _merge_price_range(
         }
 
     return {
-        "last_price": median_decimal(
-            _extract_field(group, "last_price"),
-        ),
-        "fifty_two_week_min": median_decimal(
-            _extract_field(group, "fifty_two_week_min"),
-        ),
-        "fifty_two_week_max": median_decimal(
-            _extract_field(group, "fifty_two_week_max"),
-        ),
+        "last_price": None,
+        "fifty_two_week_min": None,
+        "fifty_two_week_max": None,
     }
 
 

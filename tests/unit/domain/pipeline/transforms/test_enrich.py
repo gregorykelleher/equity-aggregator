@@ -155,7 +155,7 @@ def test_enrich_equity_group_merges_all_sources() -> None:
     """
     ARRANGE: two discovery sources with different data, good enrichment feed
     ACT:     call _enrich_equity_group
-    ASSERT:  returns single merged RawEquity from all sources
+    ASSERT:  returns RawEquity respecting price range quorum
     """
     first_source = RawEquity(
         name="FULL",
@@ -167,6 +167,7 @@ def test_enrich_equity_group_merges_all_sources() -> None:
         currency="USD",
         last_price=Decimal("150"),
         market_cap=None,
+        fifty_two_week_min=Decimal("125"),
     )
 
     second_source = RawEquity(
@@ -178,6 +179,7 @@ def test_enrich_equity_group_merges_all_sources() -> None:
         currency="USD",
         last_price=None,
         market_cap=Decimal("250000000000"),
+        fifty_two_week_min=Decimal("120"),
     )
 
     async def good_fetcher(
@@ -195,14 +197,16 @@ def test_enrich_equity_group_merges_all_sources() -> None:
             "currency": "USD",
             "last_price": Decimal("150"),
             "market_cap": Decimal("250000000000"),
-            "fifty_two_week_min": Decimal("120"),
+            "fifty_two_week_min": Decimal("122"),
         }
 
     mock_feed = EnrichmentFeed(fetch=good_fetcher, model=GoodFeedData)
 
-    merged = asyncio.run(_enrich_equity_group([first_source, second_source], (mock_feed,)))
+    merged = asyncio.run(
+        _enrich_equity_group([first_source, second_source], (mock_feed,)),
+    )
 
-    assert merged.fifty_two_week_min == Decimal("120")
+    assert merged.fifty_two_week_min is None
 
 
 def test_safe_fetch_timeout_returns_none() -> None:

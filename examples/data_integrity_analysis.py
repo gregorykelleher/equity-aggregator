@@ -13,7 +13,8 @@ import sys
 from decimal import Decimal
 from statistics import median, stdev
 
-from equity_aggregator import CanonicalEquity, retrieve_canonical_equities
+from equity_aggregator import CanonicalEquity
+from equity_aggregator.storage import load_canonical_equities
 
 
 def print_separator(title: str) -> None:
@@ -24,12 +25,13 @@ def print_separator(title: str) -> None:
 
 
 def load_equity_dataset() -> list[CanonicalEquity]:
-    """Load canonical equity dataset for analysis."""
+    """Load canonical equity dataset for analysis from local database."""
     print_separator("📊 LOADING EQUITY DATASET FOR INTEGRITY ANALYSIS")
 
     try:
-        print("Loading canonical equity dataset...")
-        equities = retrieve_canonical_equities()
+        print("Loading canonical equity dataset from local database...")
+        print("Database location: ~/Library/Application Support/equity-aggregator/data_store.db")
+        equities = load_canonical_equities(refresh_fn=None)
 
         print(f"✅ Successfully loaded {len(equities):,} equities")
 
@@ -826,7 +828,10 @@ def main() -> None:
     if not equities:
         print("\n❌ Cannot continue analysis without equity data.")
         print(
-            "💡 Tip: Make sure you have equity data available or run 'equity-aggregator download' first.",
+            "💡 Tip: Make sure you have a local database at ~/Library/Application Support/equity-aggregator/data_store.db",
+        )
+        print(
+            "    Run 'equity-aggregator download' to populate the local database.",
         )
         sys.exit(1)
 

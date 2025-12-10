@@ -10,6 +10,34 @@ from statistics import median
 from rapidfuzz import fuzz
 
 
+def filter_by_deviation(
+    values: Sequence[Decimal],
+    max_deviation: Decimal = Decimal("0.5"),
+    min_samples: int = 3,
+) -> list[Decimal]:
+    """
+    Filter values that deviate more than a threshold percentage from the median.
+
+    Args:
+        values: Sequence of Decimal values.
+        max_deviation: Maximum allowed deviation as decimal (0.5 = 50%).
+        min_samples: Minimum sample size to apply filtering. Below this,
+            returns values unfiltered.
+
+    Returns:
+        List of values within threshold, or all values if filtering not applicable.
+    """
+    if len(values) < min_samples:
+        return list(values)
+
+    med = median(values)
+
+    if med == 0:
+        return list(values)
+
+    return [v for v in values if abs(v - med) / abs(med) <= max_deviation]
+
+
 def mode_first[T](values: Sequence[T]) -> T | None:
     """
     Selects the most frequently occurring value from a sequence.
