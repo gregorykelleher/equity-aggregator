@@ -210,24 +210,36 @@ def _merge_price_range(
     min_consistent: int = 2,
 ) -> dict[str, Decimal | None]:
     """
-    Merge last_price, fifty_two_week_min, and fifty_two_week_max as a coherent unit,
-    filtering out records where the price violates the 52-week range constraint.
+    Merge last_price, fifty_two_week_min, and fifty_two_week_max with tiered quality
+    checks.
 
-    Records missing any of the three fields are excluded from consistency checks.
-    A 10% tolerance above fifty_two_week_max accommodates timing drift between feeds.
+    Attempts to merge price fields as a coherent triplet when possible, falling back to
+    independent field merging when complete records are unavailable. This preserves data
+    quality through consistency checks whilst avoiding unnecessary data loss.
 
-    Requires a quorum of consistent complete records (default: 2). If quorum not met,
-    returns None for all three fields to avoid incoherent cross-source combinations.
+    Primary strategy (preferred):
+      - Requires records with all three price fields populated (complete records).
+      - Filters out records where last_price violates the 52-week range constraint.
+      - A 10% tolerance above fifty_two_week_max accommodates timing drift between
+        feeds.
+      - If quorum of consistent complete records is met (default: 2), returns median
+        values.
+
+    Fallback strategy (when quorum not met):
+      - Merges each price field independently using per-field configuration from
+        FIELD_CONFIG.
+      - Each field still requires its own min_sources threshold (typically 2).
+      - Allows partial price data when complete triplets are unavailable across sources.
 
     Args:
         group (Sequence[RawEquity]): Sequence of RawEquity objects to merge.
-        min_consistent (int): Minimum number of consistent complete records required.
-            Defaults to 2.
+        min_consistent (int): Minimum number of consistent complete records required
+            for primary strategy. Defaults to 2.
 
     Returns:
         dict[str, Decimal | None]: Dictionary containing merged last_price,
-            fifty_two_week_min, and fifty_two_week_max values, or all None if
-            quorum not met.
+            fifty_two_week_min, and fifty_two_week_max values. Fields may be None
+            if neither strategy can satisfy quorum requirements.
     """
     consistent = tuple(
         filter(_is_price_consistent, filter(_is_price_complete, group)),
@@ -244,10 +256,10 @@ def _merge_price_range(
             ),
         }
 
+    # Fallback: merge fields independently
     return {
-        "last_price": None,
-        "fifty_two_week_min": None,
-        "fifty_two_week_max": None,
+        field: _apply_strategy(group, field, FIELD_CONFIG[field])
+        for field in PRICE_RANGE_FIELDS
     }
 
 

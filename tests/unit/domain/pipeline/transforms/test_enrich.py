@@ -155,7 +155,7 @@ def test_enrich_equity_group_merges_all_sources() -> None:
     """
     ARRANGE: two discovery sources with different data, good enrichment feed
     ACT:     call _enrich_equity_group
-    ASSERT:  returns RawEquity respecting price range quorum
+    ASSERT:  returns RawEquity with fallback merge of partial price data
     """
     first_source = RawEquity(
         name="FULL",
@@ -206,7 +206,7 @@ def test_enrich_equity_group_merges_all_sources() -> None:
         _enrich_equity_group([first_source, second_source], (mock_feed,)),
     )
 
-    assert merged.fifty_two_week_min is None
+    assert merged.fifty_two_week_min == Decimal("122")
 
 
 def test_safe_fetch_timeout_returns_none() -> None:

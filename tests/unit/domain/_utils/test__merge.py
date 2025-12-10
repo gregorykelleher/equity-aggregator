@@ -186,7 +186,7 @@ def test_merge_even_number_of_prices_median_midpoint() -> None:
     """
     ARRANGE: two duplicates, last_price 1 and 9 without price range context
     ACT:     merge
-    ASSERT:  insufficient corroboration returns None
+    ASSERT:  falls back to independent field merge, returns median
     """
     raw_equities = [
         RawEquity(
@@ -205,14 +205,14 @@ def test_merge_even_number_of_prices_median_midpoint() -> None:
 
     actual = merge(raw_equities)
 
-    assert actual.last_price is None
+    assert actual.last_price == Decimal("5")
 
 
 def test_merge_large_duplicate_group_outlier_ignored() -> None:
     """
     ARRANGE: prices [0, 4.32, 4.51, 443, 0.11] without range corroboration
     ACT:     merge
-    ASSERT:  price range quorum failure yields None
+    ASSERT:  falls back to independent merge, outliers filtered, returns median
     """
     last_prices = ["0", "4.32", "4.51", "443", "0.11"]
 
@@ -228,14 +228,14 @@ def test_merge_large_duplicate_group_outlier_ignored() -> None:
 
     actual = merge(raw_equities)
 
-    assert actual.last_price is None
+    assert actual.last_price == Decimal("4.415")
 
 
 def test_merge_last_price_all_identical_values() -> None:
     """
     ARRANGE: three duplicates, identical price values without 52-week context
     ACT:     merge
-    ASSERT:  returns None when corroboration missing
+    ASSERT:  falls back to independent merge, returns median
     """
     raw_equities = [
         RawEquity(
@@ -260,7 +260,7 @@ def test_merge_last_price_all_identical_values() -> None:
 
     actual = merge(raw_equities)
 
-    assert actual.last_price is None
+    assert actual.last_price == Decimal("7.77")
 
 
 def test_identifiers_accept_valid() -> None:
@@ -786,7 +786,7 @@ def test_merge_fifty_two_week_min_even_number_median() -> None:
     """
     ARRANGE: two duplicates with only 52-week lows available
     ACT:     merge
-    ASSERT:  quorum failure returns None
+    ASSERT:  falls back to independent merge, returns median
     """
     equities = [
         RawEquity(
@@ -805,14 +805,14 @@ def test_merge_fifty_two_week_min_even_number_median() -> None:
 
     merged = merge(equities)
 
-    assert merged.fifty_two_week_min is None
+    assert merged.fifty_two_week_min == Decimal("7")
 
 
 def test_merge_fifty_two_week_max_even_number_median() -> None:
     """
     ARRANGE: two duplicates with only 52-week highs available
     ACT:     merge
-    ASSERT:  quorum failure returns None
+    ASSERT:  falls back to independent merge, returns median
     """
     equities = [
         RawEquity(
@@ -831,7 +831,7 @@ def test_merge_fifty_two_week_max_even_number_median() -> None:
 
     merged = merge(equities)
 
-    assert merged.fifty_two_week_max is None
+    assert merged.fifty_two_week_max == Decimal("20")
 
 
 def test_merge_dividend_yield_even_number_median() -> None:
