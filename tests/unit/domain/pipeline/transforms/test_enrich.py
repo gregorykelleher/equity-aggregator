@@ -1,6 +1,7 @@
 # transforms/test_enrich.py
 
 import asyncio
+import os
 from collections.abc import AsyncIterable
 from decimal import Decimal
 
@@ -300,6 +301,8 @@ def test_enrich_empty_stream_yields_nothing() -> None:
     ACT:     run enrich()
     ASSERT:  yields empty list
     """
+
+    os.environ.setdefault("INTRINIO_API_KEY", "DUMMY_KEY")
 
     async def empty_src() -> AsyncIterable[list[RawEquity]]:
         if False:
@@ -713,6 +716,8 @@ def test_enrich_passes_through_groups() -> None:
     ACT:     run enrich() over that stream
     ASSERT:  yields merged equities
     """
+    os.environ.setdefault("INTRINIO_API_KEY", "DUMMY_KEY")
+
     first_equity = RawEquity(
         name="ONE",
         symbol="ONE",
