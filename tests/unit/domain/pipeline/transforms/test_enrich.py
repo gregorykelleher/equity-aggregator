@@ -132,6 +132,7 @@ def test_enrich_from_feed_returns_none_on_validation_failure() -> None:
         name: str,
         isin: str | None,
         cusip: str | None,
+        **kwargs: object,
     ) -> dict[str, object]:
         return {"invalid": "data", "more": "fields"}
 
@@ -187,6 +188,7 @@ def test_enrich_equity_group_merges_all_sources() -> None:
         name: str,
         isin: str | None,
         cusip: str | None,
+        **kwargs: object,
     ) -> dict[str, object]:
         return {
             "name": name,
@@ -273,6 +275,7 @@ def test_safe_fetch_success_returns_dict() -> None:
         name: str,
         isin: str | None,
         cusip: str | None,
+        **kwargs: object,
     ) -> dict[str, object]:
         _ = (symbol, name, isin, cusip)
         return {"foo": "bar"}
@@ -351,6 +354,7 @@ def test_enrich_from_feed_completes_success_path() -> None:
         name: str,
         isin: str | None,
         cusip: str | None,
+        **kwargs: object,
     ) -> dict[str, object]:
         _ = (symbol, name, isin, cusip)
         return {
@@ -395,6 +399,7 @@ def test_safe_fetch_lookup_error_returns_none() -> None:
         name: str,
         isin: str | None,
         cusip: str | None,
+        **kwargs: object,
     ) -> dict[str, object]:
         raise LookupError("no data")
 
@@ -486,6 +491,7 @@ def test_enrich_from_feed_returns_none_on_empty_dict() -> None:
         name: str,
         isin: str | None,
         cusip: str | None,
+        **kwargs: object,
     ) -> dict[str, object]:
         return {}
 

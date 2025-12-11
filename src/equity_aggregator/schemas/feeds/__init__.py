@@ -1,5 +1,6 @@
 # feeds/__init__.py
 
+from .intrinio_feed_data import IntrinioFeedData
 from .lseg_feed_data import LsegFeedData
 from .sec_feed_data import SecFeedData
 from .xetra_feed_data import XetraFeedData
@@ -11,5 +12,6 @@ __all__ = [
     "SecFeedData",
     "XetraFeedData",
     # enrichment feeds
+    "IntrinioFeedData",
     "YFinanceFeedData",
 ]

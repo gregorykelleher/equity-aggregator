@@ -8,7 +8,7 @@
 
 ## Description
 
-Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (LSEG, SEC, XETRA), before enriching it with third-party market vendor data to produce a unified canonical dataset of unique equities.
+Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (LSEG, SEC, XETRA), before enriching it with third-party market vendor data from enrichment feeds (Yahoo Finance, Intrinio) to produce a unified canonical dataset of unique equities.
 
 Altogether, this tool makes it possible to retrieve up-to-date information on over 10,000+ equities from countries worldwide:
 
@@ -428,7 +428,7 @@ equity-aggregator/
 │   │   └── transforms/              # Transformation stages
 │   ├── adapters/data_sources/       # External data integrations
 │   │   ├── discovery_feeds/         # Primary sources (LSEG, SEC, XETRA)
-│   │   └── enrichment_feeds/        # Yahoo Finance integration
+│   │   └── enrichment_feeds/        # Enrichment feed integrations (Yahoo Finance, Intrinio)
 │   ├── schemas/                     # Data validation and types
 │   └── storage/                     # Database operations
 ├── data/                            # Database and cache
@@ -462,11 +462,12 @@ The codebase adheres to clean architecture principles with distinct layers:
 > [!IMPORTANT]
 > **Important Legal Notice**
 >
-> This software aggregates data from various third-party sources including Yahoo Finance, LSEG trading platform, SEC, and XETRA. Equity Aggregator is **not** affiliated, endorsed, or vetted by any of these organisations.
+> This software aggregates data from various third-party sources including Yahoo Finance, Intrinio, LSEG trading platform, SEC, and XETRA. Equity Aggregator is **not** affiliated, endorsed, or vetted by any of these organisations.
 >
 > **Data Sources and Terms:**
 >
 > - **Yahoo Finance**: This tool uses Yahoo's publicly available APIs. Refer to [Yahoo!'s terms of use](https://policies.yahoo.com/us/en/yahoo/terms/product-atos/apiforydn/index.htm) for details on your rights to use the actual data downloaded. Yahoo! finance API is intended for personal use only.
+> - **Intrinio**: This tool requires a valid Intrinio subscription and API key. Refer to [Intrinio's terms of use](https://intrinio.com/terms-of-use) for permitted usage, rate limits, and redistribution policies.
 > - **Market Data**: All market data is obtained from publicly available sources and is intended for research and educational purposes only.
 >
 > **Usage Responsibility:**

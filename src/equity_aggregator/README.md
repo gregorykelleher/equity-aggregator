@@ -2,7 +2,7 @@
 
 ## Overview
 
-The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple discovery sources (LSEG, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance.
+The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple discovery sources (LSEG, SEC, XETRA) and enriches it with supplementary data from Yahoo Finance and Intrinio.
 
 ## Architecture & Design
 
@@ -81,7 +81,7 @@ Groups equities by Share Class FIGI:
 Fetches enrichment data and performs comprehensive single merge:
 
 - Extracts representative identifiers from discovery sources using merge algorithms
-- Queries enrichment feeds (Yahoo Finance) with these identifiers
+- Queries enrichment feeds (Yahoo Finance, Intrinio) with these identifiers
 - Performs single merge of all sources (discovery + enrichment) for optimal data quality
 - Uses same merge logic for identifiers and final merge (mode for IDs, fuzzy clustering for names, frequency for symbols)
 - Applies controlled concurrency to respect API limits
@@ -110,7 +110,7 @@ The pipeline uses asynchronous operations to process thousands of equity records
 
 **Controlled Concurrency**
 
-- External API calls (OpenFIGI, Yahoo Finance) use semaphores to limit concurrent requests and respect rate limits
+- External API calls (OpenFIGI, Yahoo Finance, Intrinio) use semaphores to limit concurrent requests and respect rate limits
 
 **Non-blocking Operations**
 
@@ -149,7 +149,8 @@ schemas/
     ├── lseg_feed_data.py
     ├── sec_feed_data.py
     ├── xetra_feed_data.py
-    └── yfinance_feed_data.py
+    ├── yfinance_feed_data.py
+    └── intrinio_feed_data.py
 ```
 
 ### Critical Role of Schemas
@@ -208,6 +209,7 @@ class LsegFeedData(BaseModel):
 ### Enrichment Feeds (Supplementary Sources)
 
 - **Yahoo Finance**: Market data and financial metrics
+- **Intrinio**: Market data and financial metrics
 
 **Characteristics**
 

@@ -6,14 +6,14 @@ from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import NamedTuple
 
-from equity_aggregator.adapters import open_yfinance_feed
+from equity_aggregator.adapters import open_intrinio_feed, open_yfinance_feed
 from equity_aggregator.domain._utils import (
     EquityIdentifiers,
     extract_identifiers,
     get_usd_converter,
     merge,
 )
-from equity_aggregator.schemas import YFinanceFeedData
+from equity_aggregator.schemas import IntrinioFeedData, YFinanceFeedData
 from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,7 @@ class EnrichmentFeed(NamedTuple):
 # Specification for all enrichment feeds
 enrichment_feed_specs: tuple[FeedSpec, ...] = (
     FeedSpec(open_yfinance_feed, YFinanceFeedData, 20),
+    FeedSpec(open_intrinio_feed, IntrinioFeedData, 20),
 )
 
 
@@ -295,6 +296,7 @@ async def _safe_fetch(
             name=identifiers.name,
             isin=identifiers.isin,
             cusip=identifiers.cusip,
+            share_class_figi=identifiers.share_class_figi,
         )
 
     except LookupError as e:
@@ -332,9 +334,9 @@ def _validate(
     Validate record against model schema and convert to RawEquity.
 
     Validates the fetched record using the feed's Pydantic model, then
-    converts the validated data to a RawEquity instance. Injects the
-    share_class_figi from identifiers since enrichment feeds don't provide
-    it. Returns None on validation failure.
+    converts the validated data to a RawEquity instance. Only injects
+    share_class_figi from discovery sources if the enrichment feed didn't
+    provide one. Returns None on validation failure.
 
     Args:
         record: Raw record to validate.
@@ -343,13 +345,16 @@ def _validate(
         identifiers: Representative ids for logging context and share_class_figi.
 
     Returns:
-        RawEquity | None: Validated equity with share_class_figi injected, or None
-            on failure.
+        RawEquity | None: Validated equity, with share_class_figi from discovery
+            sources if enrichment feed didn't provide one, or None on failure.
     """
     try:
         coerced = model.model_validate(record).model_dump()
-        # Inject share_class_figi from discovery sources for merge compatibility
-        coerced["share_class_figi"] = identifiers.share_class_figi
+
+        # Only inject share_class_figi if enrichment feed didn't provide one
+        if "share_class_figi" not in coerced or coerced["share_class_figi"] is None:
+            coerced["share_class_figi"] = identifiers.share_class_figi
+
         return RawEquity.model_validate(coerced)
 
     except Exception as e:
@@ -426,7 +431,8 @@ def _log_outcome(
     msg = (
         f"{prefix:<24} {status}: {feed_name} feed for symbol={symbol}, "
         f"name={identifiers.name} "
-        f"(isin={identifiers.isin or '<none>'}, "
+        f"(share_class_figi={identifiers.share_class_figi or '<none>'}, "
+        f"isin={identifiers.isin or '<none>'}, "
         f"cusip={identifiers.cusip or '<none>'}, "
         f"cik={identifiers.cik or '<none>'})"
     )

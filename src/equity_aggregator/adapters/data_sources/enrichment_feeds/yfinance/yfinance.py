@@ -75,6 +75,7 @@ class YFinanceFeed:
         name: str,
         isin: str | None = None,
         cusip: str | None = None,
+        **kwargs: object,
     ) -> dict:
         """
         Fetch enriched equity data using symbol, name, ISIN, or CUSIP.
@@ -90,6 +91,7 @@ class YFinanceFeed:
             name: Full name of the equity.
             isin: ISIN identifier, if available.
             cusip: CUSIP identifier, if available.
+            **kwargs: Additional identifiers (ignored by Yahoo Finance).
 
         Returns:
             Enriched equity data.
