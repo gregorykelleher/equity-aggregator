@@ -239,6 +239,31 @@ def test_percentage_conversion_handles_negative() -> None:
     assert actual.performance_1_year == Decimal("-0.125")
 
 
+def test_percentage_conversion_handles_invalid_input() -> None:
+    """
+    ARRANGE: raw payload with change_percent_365_days raising ValueError on str()
+    ACT:     construct IntrinioFeedData
+    ASSERT:  performance_1_year falls back to None
+    """
+
+    class BadPercent:
+        def __str__(self) -> str:
+            raise ValueError("unparseable percent")
+
+    raw = {
+        "security": {
+            "ticker": "SAP",
+            "name": "SAP SE",
+        },
+        "last": 135.0,
+        "change_percent_365_days": BadPercent(),
+    }
+
+    actual = IntrinioFeedData(**raw)
+
+    assert actual.performance_1_year is None
+
+
 def test_accepts_various_numeric_types() -> None:
     """
     ARRANGE: last_price with various numeric types

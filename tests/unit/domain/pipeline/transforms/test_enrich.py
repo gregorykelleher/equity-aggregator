@@ -449,6 +449,101 @@ def test_validate_returns_raw_equity() -> None:
     assert isinstance(actual, RawEquity)
 
 
+def test_validate_injects_figi_when_missing() -> None:
+    """
+    ARRANGE: record without share_class_figi
+    ACT:     call _validate
+    ASSERT:  share_class_figi is injected from identifiers
+    """
+
+    identifiers = EquityIdentifiers(
+        symbol="VAL",
+        name="VAL",
+        isin="ISIN00000004",
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    raw_record = {
+        "name": "VAL",
+        "symbol": "VAL",
+        "isin": "ISIN00000004",
+        "mics": ["XLON"],
+        "currency": "USD",
+        "last_price": Decimal("3"),
+        "market_cap": Decimal("30"),
+    }
+
+    actual = _validate(raw_record, GoodFeedData, "GoodFeed", identifiers)
+
+    assert getattr(actual, "share_class_figi", None) == "BBG000BLNNH6"
+
+
+def test_validate_injects_figi_when_none() -> None:
+    """
+    ARRANGE: record with share_class_figi set to None
+    ACT:     call _validate
+    ASSERT:  share_class_figi is injected from identifiers
+    """
+
+    identifiers = EquityIdentifiers(
+        symbol="VAL",
+        name="VAL",
+        isin="ISIN00000004",
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    raw_record = {
+        "name": "VAL",
+        "symbol": "VAL",
+        "isin": "ISIN00000004",
+        "share_class_figi": None,
+        "mics": ["XLON"],
+        "currency": "USD",
+        "last_price": Decimal("3"),
+        "market_cap": Decimal("30"),
+    }
+
+    actual = _validate(raw_record, GoodFeedData, "GoodFeed", identifiers)
+
+    assert getattr(actual, "share_class_figi", None) == "BBG000BLNNH6"
+
+
+def test_validate_preserves_figi_when_present() -> None:
+    """
+    ARRANGE: record with share_class_figi already populated
+    ACT:     call _validate
+    ASSERT:  share_class_figi remains unchanged from record
+    """
+
+    identifiers = EquityIdentifiers(
+        symbol="VAL",
+        name="VAL",
+        isin="ISIN00000004",
+        cusip=None,
+        cik=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    raw_record = {
+        "name": "VAL",
+        "symbol": "VAL",
+        "isin": "ISIN00000004",
+        "share_class_figi": "BBG000BLNNH7",
+        "mics": ["XLON"],
+        "currency": "USD",
+        "last_price": Decimal("3"),
+        "market_cap": Decimal("30"),
+    }
+
+    actual = _validate(raw_record, GoodFeedData, "GoodFeed", identifiers)
+
+    assert getattr(actual, "share_class_figi", None) == "BBG000BLNNH7"
+
+
 def test_validate_returns_none_on_error() -> None:
     """
     ARRANGE: record and BadFeedData model
