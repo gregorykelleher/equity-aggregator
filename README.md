@@ -437,6 +437,20 @@ equity-aggregator/
 └── pyproject.toml                   # Project metadata and dependencies
 ```
 
+### Project Dependencies (Production)
+
+The dependency listing is intentionally minimal, relying only on the following core packages:
+
+| Dependency | Use case |
+|------------|----------|
+| pydantic | Type-safe models and validation for data |
+| rapidfuzz | Fast fuzzy matching to reconcile data sourced by multiple data feeds |
+| httpx | HTTP client with HTTP/2 support for data feed retrieval |
+| openfigipy | OpenFIGI integration that anchors equities to a definitive identifier |
+| platformdirs | Consistent storage paths for caches, logs, and data stores on every OS |
+
+Keeping such a small set of dependencies reduces upgrade risk and maintenance costs, whilst still providing all the functionality required for comprehensive equity data aggregation and processing.
+
 ### Data Transformation Pipeline
 
 The aggregation pipeline consists of six sequential transformation stages, each with a specific responsibility:
@@ -456,6 +470,36 @@ The codebase adheres to clean architecture principles with distinct layers:
 - **Adapter Layer** (`adapters/`): Implements interfaces for external systems including data feeds, APIs, and third-party services
 - **Infrastructure Layer** (`storage/`, `cli/`): Handles system concerns, regarding database operations and command-line tooling
 - **Schema Layer** (`schemas/`): Defines data contracts and validation rules using Pydantic models for type safety
+
+## Limitations
+
+### Data Depth and Scope
+
+- Equity Aggregator is instrinsically bound by the quality and coverage of its upstream discovery and enrichment feeds. Data retrieved and processed by Equity Aggregator reflects the quality and scope inherited from these data sources.
+
+- Normalisation, outlier detection, coherency validation checks and other statistical techniques catch most upstream issues, yet occasional gaps or data aberrations can persist and should be handled defensively by downstream consumers.
+
+### Data Update Cadence
+
+- Equity Aggregator publishes nightly batch snapshots and does not aim to serve as a real-time market data service. The primary objective of Equity Aggregator is to provide equity identification metadata with limited financial metrics for fundamental analysis.
+
+- Downstream services should therefore treat Equity Aggregator as a discovery catalogue, using its authoritative identifiers to discover equities and then poll specialised market data providers for time-sensitive pricing metrics.
+
+- Delivering real-time quotes directly through Equity Aggregator would be infeasible because the upstream data sources enforce strict rate limits and the pipeline is network-bound; attempting live polling would exhaust quotas quickly and degrade reliability for all consumers.
+
+### Single Identifier Authority
+
+- Share Class FIGI remains the authoritative identifier because OpenFIGI supplies globally unique, deduplicated mappings across discovery feeds. Other identifiers such as ISIN, CUSIP, or CIK depend on regional registries, are frequently absent for specific markets, and are prone to formatting discrepancies, so they should be treated as supplementary identifiers only.
+
+### Performance
+
+- The end-to-end aggregation pipeline is network-bound and respects vendor rate limits, meaning a full `seed` run can take close to an hour in steady-state conditions. This is mitigated by comprehensive caching used throughout the application, as well as the automated nightly CI pipeline that publishes the latest canonical equity dataset, made available via `download`.
+
+### External Service Reliance
+
+- As the entirety of Equity Aggregator is built around the use of third-party APIs for discovery, enrichment, as well as other services, its robustness is fundamentally fragile. Upstream outages, schema shifts, API churn, rate-limit policy changes can easily degrade the pipeline without warning, with remediation often relying on vendor response times outside of the project's remit.
+
+- As this is an inherent architectural constraint, the only viable response centres on providing robust mitigation controls. Monitoring, retry strategies and graceful degradation paths lessen the impact; they cannot eliminate the dependency risk.
 
 ## Disclaimer
 
