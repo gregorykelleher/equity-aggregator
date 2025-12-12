@@ -1,4 +1,4 @@
-# sec/sec.py
+# stock_analysis/stock_analysis.py
 
 import logging
 
@@ -15,48 +15,52 @@ from equity_aggregator.storage import load_cache, save_cache
 
 logger = logging.getLogger(__name__)
 
-_SEC_SEARCH_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
+_STOCK_ANALYSIS_SEARCH_URL = "https://stockanalysis.com/api/screener/s/f"
 
-_HEADERS = {
-    "User-Agent": "EquityAggregator gregory@gregorykelleher.com",
-}
-
-EXCHANGE_TO_MIC = {
-    "Nasdaq": "XNAS",
-    "NYSE": "XNYS",
-    "CBOE": "XCBO",
-    "OTC": "XOTC",
+_PARAMS = {
+    # Primary metric to use for screening/sorting
+    "m": "marketCap",
+    # Sort order (desc = descending, asc = ascending)
+    "s": "desc",
+    # Comma-separated list of columns/fields to return in the response
+    "c": (
+        "s,n,cusip,isin,marketCap,price,volume,peRatio,sector,"
+        "industry,revenue,fcf,roe,roa,ebitda"
+    ),
+    # Instrument type/universe to screen (allstocks = all available stocks)
+    "i": "allstocks",
 }
 
 
 async def fetch_equity_records(
     client: AsyncClient | None = None,
     *,
-    cache_key: str = "sec_records",
+    cache_key: str = "stock_analysis_records",
 ) -> RecordStream:
     """
-    Yield each SEC equity record exactly once, using cache if available.
+    Yield each Stock Analysis equity record exactly once, using cache if available.
 
     If a cache is present, loads and yields records from cache. Otherwise, streams
-    all MICs concurrently, yields records as they arrive, and caches the results.
+    all records in a single request, yields records as they arrive, and caches the
+    results.
 
     Args:
         client (AsyncClient | None): Optional HTTP client to use for requests.
         cache_key (str): The key under which to cache the records.
 
     Yields:
-        EquityRecord: Parsed SEC equity record.
+        EquityRecord: Parsed Stock Analysis equity record.
     """
     cached = load_cache(cache_key)
 
     if cached:
-        logger.info("Loaded %d SEC records from cache.", len(cached))
+        logger.info("Loaded %d Stock Analysis records from cache.", len(cached))
         for record in cached:
             yield record
         return
 
-    # use provided client or create a bespoke sec client
-    client = client or make_client(headers=_HEADERS)
+    # use provided client or create a bespoke stock analysis client
+    client = client or make_client()
 
     async with client:
         async for record in _stream_and_cache(client, cache_key=cache_key):
@@ -69,10 +73,11 @@ async def _stream_and_cache(
     cache_key: str,
 ) -> RecordStream:
     """
-    Stream SEC equity records, deduplicate by CIK, cache them, and yield each record.
+    Stream Stock Analysis equity records, deduplicate by ISIN, cache them, and yield
+    each record.
 
     Args:
-        client (AsyncClient): HTTP client for SEC requests.
+        client (AsyncClient): HTTP client for Stock Analysis requests.
         cache_key (str): Key under which to store cached records.
 
     Returns:
@@ -80,73 +85,36 @@ async def _stream_and_cache(
     """
     buffer: list[EquityRecord] = []
 
-    async for record in _deduplicate_records(lambda record: record["cik"])(
-        _stream_sec(client),
+    async for record in _deduplicate_records(lambda record: record.get("isin"))(
+        _stream_stock_analysis(client),
     ):
         buffer.append(record)
         yield record
 
     save_cache(cache_key, buffer)
-    logger.info("Saved %d SEC records to cache.", len(buffer))
+    logger.info("Saved %d Stock Analysis records to cache.", len(buffer))
 
 
-async def _stream_sec(client: AsyncClient) -> RecordStream:
+async def _stream_stock_analysis(client: AsyncClient) -> RecordStream:
     """
-    Fetch and stream SEC equity records from the discovery JSON endpoint.
+    Fetch and stream Stock Analysis equity records from the screener endpoint.
 
     Args:
         client (AsyncClient): HTTP client for making requests.
 
     Yields:
-        EquityRecord: Each valid, normalised SEC equity record.
+        EquityRecord: Each valid Stock Analysis equity record.
     """
-    response = await client.get(_SEC_SEARCH_URL)
+    response = await client.get(_STOCK_ANALYSIS_SEARCH_URL, params=_PARAMS)
     response.raise_for_status()
 
     payload = response.json()
-    rows = payload.get("data", [])
+    data_wrapper = payload.get("data", {})
+    records = data_wrapper.get("data", [])
 
-    for row in rows:
-        record = _parse_row(row)
+    for record in records:
         if record:
             yield record
-
-
-def _parse_row(
-    row: list[object] | None,
-) -> EquityRecord | None:
-    """
-    Parse a SEC data row into an EquityRecord if valid.
-
-    Args:
-        row (list[object] | None): List containing CIK, company name, ticker,
-            and exchange. Example: [cik, name, symbol, exchange]. Must have at
-            least 4 elements.
-
-    Returns:
-        EquityRecord | None: Dictionary with parsed record fields if valid,
-            otherwise None. Includes keys: "cik", "name", "symbol", "exchange",
-            and "mics" (list of MICs).
-    """
-    number_of_fields = 4
-
-    if not row or len(row) < number_of_fields:
-        return None
-
-    cik, name, symbol, exchange = row[:4]
-
-    if not cik or not name or not symbol or not exchange:
-        return None
-
-    mic = EXCHANGE_TO_MIC.get(exchange)
-
-    return {
-        "cik": cik,
-        "name": name,
-        "symbol": symbol,
-        "exchange": exchange,
-        "mics": [mic] if mic else [],
-    }
 
 
 def _deduplicate_records(extract_key: RecordUniqueKeyExtractor) -> UniqueRecordStream:

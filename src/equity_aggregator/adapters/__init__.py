@@ -3,6 +3,7 @@
 from .data_sources.discovery_feeds import (
     fetch_equity_records_lseg,
     fetch_equity_records_sec,
+    fetch_equity_records_stock_analysis,
     fetch_equity_records_xetra,
 )
 from .data_sources.enrichment_feeds import (
@@ -17,8 +18,9 @@ from .data_sources.reference_lookup import (
 __all__ = [
     # discovery feeds
     "fetch_equity_records_lseg",
-    "fetch_equity_records_xetra",
     "fetch_equity_records_sec",
+    "fetch_equity_records_stock_analysis",
+    "fetch_equity_records_xetra",
     # enrichment feeds
     "open_intrinio_feed",
     "open_yfinance_feed",

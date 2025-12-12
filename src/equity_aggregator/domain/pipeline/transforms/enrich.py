@@ -6,20 +6,26 @@ from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import NamedTuple
 
-from equity_aggregator.adapters import open_intrinio_feed, open_yfinance_feed
+from equity_aggregator.adapters import (
+    open_intrinio_feed,
+    open_yfinance_feed,
+)
 from equity_aggregator.domain._utils import (
     EquityIdentifiers,
     extract_identifiers,
     get_usd_converter,
     merge,
 )
-from equity_aggregator.schemas import IntrinioFeedData, YFinanceFeedData
+from equity_aggregator.schemas import (
+    IntrinioFeedData,
+    YFinanceFeedData,
+)
 from equity_aggregator.schemas.raw import RawEquity
 
 logger = logging.getLogger(__name__)
 
 # Type alias for an async function that fetches enrichment data for an equity
-type FetchFunc = Callable[..., Awaitable[dict[str, object]]]
+type FetchFunc = Callable[..., Awaitable[dict[str, object] | None]]
 
 
 class FeedSpec(NamedTuple):
@@ -256,10 +262,11 @@ async def _enrich_from_feed(
     feed_name = _feed_name(feed.model)
 
     fetched = await _safe_fetch(identifiers, feed.fetch, feed_name)
-    if not fetched:
-        return None
 
-    validated = _validate(fetched, feed.model, feed_name, identifiers)
+    validated = (
+        _validate(fetched, feed.model, feed_name, identifiers) if fetched else None
+    )
+
     if validated is None:
         return None
 
@@ -277,10 +284,6 @@ async def _safe_fetch(
     Handles errors, returning None on failure. Logs all errors with
     appropriate context. Timeout is handled by the _rate_limited wrapper.
 
-    Note:
-        The CIK (Central Index Key) is intentionally omitted as an identifier
-        for enrichment feeds, as it lacks broad support.
-
     Args:
         identifiers: Representative identifiers for the equity.
         fetch: Async fetch function for the enrichment feed (already
@@ -297,6 +300,7 @@ async def _safe_fetch(
             isin=identifiers.isin,
             cusip=identifiers.cusip,
             share_class_figi=identifiers.share_class_figi,
+            cik=identifiers.cik,
         )
 
     except LookupError as e:

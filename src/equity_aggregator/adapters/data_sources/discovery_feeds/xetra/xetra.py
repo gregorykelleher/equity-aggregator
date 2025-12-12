@@ -1,4 +1,4 @@
-# discovery_feeds/xetra.py
+# xetra/xetra.py
 
 import asyncio
 import logging
