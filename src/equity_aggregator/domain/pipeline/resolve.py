@@ -9,12 +9,14 @@ from equity_aggregator.adapters import (
     fetch_equity_records_lseg,
     fetch_equity_records_sec,
     fetch_equity_records_stock_analysis,
+    fetch_equity_records_tradingview,
     fetch_equity_records_xetra,
 )
 from equity_aggregator.schemas import (
     LsegFeedData,
     SecFeedData,
     StockAnalysisFeedData,
+    TradingViewFeedData,
     XetraFeedData,
 )
 
@@ -35,6 +37,7 @@ _DISCOVERY_FEEDS: tuple[FeedPair] = [
     (fetch_equity_records_xetra, XetraFeedData),
     (fetch_equity_records_lseg, LsegFeedData),
     (fetch_equity_records_stock_analysis, StockAnalysisFeedData),
+    (fetch_equity_records_tradingview, TradingViewFeedData),
     (fetch_equity_records_sec, SecFeedData),
 ]
 

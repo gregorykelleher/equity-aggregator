@@ -33,7 +33,8 @@ def make_search_response(symbols_and_names: list[tuple[str, str]]) -> httpx.Resp
 
 
 def make_quote_summary_response(
-    quote_type: str = "EQUITY", long_name: str | None = "Test Corp",
+    quote_type: str = "EQUITY",
+    long_name: str | None = "Test Corp",
 ) -> httpx.Response:
     """Create a mock quote summary response."""
     result = {"quoteType": {"quoteType": quote_type}}
@@ -489,7 +490,10 @@ async def test_resolve_candidates_uses_isin_first() -> None:
     feed = YFinanceFeed(session)
 
     actual = await feed._resolve_candidates(
-        symbol="ISINTEST", name="Test Corp", isin="US1234567890", cusip=None,
+        symbol="ISINTEST",
+        name="Test Corp",
+        isin="US1234567890",
+        cusip=None,
     )
 
     assert "ISINTEST" in actual

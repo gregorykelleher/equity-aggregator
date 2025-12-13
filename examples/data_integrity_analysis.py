@@ -89,6 +89,22 @@ def format_equity(eq: CanonicalEquity) -> str:
     return f"{name} ({symbol})"
 
 
+def format_equity_with_figi(eq: CanonicalEquity) -> str:
+    """
+    Format equity as 'Name (SYMBOL) [FIGI]'.
+
+    Args:
+        eq: Canonical equity to format.
+
+    Returns:
+        Formatted equity string with FIGI.
+    """
+    name = (eq.identity.name or "Unknown")[:40]
+    symbol = eq.identity.symbol or "N/A"
+    figi = eq.identity.share_class_figi or "No FIGI"
+    return f"{name} ({symbol}) [{figi}]"
+
+
 def format_currency(value: Decimal | float) -> str:
     """
     Format value as currency with thousands separators.
@@ -1017,7 +1033,7 @@ def _duplicate_sample_lines(
     for name, group in islice(sorted_groups, settings.duplicate_group_limit):
         samples.append(f"{name} -> {len(group)} entries")
         member_labels = limit_items(
-            (format_equity(eq) for eq in group),
+            (format_equity_with_figi(eq) for eq in group),
             settings.finding_sample_limit,
         )
         samples.extend(f"  - {label}" for label in member_labels)

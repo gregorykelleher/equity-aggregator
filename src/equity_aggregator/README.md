@@ -2,7 +2,7 @@
 
 ## Overview
 
-The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple discovery sources (LSEG, SEC, Stock Analysis, XETRA) and enriches it with supplementary data from Yahoo Finance and Intrinio.
+The equity aggregator is a sophisticated financial data processing system that aggregates equity information from multiple discovery sources (LSEG, SEC, Stock Analysis, TradingView, XETRA) and enriches it with supplementary data from Yahoo Finance and Intrinio.
 
 ## Architecture & Design
 
@@ -39,7 +39,7 @@ Raw Data Sources → Parse → Convert → Identify → Group → Enrich → Can
 
 Orchestrates parallel data fetching from discovery feeds:
 
-- Fetches data from LSEG, SEC, Stock Analysis, and XETRA concurrently
+- Fetches data from LSEG, SEC, Stock Analysis, TradingView, and XETRA concurrently
 - Combines all feed data into a single stream for processing
 - Maintains feed source metadata for downstream processing
 
@@ -102,7 +102,7 @@ The pipeline uses asynchronous operations to process thousands of equity records
 
 **Parallel Data Fetching**
 
-- All discovery feeds (LSEG, SEC, Stock Analysis, XETRA) are fetched simultaneously
+- All discovery feeds (LSEG, SEC, Stock Analysis, TradingView, XETRA) are fetched simultaneously
 
 **Streaming Pipeline**
 
@@ -149,6 +149,7 @@ schemas/
     ├── lseg_feed_data.py
     ├── sec_feed_data.py
     ├── stock_analysis_feed_data.py
+    ├── tradingview_feed_data.py
     ├── xetra_feed_data.py
     ├── yfinance_feed_data.py
     └── intrinio_feed_data.py
@@ -201,6 +202,7 @@ class LsegFeedData(BaseModel):
 - **LSEG**: London Stock Exchange Group trading platform
 - **SEC**: US Securities and Exchange Commission
 - **Stock Analysis**: US equities with comprehensive financial metrics
+- **TradingView**: US equities with comprehensive financial metrics
 - **XETRA**: Deutsche Börse Stock Exchange
 
 **Characteristics**:

@@ -8,7 +8,7 @@
 
 ## Description
 
-Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (LSEG, SEC, XETRA, Stock Analysis), before enriching it with third-party market vendor data from enrichment feeds (Yahoo Finance, Intrinio) to produce a unified canonical dataset of unique equities.
+Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (LSEG, SEC, XETRA, Stock Analysis, TradingView), before enriching it with third-party market vendor data from enrichment feeds (Yahoo Finance, Intrinio) to produce a unified canonical dataset of unique equities.
 
 Altogether, this tool makes it possible to retrieve up-to-date information on over 10,000+ equities from countries worldwide:
 
@@ -17,6 +17,7 @@ Altogether, this tool makes it possible to retrieve up-to-date information on ov
 | 🇬🇧 LSEG | International | London Stock Exchange Group - Global equities |
 | 🇺🇸 SEC | United States | Securities and Exchange Commission - US-listed equities |
 | 🇺🇸 Stock Analysis | United States | Stock Analysis - Global equities |
+| 🇺🇸 TradingView | United States | TradingView - US equities |
 | 🇩🇪 XETRA | Germany | Deutsche Börse electronic trading platform - German equities |
 
 > [!NOTE]
@@ -214,7 +215,7 @@ equity-aggregator export --output-dir /path/to/export/location
 
 #### Seed Command
 
-The `seed` command executes the complete equity aggregation pipeline, collecting raw data from discovery sources (LSEG, SEC, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
+The `seed` command executes the complete equity aggregation pipeline, collecting raw data from discovery sources (LSEG, SEC, XETRA, Stock Analysis, TradingView), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
 
 This command requires that the following API keys are set prior:
 
@@ -428,7 +429,7 @@ equity-aggregator/
 │   ├── domain/pipeline/             # Core aggregation pipeline
 │   │   └── transforms/              # Transformation stages
 │   ├── adapters/data_sources/       # External data integrations
-│   │   ├── discovery_feeds/         # Primary sources (LSEG, SEC, Stock Analysis, XETRA)
+│   │   ├── discovery_feeds/         # Primary sources (LSEG, SEC, Stock Analysis, TradingView, XETRA)
 │   │   └── enrichment_feeds/        # Enrichment feed integrations (Yahoo Finance, Intrinio)
 │   ├── schemas/                     # Data validation and types
 │   └── storage/                     # Database operations

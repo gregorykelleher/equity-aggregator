@@ -6,6 +6,7 @@ from .feeds import (
     LsegFeedData,
     SecFeedData,
     StockAnalysisFeedData,
+    TradingViewFeedData,
     XetraFeedData,
     YFinanceFeedData,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "LsegFeedData",
     "SecFeedData",
     "StockAnalysisFeedData",
+    "TradingViewFeedData",
     "XetraFeedData",
     # enrichment feeds
     "IntrinioFeedData",

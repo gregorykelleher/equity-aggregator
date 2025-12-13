@@ -31,7 +31,9 @@ async def test_group_empty_list_returns_empty() -> None:
     ACT:     group
     ASSERT:  returns empty list
     """
-    actual = [equity_group async for equity_group in group(_convert_to_async_iterable([]))]
+    actual = [
+        equity_group async for equity_group in group(_convert_to_async_iterable([]))
+    ]
 
     assert actual == []
 
@@ -49,7 +51,8 @@ async def test_single_equity_yields_single_group() -> None:
     )
 
     actual = [
-        equity_group async for equity_group in group(_convert_to_async_iterable([raw_equity]))
+        equity_group
+        async for equity_group in group(_convert_to_async_iterable([raw_equity]))
     ]
 
     assert actual == [[raw_equity]]

@@ -340,7 +340,9 @@ async def test_on_reset_callback_invoked_after_successful_reset() -> None:
 
     initial_client = make_client(handler)
     transport = HttpTransport(
-        client=initial_client, on_reset=on_reset, client_factory=working_factory,
+        client=initial_client,
+        on_reset=on_reset,
+        client_factory=working_factory,
     )
 
     await transport.get("https://example.com", {})
