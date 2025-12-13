@@ -58,6 +58,7 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     "sector": FieldSpec(Strategy.FUZZY_CLUSTER, min_sources=1),
     "mics": FieldSpec(Strategy.UNION, min_sources=1),
     # Critical price and market data (require corroboration from multiple sources)
+    # Fields with >50% multi-source coverage that benefit from cross-validation
     "market_cap": FieldSpec(
         Strategy.MEDIAN,
         min_sources=2,
@@ -78,10 +79,12 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
         min_sources=2,
         max_deviation=Decimal("0.5"),
     ),
-    # Other financial metrics (require corroboration)
+    # Other financial metrics
+    # Fields with low coverage (<5%) accept single source to prevent data loss
+    # Fields with moderate coverage (>20%) require corroboration for quality
     "dividend_yield": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "market_volume": FieldSpec(
@@ -91,47 +94,47 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     ),
     "held_insiders": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "held_institutions": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "short_interest": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "share_float": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "shares_outstanding": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "revenue_per_share": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "profit_margin": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "gross_margin": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "operating_margin": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "free_cash_flow": FieldSpec(
@@ -141,7 +144,7 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     ),
     "operating_cash_flow": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "return_on_equity": FieldSpec(
@@ -161,7 +164,7 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     ),
     "total_debt": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "revenue": FieldSpec(
@@ -181,12 +184,12 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     ),
     "price_to_book": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
     "trailing_eps": FieldSpec(
         Strategy.MEDIAN,
-        min_sources=2,
+        min_sources=1,
         max_deviation=Decimal("0.5"),
     ),
 }
