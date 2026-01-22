@@ -1,0 +1,109 @@
+[project]
+name = "equity-aggregator"
+version = "1.0.0"
+description = "Financial equity data aggregation toolkit"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+requires-python = ">=3.12.5"
+authors = [
+    { name = "Gregory Kelleher", email = "gregory@gregorykelleher.com" }
+]
+keywords = ["finance", "equity", "data", "aggregation", "financial-data"]
+classifiers = [
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "pydantic>=2.11.3",
+    "rapidfuzz>=3.13.0",
+    "httpx[http2]>=0.28.1",
+    "openfigipy>=0.1.6",
+    "platformdirs>=4.0.0",
+]
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-env>=1.1.5",
+    "pytest-asyncio>=1.0.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-cov>=6.2.0",
+    "ruff>=0.8.0",
+]
+[project.urls]
+Homepage = "https://github.com/gregorykelleher/equity-aggregator"
+Repository = "https://github.com/gregorykelleher/equity-aggregator"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+equity-aggregator = "equity_aggregator.cli.main:main"
+
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 30
+markers = [
+  "live: tests that hit live endpoints",
+  "unit: tests that validate individual components in isolation",
+]
+env = [
+  "CACHE_DIR=data/cache/.pytest_cache",
+  "CACHE_TTL_MINUTES=0",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+data_file = "data/.coverage"
+omit = [
+  "*/__init__.py",
+  "*/__main__.py",
+  "*/logging_config.py",
+  "*/pipeline/runner.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = false
+fail_under = 99
+
+[tool.coverage.html]
+directory = "data/htmlcov"
+title = "Equity Aggregator Test Coverage"
+
+[tool.ruff]
+cache-dir = "data/ruff"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "I", "E", "W", "C4", "FA", "RET", "COM", "FBT", "PYI", "F", "UP", "B", "SIM", "C90", "PL", "N", "ANN", "ASYNC"
+]
+ignore = ["COM812"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+[tool.ruff.lint.pylint]
+max-statements = 15
+max-branches = 5
+max-args = 5
+max-returns = 3
+
+[tool.uv.sources]
+equity-aggregator = { workspace = true }
+
+[tool.uv.workspace]
+members = ["equity-aggregator/src"]
+
+[tool.uv]
+package = true

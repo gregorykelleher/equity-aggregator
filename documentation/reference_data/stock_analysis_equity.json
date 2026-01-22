@@ -1,0 +1,30 @@
+{
+    "status": 200,
+    "data": {
+        "data": [
+            {
+                "no": 1,
+                "s": "AAPL",
+                "n": "Apple Inc.",
+                "cusip": "037833100",
+                "isin": "US0378331005",
+                "marketCap": 3172518800660,
+                "price": 212.41,
+                "change": 0.6,
+                "volume": 44443635,
+                "peRatio": 33.19185,
+                "sector": "Technology",
+                "industry": "Consumer Electronics",
+                "revenue": 400366000000,
+                "netIncome": 97294000000,
+                "fcf": 98486000000,
+                "netCash": 34736000000,
+                "roe": 138.0154,
+                "roa": 23.8101,
+                "evSales": 7.83729,
+                "ebitda": 138866000000
+            }
+        ],
+        "resultsCount": 1
+    }
+}

@@ -1,0 +1,91 @@
+name: publish-build-release
+
+on:
+  schedule:
+    - cron: "0 01 * * *"   # daily 01:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-build-release
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    environment: env
+    env:
+      UV_SYSTEM_PYTHON: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv (with cache)
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/uv.lock
+
+      - name: Sync environment
+        run: uv sync --locked
+
+      - name: Create .env file
+        run: |
+          cat <<EOF > .env
+          EXCHANGE_RATE_API_KEY=${{ secrets.EXCHANGE_RATE_API_KEY }}
+          INTRINIO_API_KEY=${{ secrets.INTRINIO_API_KEY }}
+          OPENFIGI_API_KEY=${{ secrets.OPENFIGI_API_KEY }}
+          EOF
+          chmod 600 .env
+          test -s .env || { echo "::error ::empty .env"; exit 1; }
+
+      - name: Run live sanity tests
+        env:
+          UV_ENV_FILE: ".env"
+        run: uv run pytest -m live -v
+
+      - name: Run Equity Aggregator
+        env:
+          UV_ENV_FILE: ".env"
+          DATA_STORE_DIR: "./data/data_store"
+          LOG_DIR: "./data/logs"
+        run: |
+          rm -rf data
+          mkdir -p data/data_store data/logs
+          uv run equity-aggregator --verbose seed
+          uv run equity-aggregator export --output-dir ./data/data_store
+
+      - name: Get latest log file
+        id: latest_log
+        run: |
+          LATEST_LOG=$(ls -t data/logs/equity_aggregator_*.log | head -1)
+          echo "latest_log=$LATEST_LOG" >> $GITHUB_OUTPUT
+
+      - name: Delete existing release
+        run: |
+          gh release delete latest-build-release --yes || true
+          git push --delete origin latest-build-release || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish Latest Canonical Equities Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build-release
+          name: latest-build-release
+          body: "Latest automated build of canonical equities data"
+          make_latest: true
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+          files: |
+            data/data_store/canonical_equities.jsonl.gz
+            ${{ steps.latest_log.outputs.latest_log }}

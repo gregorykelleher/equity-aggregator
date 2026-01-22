@@ -1,0 +1,16 @@
+services:
+  equity-aggregator:
+    build: .
+    container_name: equity-aggregator
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      UV_ENV_FILE: ".env"
+    volumes:
+      - equity_data:/app/data
+      - ./.env:/app/.env:ro
+
+volumes:
+  equity_data:

@@ -1,0 +1,74 @@
+name: validate-push
+
+on:
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: push-validation-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate-push:
+    runs-on: ubuntu-latest
+    env:
+      UV_SYSTEM_PYTHON: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for linear history check
+
+      - name: Check for linear history
+        run: |
+          # Check if the latest commit is a merge commit (non-linear history)
+          if git log --oneline --merges -1 HEAD | grep -q .; then
+            echo "::error::Push contains merge commit. Please rebase to maintain linear history."
+            exit 1
+          fi
+          echo "✅ Linear history maintained"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv (with cache)
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/uv.lock
+
+      - name: Sync environment
+        run: uv sync --locked
+
+      - name: Run linting on Src
+        run: |
+          uv run ruff check src
+          uv run ruff format src --check
+
+      - name: Run unit tests with coverage
+        run: |
+          uv run pytest -m unit --cov=equity_aggregator --cov-report=xml --cov-report=json --cov-fail-under=99
+
+      - name: Create coverage badge
+        if: success()
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_AUTH }}
+          gistID: ce6ce2d7e3c247c34aba66dedcd7ede3
+          filename: coverage-badge.json
+          label: Coverage
+          message: ≥99%
+          color: brightgreen
+
+      - name: Coverage Summary
+        run: |
+          echo "## Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All unit tests passed with ≥99% coverage requirement" >> $GITHUB_STEP_SUMMARY
