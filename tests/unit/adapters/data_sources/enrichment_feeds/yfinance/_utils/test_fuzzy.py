@@ -86,7 +86,7 @@ def test_score_quote_total_matches_component_sum() -> None:
         expected_name="Microsoft Corporation",
     )
 
-    symbol_score = fuzz.ratio(symbol, "MSFT", processor=rf_utils.default_process)
+    symbol_score = fuzz.partial_ratio(symbol, "MSFT", processor=rf_utils.default_process)
     name_score = fuzz.WRatio(
         name,
         "Microsoft Corporation",
@@ -94,3 +94,68 @@ def test_score_quote_total_matches_component_sum() -> None:
     )
 
     assert total == symbol_score + name_score
+
+
+def test_score_quote_accepts_cross_exchange_symbol_variant() -> None:
+    """
+    ARRANGE: quote with exchange-decorated symbol (MELE.BR) vs prefixed symbol (2MELE)
+    ACT:     call _score_quote
+    ASSERT:  total_score is non-zero (shared root symbol matched via partial_ratio)
+    """
+
+    quote = {"symbol": "MELE.BR", "longname": "Melexis NV"}
+    total, _, _ = _score_quote(
+        quote=quote,
+        name_key="longname",
+        expected_symbol="2MELE",
+        expected_name="MELEXIS NV",
+    )
+
+    assert total > 0
+
+
+def test_score_quote_rejects_when_name_score_below_threshold() -> None:
+    """
+    ARRANGE: quote where the name has no similarity to expected name
+    ACT:     call _score_quote
+    ASSERT:  total_score is zero (candidate rejected)
+    """
+
+    quote = {"symbol": "MELE.BR", "longname": "Unrelated Corp"}
+    total, _, _ = _score_quote(
+        quote=quote,
+        name_key="longname",
+        expected_symbol="2MELE",
+        expected_name="MELEXIS NV",
+    )
+
+    assert total == 0
+
+
+def test_score_quote_substring_symbol_with_similar_name_is_not_rejected() -> None:
+    """
+    ARRANGE: quote whose symbol is a superstring of the expected symbol
+             AND whose name is similar (META/MET, MetLife/Meta Platforms)
+    ACT:     call _score_quote
+    ASSERT:  total_score is non-zero — partial_ratio cannot distinguish these
+             by symbol alone; the caller's min_score ranking ensures the exact
+             match (MET) outscores the substring match (META)
+
+    Note:
+        This is a known limitation of partial_ratio for very short symbols.
+        It is not a regression: fuzz.ratio("META", "MET") = 85.7, which also
+        clears the score_cutoff=70 gate. The name gate (WRatio) is the primary
+        discriminator, but when two companies share a lexical root (Met-) it
+        cannot distinguish them either. In practice, ISIN lookups return the
+        correct ticker, so the exact match ranks first.
+    """
+
+    quote = {"symbol": "META", "longname": "Meta Platforms Inc"}
+    total, _, _ = _score_quote(
+        quote=quote,
+        name_key="longname",
+        expected_symbol="MET",
+        expected_name="MetLife Inc",
+    )
+
+    assert total > 0
