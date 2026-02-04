@@ -70,6 +70,14 @@ def _score_quote(
     `name_key`) and the expected name. Applies minimum score thresholds to prevent
     matching completely unrelated equities.
 
+    Note:
+        Symbol comparison uses `partial_ratio` rather than `ratio` because
+        exchange symbols follow a `[prefix]ROOT[.suffix]` pattern (e.g.
+        `MELE.BR` vs `2MELE`). `partial_ratio` aligns the shorter string
+        against the best-matching substring of the longer one, effectively
+        matching on the shared root symbol regardless of exchange-specific
+        decoration.
+
     Args:
         quote (dict): The quote dictionary containing at least a "symbol" key and
             a name field specified by `name_key`.
@@ -80,12 +88,12 @@ def _score_quote(
     Returns:
         tuple[int, str, str]: A tuple of (total_score, actual_symbol, actual_name),
             where total_score is the sum of the symbol and name fuzzy scores.
-            Returns (0, symbol, name) if either score is below the minimum threshold.
+            Returns (0, symbol, name) if either score is below its minimum threshold.
     """
     actual_symbol = quote["symbol"]
     actual_name = quote.get(name_key, "<no-name>")
 
-    symbol_score = fuzz.ratio(
+    symbol_score = fuzz.partial_ratio(
         actual_symbol,
         expected_symbol,
         processor=utils.default_process,
