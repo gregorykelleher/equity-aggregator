@@ -5,6 +5,8 @@ from decimal import Decimal
 from enum import Enum, auto
 from typing import NamedTuple
 
+DEFAULT_MAX_DEVIATION = Decimal("0.5")
+
 
 class Strategy(Enum):
     """
@@ -35,13 +37,14 @@ class FieldSpec(NamedTuple):
             If fewer sources provide data, returns None instead. Defaults to 1.
         max_deviation: Maximum allowed deviation from median
             (as decimal, e.g., 0.5 = 50%). Only applies to MEDIAN strategy.
-            None disables deviation filtering.
+            Defaults to DEFAULT_MAX_DEVIATION. Set to None to disable
+            deviation filtering for a specific field.
     """
 
     strategy: Strategy
     threshold: int = 90
     min_sources: int = 1
-    max_deviation: Decimal | None = None
+    max_deviation: Decimal | None = DEFAULT_MAX_DEVIATION
 
 
 # Field-to-strategy mapping for all RawEquity fields
@@ -60,139 +63,35 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     "mics": FieldSpec(Strategy.UNION, min_sources=1),
     # Critical price and market data (require corroboration from multiple sources)
     # Fields with >50% multi-source coverage that benefit from cross-validation
-    "market_cap": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "last_price": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "fifty_two_week_min": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "fifty_two_week_max": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
+    "market_cap": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "last_price": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "fifty_two_week_min": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "fifty_two_week_max": FieldSpec(Strategy.MEDIAN, min_sources=2),
     # Other financial metrics
     # Fields with low coverage (<5%) accept single source to prevent data loss
     # Fields with moderate coverage (>20%) require corroboration for quality
-    "dividend_yield": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "market_volume": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "held_insiders": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "held_institutions": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "short_interest": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "share_float": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "shares_outstanding": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "revenue_per_share": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "profit_margin": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "gross_margin": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "operating_margin": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "free_cash_flow": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "operating_cash_flow": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "return_on_equity": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "return_on_assets": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "performance_1_year": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "total_debt": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "revenue": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "ebitda": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "trailing_pe": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=2,
-        max_deviation=Decimal("0.5"),
-    ),
-    "price_to_book": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
-    "trailing_eps": FieldSpec(
-        Strategy.MEDIAN,
-        min_sources=1,
-        max_deviation=Decimal("0.5"),
-    ),
+    "dividend_yield": FieldSpec(Strategy.MEDIAN),
+    "market_volume": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "held_insiders": FieldSpec(Strategy.MEDIAN),
+    "held_institutions": FieldSpec(Strategy.MEDIAN),
+    "short_interest": FieldSpec(Strategy.MEDIAN),
+    "share_float": FieldSpec(Strategy.MEDIAN),
+    "shares_outstanding": FieldSpec(Strategy.MEDIAN),
+    "revenue_per_share": FieldSpec(Strategy.MEDIAN),
+    "profit_margin": FieldSpec(Strategy.MEDIAN),
+    "gross_margin": FieldSpec(Strategy.MEDIAN),
+    "operating_margin": FieldSpec(Strategy.MEDIAN),
+    "free_cash_flow": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "operating_cash_flow": FieldSpec(Strategy.MEDIAN),
+    "return_on_equity": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "return_on_assets": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "performance_1_year": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "total_debt": FieldSpec(Strategy.MEDIAN),
+    "revenue": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "ebitda": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "trailing_pe": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "price_to_book": FieldSpec(Strategy.MEDIAN),
+    "trailing_eps": FieldSpec(Strategy.MEDIAN),
 }
 
 # Coherent field groups requiring joint validation
