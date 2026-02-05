@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from equity_aggregator.domain._utils._merge_config import (
+    DEFAULT_MAX_DEVIATION,
     FIELD_CONFIG,
     PRICE_RANGE_FIELDS,
     FieldSpec,
@@ -57,12 +58,11 @@ def test_field_spec_default_max_deviation() -> None:
     """
     ARRANGE: FieldSpec with only strategy
     ACT:     create instance
-    ASSERT:  max_deviation defaults to None
+    ASSERT:  max_deviation defaults to DEFAULT_MAX_DEVIATION
     """
     spec = FieldSpec(Strategy.MODE)
-    expected_deviation = None
 
-    assert spec.max_deviation is expected_deviation
+    assert spec.max_deviation == DEFAULT_MAX_DEVIATION
 
 
 def test_field_spec_custom_values() -> None:
@@ -104,7 +104,7 @@ def test_field_config_contains_all_raw_equity_fields() -> None:
         "isin",
         "cusip",
         "cik",
-        'lei',
+        "lei",
         "currency",
         "analyst_rating",
         "industry",

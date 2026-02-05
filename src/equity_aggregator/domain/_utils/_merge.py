@@ -287,15 +287,16 @@ def _is_price_complete(eq: RawEquity) -> bool:
 def _is_price_consistent(eq: RawEquity) -> bool:
     """
     Checks if the last_price of a RawEquity record falls within its fifty_two_week_min
-    and fifty_two_week_max range, allowing a 10% tolerance above the max.
+    and fifty_two_week_max range, allowing a 10% tolerance on both bounds.
 
     Args:
         eq (RawEquity): The RawEquity instance to check.
 
     Returns:
-        bool: True if last_price is between fifty_two_week_min and up to 10% above
-              fifty_two_week_max, False otherwise. Returns False if any price field
-              is None.
+        bool: True if last_price is between 10% below fifty_two_week_min
+              and up to 10% above fifty_two_week_max, False otherwise.
+              Returns False if any price field is None or if
+              fifty_two_week_min exceeds fifty_two_week_max.
     """
     if (
         eq.last_price is None
@@ -304,9 +305,13 @@ def _is_price_consistent(eq: RawEquity) -> bool:
     ):
         return False
 
+    if eq.fifty_two_week_min > eq.fifty_two_week_max:
+        return False
+
     price_tolerance = Decimal("1.1")
+    lower_tolerance = Decimal("0.9")
     return (
-        eq.fifty_two_week_min
+        eq.fifty_two_week_min * lower_tolerance
         <= eq.last_price
         <= eq.fifty_two_week_max * price_tolerance
     )

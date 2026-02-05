@@ -92,9 +92,9 @@ def test_median_decimal_even_count() -> None:
     """
     ARRANGE: even number of values
     ACT:     median_decimal
-    ASSERT:  average of two middle values returned
+    ASSERT:  lower of two middle values returned
     """
-    assert median_decimal([Decimal("1"), Decimal("9")]) == Decimal("5")
+    assert median_decimal([Decimal("1"), Decimal("9")]) == Decimal("1")
 
 
 def test_median_decimal_preserves_precision() -> None:
@@ -250,6 +250,16 @@ def test_filter_by_deviation_below_minimum_samples() -> None:
     assert filter_by_deviation(values, min_samples=3) == values
 
 
+def test_filter_by_deviation_default_min_samples_applies_to_pair() -> None:
+    """
+    ARRANGE: two values that diverge beyond threshold
+    ACT:     filter_by_deviation with default min_samples
+    ASSERT:  both values rejected (empty list returned)
+    """
+    values = [Decimal("1"), Decimal("100")]
+    assert filter_by_deviation(values) == []
+
+
 def test_filter_by_deviation_removes_outliers() -> None:
     """
     ARRANGE: values with clear outlier
@@ -261,14 +271,34 @@ def test_filter_by_deviation_removes_outliers() -> None:
     assert actual == [Decimal("10"), Decimal("11")]
 
 
-def test_filter_by_deviation_median_zero() -> None:
+def test_filter_by_deviation_median_zero_rejects_outliers_via_mad() -> None:
     """
-    ARRANGE: values with median of zero
+    ARRANGE: values with median of zero and non-zero MAD
     ACT:     filter_by_deviation
-    ASSERT:  all values returned (division by zero avoided)
+    ASSERT:  values far from zero rejected using MAD as reference scale
     """
     values = [Decimal("-1"), Decimal("0"), Decimal("1")]
+    assert filter_by_deviation(values) == [Decimal("0")]
+
+
+def test_filter_by_deviation_median_zero_all_identical() -> None:
+    """
+    ARRANGE: all values are zero (MAD is also zero)
+    ACT:     filter_by_deviation
+    ASSERT:  all values returned unchanged
+    """
+    values = [Decimal("0"), Decimal("0"), Decimal("0")]
     assert filter_by_deviation(values) == values
+
+
+def test_filter_by_deviation_median_zero_rejects_symmetric_outliers() -> None:
+    """
+    ARRANGE: symmetric values around zero with large magnitude
+    ACT:     filter_by_deviation
+    ASSERT:  both outliers rejected, only zero kept
+    """
+    values = [Decimal("-5"), Decimal("0"), Decimal("5")]
+    assert filter_by_deviation(values) == [Decimal("0")]
 
 
 def test_filter_by_deviation_all_within_threshold() -> None:
@@ -286,9 +316,9 @@ def test_filter_by_deviation_custom_threshold() -> None:
     """
     ARRANGE: values and tight 10% threshold
     ACT:     filter_by_deviation
-    ASSERT:  only values within 10% of median returned
+    ASSERT:  only values strictly within 10% of median returned
     """
-    values = [Decimal("9"), Decimal("10"), Decimal("15")]
+    values = [Decimal("9.5"), Decimal("10"), Decimal("15")]
     actual = filter_by_deviation(values, max_deviation=Decimal("0.1"), min_samples=3)
-    expected_values = [Decimal("9"), Decimal("10")]
+    expected_values = [Decimal("9.5"), Decimal("10")]
     assert actual == expected_values

@@ -5,7 +5,7 @@ from collections import Counter
 from collections.abc import Sequence
 from decimal import Decimal
 from functools import cache
-from statistics import median
+from statistics import median, median_low
 
 from rapidfuzz import fuzz
 
@@ -13,7 +13,7 @@ from rapidfuzz import fuzz
 def filter_by_deviation(
     values: Sequence[Decimal],
     max_deviation: Decimal = Decimal("0.5"),
-    min_samples: int = 3,
+    min_samples: int = 2,
 ) -> list[Decimal]:
     """
     Filter values that deviate more than a threshold percentage from the median.
@@ -26,6 +26,11 @@ def filter_by_deviation(
 
     Returns:
         List of values within threshold, or all values if filtering not applicable.
+
+    Note:
+        When the median is zero, percentage deviation is undefined. In this case,
+        the Median Absolute Deviation (MAD) is used as the reference scale instead.
+        If MAD is also zero (all values are identical), all values are returned.
     """
     if len(values) < min_samples:
         return list(values)
@@ -33,9 +38,14 @@ def filter_by_deviation(
     med = median(values)
 
     if med == 0:
-        return list(values)
+        mad = median([abs(v) for v in values])
+        return (
+            list(values)
+            if mad == 0
+            else [v for v in values if abs(v) / mad < max_deviation]
+        )
 
-    return [v for v in values if abs(v - med) / abs(med) <= max_deviation]
+    return [v for v in values if abs(v - med) / abs(med) < max_deviation]
 
 
 def mode_first[T](values: Sequence[T]) -> T | None:
@@ -71,7 +81,7 @@ def median_decimal(values: Sequence[Decimal]) -> Decimal | None:
         Decimal | None: The median of the sequence as a Decimal, or None if
             the sequence is empty.
     """
-    return median(values) if values else None
+    return median_low(values) if values else None
 
 
 def union_ordered[T](lists: Sequence[list[T] | None]) -> list[T] | None:
