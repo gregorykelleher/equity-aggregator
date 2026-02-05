@@ -2009,3 +2009,57 @@ def test_is_price_consistent_returns_false_when_fifty_two_week_max_none() -> Non
     )
 
     assert _is_price_consistent(equity) is False
+
+
+def test_is_price_consistent_slightly_below_min_within_tolerance() -> None:
+    """
+    ARRANGE: equity with last_price 5% below fifty_two_week_min
+    ACT:     _is_price_consistent
+    ASSERT:  returns True (within 10% lower-bound tolerance)
+    """
+    equity = RawEquity(
+        name="TEST",
+        symbol="T",
+        share_class_figi="FIGI00000001",
+        last_price=Decimal("47.50"),
+        fifty_two_week_min=Decimal("50"),
+        fifty_two_week_max=Decimal("100"),
+    )
+
+    assert _is_price_consistent(equity) is True
+
+
+def test_is_price_consistent_well_below_min_beyond_tolerance() -> None:
+    """
+    ARRANGE: equity with last_price 15% below fifty_two_week_min
+    ACT:     _is_price_consistent
+    ASSERT:  returns False (beyond 10% lower-bound tolerance)
+    """
+    equity = RawEquity(
+        name="TEST",
+        symbol="T",
+        share_class_figi="FIGI00000001",
+        last_price=Decimal("42.50"),
+        fifty_two_week_min=Decimal("50"),
+        fifty_two_week_max=Decimal("100"),
+    )
+
+    assert _is_price_consistent(equity) is False
+
+
+def test_is_price_consistent_returns_false_when_min_exceeds_max() -> None:
+    """
+    ARRANGE: equity with fifty_two_week_min > fifty_two_week_max
+    ACT:     _is_price_consistent
+    ASSERT:  returns False (corrupted record)
+    """
+    equity = RawEquity(
+        name="TEST",
+        symbol="T",
+        share_class_figi="FIGI00000001",
+        last_price=Decimal("75"),
+        fifty_two_week_min=Decimal("100"),
+        fifty_two_week_max=Decimal("50"),
+    )
+
+    assert _is_price_consistent(equity) is False

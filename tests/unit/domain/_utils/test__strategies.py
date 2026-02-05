@@ -271,14 +271,34 @@ def test_filter_by_deviation_removes_outliers() -> None:
     assert actual == [Decimal("10"), Decimal("11")]
 
 
-def test_filter_by_deviation_median_zero() -> None:
+def test_filter_by_deviation_median_zero_rejects_outliers_via_mad() -> None:
     """
-    ARRANGE: values with median of zero
+    ARRANGE: values with median of zero and non-zero MAD
     ACT:     filter_by_deviation
-    ASSERT:  all values returned (division by zero avoided)
+    ASSERT:  values far from zero rejected using MAD as reference scale
     """
     values = [Decimal("-1"), Decimal("0"), Decimal("1")]
+    assert filter_by_deviation(values) == [Decimal("0")]
+
+
+def test_filter_by_deviation_median_zero_all_identical() -> None:
+    """
+    ARRANGE: all values are zero (MAD is also zero)
+    ACT:     filter_by_deviation
+    ASSERT:  all values returned unchanged
+    """
+    values = [Decimal("0"), Decimal("0"), Decimal("0")]
     assert filter_by_deviation(values) == values
+
+
+def test_filter_by_deviation_median_zero_rejects_symmetric_outliers() -> None:
+    """
+    ARRANGE: symmetric values around zero with large magnitude
+    ACT:     filter_by_deviation
+    ASSERT:  both outliers rejected, only zero kept
+    """
+    values = [Decimal("-5"), Decimal("0"), Decimal("5")]
+    assert filter_by_deviation(values) == [Decimal("0")]
 
 
 def test_filter_by_deviation_all_within_threshold() -> None:
