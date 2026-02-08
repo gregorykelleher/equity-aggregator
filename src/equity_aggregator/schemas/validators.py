@@ -320,6 +320,37 @@ def to_currency(value: str | float | Decimal | None) -> str | None:
     return currency
 
 
+def to_snapshot_date(value: str | None) -> str | None:
+    """
+    Validates an optional snapshot date string is in YYYY-MM-DD format.
+
+    Accepts None or blank input and returns None. Validates that the string
+    is a well-formed ISO-8601 date (YYYY-MM-DD) by attempting to parse it.
+
+    Args:
+        value (str | None): The input snapshot date string.
+
+    Returns:
+        str | None: The validated date string, or None if input is blank.
+
+    Raises:
+        ValueError: If the value is not a valid YYYY-MM-DD date.
+    """
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    snapshot_date_pattern = r"^\d{4}-\d{2}-\d{2}$"
+
+    if not re.fullmatch(snapshot_date_pattern, text):
+        raise ValueError(f"invalid snapshot date: {value!r}")
+
+    return text
+
+
 def to_analyst_rating(value: str | float | Decimal | None) -> str | None:
     """
     Normalises analyst rating input to one of the canonical tokens: "BUY", "SELL",

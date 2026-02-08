@@ -10,11 +10,10 @@ from .cache import (
 from .data_store import (
     load_canonical_equities,
     load_canonical_equity,
+    load_canonical_equity_history,
 )
-from .export import export_canonical_equities, rebuild_canonical_equities_from_jsonl_gz
-from .metadata import (
+from .freshness import (
     ensure_fresh_database,
-    update_canonical_equities_timestamp,
 )
 
 __all__ = [
@@ -28,10 +27,7 @@ __all__ = [
     # data_store
     "load_canonical_equities",
     "load_canonical_equity",
-    # export
-    "export_canonical_equities",
-    "rebuild_canonical_equities_from_jsonl_gz",
-    # metadata
+    "load_canonical_equity_history",
+    # freshness
     "ensure_fresh_database",
-    "update_canonical_equities_timestamp",
 ]

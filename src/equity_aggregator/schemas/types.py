@@ -16,6 +16,7 @@ from .validators import (
     to_lei,
     to_mic,
     to_signed_decimal,
+    to_snapshot_date,
     to_unsigned_decimal,
     to_upper,
 )
@@ -90,6 +91,9 @@ MICListOpt = Annotated[
 
 # Valid currency code must be exactly 3 uppercase letters (ISO-4217).
 CurrencyStrOpt = Annotated[str | None, BeforeValidator(to_currency)]
+
+# Valid snapshot date must be in YYYY-MM-DD format (ISO-8601).
+SnapshotDateStrOpt = Annotated[str | None, BeforeValidator(to_snapshot_date)]
 
 # Analyst rating must be a distinct value, either "BUY", "SELL", or "HOLD".
 AnalystRatingStrOpt = Annotated[str | None, BeforeValidator(to_analyst_rating)]

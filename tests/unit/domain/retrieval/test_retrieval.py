@@ -1,9 +1,11 @@
 # retrieval/test_retrieval.py
 
 import gzip
-import json
 import os
+import sqlite3
+import tempfile
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import httpx
 import pytest
@@ -11,6 +13,7 @@ import pytest
 from equity_aggregator.domain.retrieval.retrieval import (
     _DATA_STORE_PATH,
     _asset_browser_url,
+    _decompress_db,
     _download_to_temp,
     _finalise_download,
     _get_github_headers,
@@ -20,8 +23,15 @@ from equity_aggregator.domain.retrieval.retrieval import (
     _write_chunks_to_file,
     download_canonical_equities,
     retrieve_canonical_equity,
+    retrieve_canonical_equity_history,
+)
+from equity_aggregator.schemas import (
+    CanonicalEquity,
+    EquityFinancials,
+    EquityIdentity,
 )
 from equity_aggregator.storage import get_data_store_path
+from equity_aggregator.storage.data_store import save_canonical_equities
 
 pytestmark = pytest.mark.unit
 
@@ -41,25 +51,42 @@ class _Stream(httpx.AsyncByteStream):
         return self.aiter_bytes()
 
 
-def _mock_github_client(content: bytes = b"") -> httpx.AsyncClient:
+def _create_canonical_equity(figi: str, name: str = "TEST EQUITY") -> CanonicalEquity:
     """
-    Creates a mock httpx.AsyncClient simulating GitHub release and asset download.
-
-    This mock client intercepts requests to GitHub release endpoints and returns a
-    predefined JSON response containing a single asset. For all other requests, it
-    returns the provided content compressed with gzip, simulating the download of a
-    release asset.
+    Create a CanonicalEquity instance for testing purposes.
 
     Args:
-        content (bytes, optional): The raw bytes to be compressed and returned as the
-            asset content. Defaults to an empty bytes object.
+        figi (str): The FIGI identifier for the equity.
+        name (str): The name of the equity, defaults to "TEST EQUITY".
 
     Returns:
-        httpx.AsyncClient: An asynchronous HTTP client with a mock transport handler
-            for testing GitHub release and asset download flows.
+        CanonicalEquity: A properly constructed CanonicalEquity instance.
     """
-    """Create mock client that returns GitHub release with content."""
-    gz = gzip.compress(content)
+    identity = EquityIdentity(
+        name=name,
+        symbol="TST",
+        share_class_figi=figi,
+    )
+    financials = EquityFinancials()
+
+    return CanonicalEquity(identity=identity, financials=financials)
+
+
+def _mock_github_client_db(db_bytes: bytes = b"") -> httpx.AsyncClient:
+    """
+    Creates a mock httpx.AsyncClient simulating GitHub release with a DB asset.
+
+    This mock client intercepts requests to GitHub release endpoints and returns a
+    predefined JSON response containing data_store.db.gz as the asset. For all other
+    requests, it returns the provided content compressed with gzip.
+
+    Args:
+        db_bytes (bytes, optional): The raw database bytes to be compressed.
+
+    Returns:
+        httpx.AsyncClient: An asynchronous HTTP client with mock transport.
+    """
+    gz = gzip.compress(db_bytes)
 
     def handler(request: httpx.Request) -> httpx.Response:
         if "releases" in str(request.url):
@@ -68,7 +95,7 @@ def _mock_github_client(content: bytes = b"") -> httpx.AsyncClient:
                 json={
                     "assets": [
                         {
-                            "name": "canonical_equities.jsonl.gz",
+                            "name": "data_store.db.gz",
                             "browser_download_url": "https://x/f",
                         },
                     ],
@@ -77,6 +104,69 @@ def _mock_github_client(content: bytes = b"") -> httpx.AsyncClient:
         return httpx.Response(200, content=gz, headers={"Content-Length": str(len(gz))})
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+
+def _create_test_db() -> bytes:
+    """
+    Creates a minimal SQLite database with equity tables and returns its bytes.
+
+    Returns:
+        bytes: The raw bytes of a SQLite database file.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+
+    conn = sqlite3.connect(tmp_path)
+    conn.execute("PRAGMA foreign_keys = ON")
+    _create_test_tables(conn)
+    _insert_test_equity(conn)
+    conn.commit()
+    conn.close()
+
+    db_bytes = tmp_path.read_bytes()
+    tmp_path.unlink()
+    return db_bytes
+
+
+def _create_test_tables(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE canonical_equity_identities (
+            share_class_figi TEXT PRIMARY KEY,
+            payload TEXT NOT NULL
+        ) WITHOUT ROWID
+    """)
+    conn.execute("""
+        CREATE TABLE canonical_equity_snapshots (
+            share_class_figi TEXT NOT NULL,
+            snapshot_date TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            PRIMARY KEY (share_class_figi, snapshot_date),
+            FOREIGN KEY (share_class_figi)
+                REFERENCES canonical_equity_identities(share_class_figi)
+        ) WITHOUT ROWID
+    """)
+
+
+def _insert_test_equity(conn: sqlite3.Connection) -> None:
+    identity_json = EquityIdentity(
+        name="TEST EQUITY",
+        symbol="TST",
+        share_class_figi="BBG000B9XRY4",
+    ).model_dump_json()
+
+    financials_json = EquityFinancials().model_dump_json()
+
+    conn.execute(
+        "INSERT INTO canonical_equity_identities (share_class_figi, payload) "
+        "VALUES (?, ?)",
+        ("BBG000B9XRY4", identity_json),
+    )
+    conn.execute(
+        "INSERT INTO canonical_equity_snapshots "
+        "(share_class_figi, snapshot_date, payload) "
+        "VALUES (?, ?, ?)",
+        ("BBG000B9XRY4", "2025-01-01", financials_json),
+    )
 
 
 async def test_write_chunks_to_file_writes_all_bytes() -> None:
@@ -274,8 +364,8 @@ def test_retrieve_canonical_equity_raises_lookup_error_when_not_found() -> None:
     ACT:     Call retrieve_canonical_equity with non-existent FIGI
     ASSERT:  Raises LookupError
     """
-    # Create database with some data
-    download_canonical_equities(_mock_github_client())
+    db_bytes = _create_test_db()
+    download_canonical_equities(_mock_github_client_db(db_bytes))
 
     with pytest.raises(LookupError):
         retrieve_canonical_equity("BBG000NOTFOUND")
@@ -287,41 +377,62 @@ def test_retrieve_canonical_equity_returns_found_equity() -> None:
     ACT:     Call retrieve_canonical_equity with existing FIGI
     ASSERT:  Returns the equity
     """
-    equity_data = {
-        "identity": {
-            "share_class_figi": "BBG000B9XRY4",
-            "name": "Test Equity",
-            "ticker": "TEST",
-            "symbol": "TEST",
-        },
-        "pricing": {"currency": "USD", "price": 100.0},
-        "financials": {"market_cap": 1000000.0},
-    }
-    jsonl_bytes = json.dumps(equity_data).encode() + b"\n"
-
-    # Create database with the equity
-    download_canonical_equities(_mock_github_client(jsonl_bytes))
+    db_bytes = _create_test_db()
+    download_canonical_equities(_mock_github_client_db(db_bytes))
 
     actual = retrieve_canonical_equity("BBG000B9XRY4")
 
     assert actual.identity.share_class_figi == "BBG000B9XRY4"
 
 
-def test_download_canonical_equities_rebuilds_database() -> None:
+def test_download_canonical_equities_creates_database() -> None:
     """
-    ARRANGE: Mock client with empty JSONL
+    ARRANGE: Mock client with valid DB
     ACT:     download_canonical_equities
-    ASSERT:  Database file exists after rebuild
+    ASSERT:  Database file exists after download
     """
-    asset_path = _DATA_STORE_PATH / "canonical_equities.jsonl.gz"
     db_path = _DATA_STORE_PATH / "data_store.db"
-
-    asset_path.unlink(missing_ok=True)
     db_path.unlink(missing_ok=True)
 
-    download_canonical_equities(_mock_github_client())
+    db_bytes = _create_test_db()
+    download_canonical_equities(_mock_github_client_db(db_bytes))
 
     assert db_path.exists()
+
+
+def test_decompress_db_creates_database_from_gz() -> None:
+    """
+    ARRANGE: gzipped database file
+    ACT:     _decompress_db
+    ASSERT:  decompressed database file exists with correct content
+    """
+    original = b"test database content"
+    gz_path = _DATA_STORE_PATH / "test_decompress.db.gz"
+    db_path = _DATA_STORE_PATH / "test_decompress.db"
+
+    with gzip.open(gz_path, "wb") as f:
+        f.write(original)
+
+    _decompress_db(gz_path, db_path)
+
+    assert db_path.read_bytes() == original
+
+
+def test_decompress_db_removes_gz_file() -> None:
+    """
+    ARRANGE: gzipped database file
+    ACT:     _decompress_db
+    ASSERT:  gz file is removed after decompression
+    """
+    gz_path = _DATA_STORE_PATH / "test_cleanup.db.gz"
+    db_path = _DATA_STORE_PATH / "test_cleanup.db"
+
+    with gzip.open(gz_path, "wb") as f:
+        f.write(b"data")
+
+    _decompress_db(gz_path, db_path)
+
+    assert not gz_path.exists()
 
 
 def test_get_github_headers_without_token() -> None:
@@ -396,3 +507,35 @@ def test_get_data_store_path_default() -> None:
     finally:
         if original is not None:
             os.environ["DATA_STORE_DIR"] = original
+
+
+def test_retrieve_canonical_equity_history_raises_for_unknown_figi() -> None:
+    """
+    ARRANGE: Database exists but no snapshots for given FIGI
+    ACT:     retrieve_canonical_equity_history
+    ASSERT:  LookupError raised
+    """
+    save_canonical_equities(
+        [_create_canonical_equity("BBG000EXIST1")],
+        snapshot_date="2025-01-01",
+    )
+
+    with pytest.raises(LookupError):
+        retrieve_canonical_equity_history("BBG000NOTHIST")
+
+
+def test_retrieve_canonical_equity_history_returns_snapshots() -> None:
+    """
+    ARRANGE: Database exists with snapshots for a FIGI
+    ACT:     retrieve_canonical_equity_history
+    ASSERT:  returns list of snapshots
+    """
+    figi = "BBG000RETHST"
+    save_canonical_equities(
+        [_create_canonical_equity(figi)],
+        snapshot_date="2025-01-01",
+    )
+
+    actual = retrieve_canonical_equity_history(figi)
+
+    assert len(actual) == 1

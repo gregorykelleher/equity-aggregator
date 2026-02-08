@@ -131,6 +131,40 @@ Market Cap: $3,500,000,000,000
 Currency: USD
 ```
 
+#### Retrieving Historical Equity Data
+
+The `retrieve_canonical_equity_history()` function returns historical daily snapshots for a given equity, optionally filtered by date range. Each nightly pipeline run appends a new snapshot, building a time series of financial metrics.
+
+```python
+from equity_aggregator import retrieve_canonical_equity_history
+
+# Retrieve all historical snapshots for Apple
+snapshots = retrieve_canonical_equity_history("BBG000B9XRY4")
+print(f"Retrieved {len(snapshots)} snapshots")
+
+# Filter by date range (inclusive, YYYY-MM-DD)
+recent = retrieve_canonical_equity_history(
+    "BBG000B9XRY4",
+    from_date="2025-01-01",
+    to_date="2025-01-31",
+)
+
+for snapshot in recent:
+    print(f"{snapshot.snapshot_date}: {snapshot.financials.last_price}")
+```
+
+**Example Output:**
+```
+Retrieved 90 snapshots
+2025-01-01: 243.85
+2025-01-02: 245.00
+2025-01-03: 244.12
+```
+
+> [!NOTE]
+> All retrieval functions work independently and automatically download the database if needed, so there's no requirement to call `retrieve_canonical_equities()` first.
+
+
 #### Data Models
 
 All data is returned as type-safe Pydantic models, ensuring data validation and integrity. The `CanonicalEquity` model provides structured access to identity metadata, pricing information, and financial metrics.
@@ -161,23 +195,19 @@ P/E Ratio: 28.5
 Market Cap: 3500000000000
 ```
 
-> [!NOTE]
-> Both functions work independently - `retrieve_canonical_equity()` automatically downloads data if needed, so there's no requirement to call `retrieve_canonical_equities()` first.
-
 ### CLI Usage
 
-Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers three main commands:
+Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers two main commands:
 
 - **seed** - Aggregate and populate the local database with fresh equity data
-- **export** - Export the local canonical equity database to compressed JSONL format
-- **download** - Download the latest canonical equity data from remote repository
+- **download** - Download the latest canonical equity database from remote repository
 
 Run `equity-aggregator --help` for more information:
 
 ```bash
-usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,export,download} ...
+usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,download} ...
 
-aggregate, download, and export canonical equity data
+aggregate and download canonical equity data
 
 options:
   -h, --help            show this help message and exit
@@ -188,9 +218,8 @@ options:
 commands:
   Available operations
 
-  {seed,export,download}
+  {seed,download}
     seed                aggregate enriched canonical equity data sourced from data feeds
-    export              export local canonical equity data to compressed JSONL format
     download            download latest canonical equity data from remote repository
 
 Use 'equity-aggregator <command> --help' for help
@@ -198,11 +227,11 @@ Use 'equity-aggregator <command> --help' for help
 
 #### Download Command
 
-The `download` command retrieves the latest pre-processed canonical equity dataset from GitHub Releases, eliminating the need to run the full aggregation pipeline via `seed` locally. This command:
+The `download` command retrieves the latest canonical equity database from GitHub Releases, eliminating the need to run the full aggregation pipeline via `seed` locally. This command:
 
-- Downloads compressed equity data (`canonical_equities.jsonl.gz`) from the latest nightly build
-- Automatically rebuilds the database locally from the downloaded data
-- Provides access to 15,000+ equities with immediate effect
+- Downloads the compressed database (`data_store.db.gz`) from the latest nightly build
+- Decompresses and atomically replaces the local database
+- Provides access to 15,000+ equities with full historical snapshots
 
 > [!TIP]
 > **Optional: Increase Rate Limits**
@@ -212,18 +241,6 @@ The `download` command retrieves the latest pre-processed canonical equity datas
 > export GITHUB_TOKEN="your_personal_access_token_here"
 > ```
 > Create a token at [GitHub Settings](https://github.com/settings/tokens) - no special scopes needed. Recommended for frequent downloads or CI/CD pipelines.
-
-#### Export Command
-
-The `export` command extracts canonical equity data from the local database and exports it as compressed JSONL (JSON Lines) format. It reads all canonical equities from the local database and exports the data to `canonical_equities.jsonl.gz` in the specified output directory.
-
-This creates a portable, standardised dataset suitable for analysis, sharing, or backup while preserving all equity metadata and financial metrics in structured JSON format.
-
-```bash
-# Export aggregated data to compressed JSON in specified directory
-equity-aggregator export --output-dir ~/Downloads
-equity-aggregator export --output-dir /path/to/export/location
-```
 
 #### Seed Command
 
@@ -539,6 +556,14 @@ Both test suites are executed as part of the GitHub Actions CI pipeline:
 - Downstream services should therefore treat Equity Aggregator as a discovery catalogue, using its authoritative identifiers to discover equities and then poll specialised market data providers for time-sensitive pricing metrics.
 
 - Delivering real-time quotes directly through Equity Aggregator would be infeasible because the upstream data sources enforce strict rate limits and the pipeline is network-bound; attempting live polling would exhaust quotas quickly and degrade reliability for all consumers.
+
+### Unadjusted Historical Data
+
+- Historical snapshots record raw financial metrics as observed on the date of capture. Prices, shares outstanding, and other per-share figures are **not adjusted** for corporate actions such as stock splits, reverse splits, share dilution, spin-offs, mergers, or dividend reinvestments.
+
+- This means that comparing a snapshot from before a 4-for-1 stock split with one taken after it will show an apparent price drop of roughly 75%, even though no real loss of value occurred. Similarly, metrics like `shares_outstanding`, `trailing_eps`, and `revenue_per_share` can shift discontinuously across corporate action boundaries without reflecting any underlying change in the company's fundamentals.
+
+- Consumers requiring split-adjusted or corporate-action-adjusted time series for backtesting, charting, or quantitative analysis should source adjusted data from a dedicated market data provider. The historical snapshots in Equity Aggregator are best suited for point-in-time discovery and broad trend observation rather than precise longitudinal analysis.
 
 ### Single Identifier Authority
 

@@ -39,7 +39,7 @@ def test_create_parser_sets_description() -> None:
     """
     parser = create_parser()
 
-    assert "aggregate, download, and export canonical equity data" in parser.description
+    assert "aggregate and download canonical equity data" in parser.description
 
 
 def test_create_parser_sets_epilog() -> None:
@@ -142,20 +142,6 @@ def test_parser_accepts_seed_command() -> None:
     args = parser.parse_args(["seed"])
 
     assert args.cmd == "seed"
-
-
-def test_parser_accepts_export_command() -> None:
-    """
-    ARRANGE: parser and export command with required output-dir
-    ACT:     parse_args with export and --output-dir
-    ASSERT:  cmd is set to export and output_dir is set
-    """
-    parser = create_parser()
-
-    args = parser.parse_args(["export", "--output-dir", "/tmp/test"])
-
-    assert args.cmd == "export"
-    assert args.output_dir == "/tmp/test"
 
 
 def test_parser_accepts_download_command() -> None:

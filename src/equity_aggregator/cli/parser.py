@@ -12,7 +12,7 @@ def create_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog="equity-aggregator",
-        description="aggregate, download, and export canonical equity data",
+        description="aggregate and download canonical equity data",
         epilog="use 'equity-aggregator <command> --help' for help",
     )
 
@@ -70,18 +70,6 @@ def _add_subcommands(parser: argparse.ArgumentParser) -> None:
         description="execute the full aggregation pipeline to collect equity "
         "data from discovery feeds (LSEG, SEC, XETRA), enrich "
         "it with data from enrichment feeds, and store as canonical equities",
-    )
-
-    # add export subcommand
-    sub.add_parser(
-        "export",
-        help="export local canonical equity data to compressed JSONL format",
-        description="export local canonical equity data from the database "
-        "as gzip-compressed newline-delimited JSON (NDJSON) for distribution",
-    ).add_argument(
-        "--output-dir",
-        required=True,
-        help="directory where canonical_equities.jsonl.gz will be created",
     )
 
     # add download subcommand

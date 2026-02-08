@@ -53,16 +53,34 @@ jobs:
           UV_ENV_FILE: ".env"
         run: uv run pytest -m live -v
 
+      - name: Restore previous data store
+        run: |
+          mkdir -p data/data_store data/logs
+          gh release download latest-build-release \
+            --pattern "data_store.db.gz" \
+            --dir data/data_store \
+            --clobber || true
+          if [ -f data/data_store/data_store.db.gz ]; then
+            gunzip data/data_store/data_store.db.gz
+            echo "Restored previous data store"
+          else
+            echo "No previous data store found, starting fresh"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Run Equity Aggregator
         env:
           UV_ENV_FILE: ".env"
           DATA_STORE_DIR: "./data/data_store"
           LOG_DIR: "./data/logs"
         run: |
-          rm -rf data
+          rm -rf data/logs
           mkdir -p data/data_store data/logs
           uv run equity-aggregator --verbose seed
-          uv run equity-aggregator export --output-dir ./data/data_store
+
+      - name: Compress data store for release
+        run: gzip -k data/data_store/data_store.db
 
       - name: Get latest log file
         id: latest_log
@@ -87,5 +105,5 @@ jobs:
           fail_on_unmatched_files: true
           generate_release_notes: false
           files: |
-            data/data_store/canonical_equities.jsonl.gz
+            data/data_store/data_store.db.gz
             ${{ steps.latest_log.outputs.latest_log }}

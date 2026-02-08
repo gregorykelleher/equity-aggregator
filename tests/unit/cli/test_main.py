@@ -32,28 +32,6 @@ def test_main_with_valid_seed_command() -> None:
     assert dispatched_cmd == "seed"
 
 
-def test_main_with_valid_export_command() -> None:
-    """
-    ARRANGE: sys.argv set to export command with no-op dispatcher
-    ACT:     main
-    ASSERT:  dispatcher is called with correct command
-    """
-    original_argv = sys.argv[:]
-    sys.argv = ["equity-aggregator", "export", "--output-dir", "/tmp/test"]
-    dispatched_cmd = None
-
-    def noop_dispatcher(args: argparse.Namespace) -> None:
-        nonlocal dispatched_cmd
-        dispatched_cmd = args.cmd
-
-    try:
-        main(dispatcher=noop_dispatcher)
-    finally:
-        sys.argv = original_argv
-
-    assert dispatched_cmd == "export"
-
-
 def test_main_with_valid_download_command() -> None:
     """
     ARRANGE: sys.argv set to download command with no-op dispatcher
@@ -264,28 +242,6 @@ def test_main_command_help_flag() -> None:
             main(dispatcher=lambda _: None)
     finally:
         sys.argv = original_argv
-
-
-def test_main_export_output_dir_passed_to_dispatcher() -> None:
-    """
-    ARRANGE: sys.argv set to export command with output-dir
-    ACT:     main
-    ASSERT:  dispatcher receives args with output_dir set
-    """
-    original_argv = sys.argv[:]
-    sys.argv = ["equity-aggregator", "export", "--output-dir", "/custom/path"]
-    received_args = None
-
-    def noop_dispatcher(args: argparse.Namespace) -> None:
-        nonlocal received_args
-        received_args = args
-
-    try:
-        main(dispatcher=noop_dispatcher)
-    finally:
-        sys.argv = original_argv
-
-    assert received_args.output_dir == "/custom/path"
 
 
 def test_main_uses_default_dispatcher_when_none_provided() -> None:
