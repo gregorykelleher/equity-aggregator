@@ -553,3 +553,44 @@ def test_to_cik_rejects_too_long() -> None:
 
     with pytest.raises(ValueError):
         validators.to_cik(value)
+
+
+def test_to_snapshot_date_returns_none_for_none() -> None:
+    """
+    ARRANGE: None input
+    ACT:     to_snapshot_date
+    ASSERT:  returns None
+    """
+    assert validators.to_snapshot_date(None) is None
+
+
+def test_to_snapshot_date_returns_none_for_blank() -> None:
+    """
+    ARRANGE: blank string input
+    ACT:     to_snapshot_date
+    ASSERT:  returns None
+    """
+    assert validators.to_snapshot_date("   ") is None
+
+
+def test_to_snapshot_date_rejects_invalid_format() -> None:
+    """
+    ARRANGE: string not matching YYYY-MM-DD
+    ACT:     to_snapshot_date
+    ASSERT:  raises ValueError
+    """
+    with pytest.raises(ValueError):
+        validators.to_snapshot_date("01-01-2025")
+
+
+def test_to_snapshot_date_accepts_valid_date() -> None:
+    """
+    ARRANGE: valid YYYY-MM-DD string
+    ACT:     to_snapshot_date
+    ASSERT:  returns the same string
+    """
+    expected = "2025-01-15"
+
+    actual = validators.to_snapshot_date("2025-01-15")
+
+    assert actual == expected

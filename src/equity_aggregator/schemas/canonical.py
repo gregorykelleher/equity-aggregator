@@ -17,6 +17,7 @@ from .types import (
     LEIStrOpt,
     MICListOpt,
     SignedDecOpt,
+    SnapshotDateStrOpt,
     UnsignedDecOpt,
     UpperStrOpt,
     UpperStrReq,
@@ -159,6 +160,7 @@ class CanonicalEquity(BaseModel):
         ...,
         description="Equity financial data, required.",
     )
+    snapshot_date: SnapshotDateStrOpt = None
 
     @classmethod
     def from_raw(cls, raw: RawEquity) -> "CanonicalEquity":

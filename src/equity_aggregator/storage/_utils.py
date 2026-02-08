@@ -9,10 +9,9 @@ from pathlib import Path
 from platformdirs import user_data_dir
 
 # Table names
-CANONICAL_EQUITIES_TABLE = "canonical_equities"
-CANONICAL_JSONL_ASSET = "canonical_equities.jsonl.gz"
+CANONICAL_EQUITY_IDENTITIES_TABLE = "canonical_equity_identities"
+CANONICAL_EQUITY_SNAPSHOTS_TABLE = "canonical_equity_snapshots"
 CACHE_TABLE = "object_cache"
-METADATA_TABLE = "data_metadata"
 
 
 def get_data_store_path() -> Path:

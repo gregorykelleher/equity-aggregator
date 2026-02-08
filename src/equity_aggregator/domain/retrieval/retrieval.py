@@ -1,6 +1,7 @@
 # retrieval/retrieval.py
 
 import asyncio
+import gzip
 import logging
 import os
 from collections.abc import AsyncIterable
@@ -16,7 +17,7 @@ from equity_aggregator.storage import (
     get_data_store_path,
     load_canonical_equities,
     load_canonical_equity,
-    rebuild_canonical_equities_from_jsonl_gz,
+    load_canonical_equity_history,
 )
 
 _DATA_STORE_PATH: Path = get_data_store_path()
@@ -65,8 +66,8 @@ def retrieve_canonical_equity(share_class_figi: str) -> CanonicalEquity:
 
 def retrieve_canonical_equities() -> list[CanonicalEquity]:  # pragma: no cover
     """
-    Retrieves the canonical equities by downloading the latest JSONL file from GitHub,
-    rebuilding the canonical equities table, and loading the equities from the table.
+    Retrieves the canonical equities by downloading the latest database from GitHub
+    and loading the equities from the database.
 
     Note:
         This function is intentionally excluded from coverage to preserve its simplicity
@@ -76,9 +77,8 @@ def retrieve_canonical_equities() -> list[CanonicalEquity]:  # pragma: no cover
 
     Returns:
         list[CanonicalEquity]: A list of CanonicalEquity objects loaded from the
-        rebuilt table.
+        database.
     """
-    # Download the canonical equities JSONL file from GitHub and rebuild database
     download_canonical_equities()
 
     equities = load_canonical_equities()
@@ -86,14 +86,53 @@ def retrieve_canonical_equities() -> list[CanonicalEquity]:  # pragma: no cover
     return equities
 
 
+def retrieve_canonical_equity_history(
+    share_class_figi: str,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> list[CanonicalEquity]:
+    """
+    Retrieves historical snapshots for a given equity.
+
+    If the local database does not exist, it will be downloaded first. Returns all
+    snapshots for the given FIGI, optionally filtered by date range.
+
+    Args:
+        share_class_figi (str): The FIGI identifier for the share class.
+        from_date (str | None, optional): Inclusive start date (YYYY-MM-DD).
+        to_date (str | None, optional): Inclusive end date (YYYY-MM-DD).
+
+    Returns:
+        list[CanonicalEquity]: List of CanonicalEquity objects with snapshot_date
+            populated, ordered by snapshot_date ascending.
+
+    Raises:
+        LookupError: If no snapshots are found for the specified share_class_figi.
+    """
+    _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
+    db_path = _DATA_STORE_PATH / "data_store.db"
+
+    if not db_path.exists():  # pragma: no cover
+        download_canonical_equities()
+
+    snapshots = load_canonical_equity_history(share_class_figi, from_date, to_date)
+
+    if not snapshots:
+        raise LookupError(
+            f"No snapshots found for share_class_figi={share_class_figi!r}"
+        )
+
+    return snapshots
+
+
 def download_canonical_equities(
     client: AsyncClient | None = None,
 ) -> None:
     """
-    Download the canonical equities JSONL file from GitHub and rebuild the database.
+    Download the canonical equities database from GitHub.
 
-    Downloads the latest canonical_equities.jsonl.gz file from the GitHub release,
-    then rebuilds the local SQLite database from the downloaded file.
+    Downloads the latest data_store.db.gz file from the GitHub release,
+    decompresses it, and atomically replaces the local database file.
 
     Args:
         client (AsyncClient | None, optional): Optional HTTP client. If None, creates
@@ -102,23 +141,45 @@ def download_canonical_equities(
     Returns:
         None
     """
-
     _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
-    dest_path = _DATA_STORE_PATH / "canonical_equities.jsonl.gz"
+    dest_path = _DATA_STORE_PATH / "data_store.db.gz"
 
     async def _async_download() -> None:
         async with _open_client(client) as session:
             release = await _get_release_by_tag(session, _OWNER, _REPO, _TAG)
 
-            url = _asset_browser_url(release, "canonical_equities.jsonl.gz")
-            logger.info("Downloading canonical equities from GitHub release")
+            url = _asset_browser_url(release, "data_store.db.gz")
+            logger.info("Downloading data store from GitHub release")
 
             await _stream_download(session, url, dest_path)
 
     asyncio.run(_async_download())
 
-    # Rebuild the database from the downloaded JSONL file
-    rebuild_canonical_equities_from_jsonl_gz()
+    _decompress_db(dest_path, _DATA_STORE_PATH / "data_store.db")
+
+
+def _decompress_db(gz_path: Path, db_path: Path) -> None:
+    """
+    Decompress a gzipped database file and atomically place it.
+
+    Reads the compressed file, writes to a temporary file, then atomically
+    replaces the target database file.
+
+    Args:
+        gz_path (Path): Path to the gzip-compressed database file.
+        db_path (Path): Final destination path for the decompressed database.
+
+    Returns:
+        None
+    """
+    tmp_path = db_path.with_suffix(".db.tmp")
+
+    with gzip.open(gz_path, "rb") as gz_in, tmp_path.open("wb") as tmp_out:
+        while chunk := gz_in.read(65536):
+            tmp_out.write(chunk)
+
+    os.replace(tmp_path, db_path)
+    gz_path.unlink(missing_ok=True)
 
 
 @asynccontextmanager

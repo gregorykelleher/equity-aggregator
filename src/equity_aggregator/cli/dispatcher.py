@@ -5,7 +5,6 @@ from argparse import Namespace
 
 from equity_aggregator.domain import download_canonical_equities as download
 from equity_aggregator.domain import seed_canonical_equities as seed
-from equity_aggregator.storage import export_canonical_equities as export
 
 
 def run_command(fn: callable) -> None:
@@ -40,7 +39,6 @@ def dispatch_command(args: Namespace, handlers: dict | None = None) -> None:
     if handlers is None:
         handlers = {
             "seed": lambda: run_command(seed),
-            "export": lambda: run_command(lambda: export(args.output_dir, download)),
             "download": lambda: run_command(download),
         }
 

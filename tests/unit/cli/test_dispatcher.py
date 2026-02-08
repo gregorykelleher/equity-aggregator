@@ -145,31 +145,7 @@ def test_dispatch_command_seed_handler_execution() -> None:
         called = True
 
     args = Namespace(cmd="seed")
-    handlers = {"seed": seed_handler, "export": lambda: None, "download": lambda: None}
-
-    dispatch_command(args, handlers=handlers)
-
-    assert called is True
-
-
-def test_dispatch_command_export_handler_execution() -> None:
-    """
-    ARRANGE: export command in Namespace with no-op handler
-    ACT:     dispatch_command
-    ASSERT:  export handler is called
-    """
-    called = False
-
-    def export_handler() -> None:
-        nonlocal called
-        called = True
-
-    args = Namespace(cmd="export", output_dir="/tmp/test")
-    handlers = {
-        "seed": lambda: None,
-        "export": export_handler,
-        "download": lambda: None,
-    }
+    handlers = {"seed": seed_handler, "download": lambda: None}
 
     dispatch_command(args, handlers=handlers)
 
@@ -191,7 +167,6 @@ def test_dispatch_command_download_handler_execution() -> None:
     args = Namespace(cmd="download")
     handlers = {
         "seed": lambda: None,
-        "export": lambda: None,
         "download": download_handler,
     }
 

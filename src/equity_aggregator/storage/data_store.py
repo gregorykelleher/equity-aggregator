@@ -1,16 +1,18 @@
 # storage/data_store.py
 
+import datetime
 import logging
 import sqlite3
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 
-from equity_aggregator.schemas import CanonicalEquity
+from equity_aggregator.schemas import CanonicalEquity, EquityFinancials, EquityIdentity
 
 from ._utils import (
-    CANONICAL_EQUITIES_TABLE,
+    CANONICAL_EQUITY_IDENTITIES_TABLE,
+    CANONICAL_EQUITY_SNAPSHOTS_TABLE,
     connect,
 )
-from .metadata import ensure_fresh_database, update_canonical_equities_timestamp
+from .freshness import ensure_fresh_database
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,9 @@ def load_canonical_equity(share_class_figi: str) -> CanonicalEquity | None:
     """
     Retrieve a single CanonicalEquity by its exact share_class_figi value.
 
+    Joins the identity and latest snapshot for the given FIGI. Returns None
+    if the FIGI is not found or has no snapshots.
+
     Args:
         share_class_figi (str): The FIGI identifier of the equity to load.
 
@@ -26,40 +31,30 @@ def load_canonical_equity(share_class_figi: str) -> CanonicalEquity | None:
         CanonicalEquity | None: The CanonicalEquity instance if found, else None.
     """
     with connect() as conn:
-        _init_canonical_equities_table(conn)
+        _init_tables(conn)
         row = conn.execute(
-            (
-                f"SELECT payload FROM {CANONICAL_EQUITIES_TABLE} "
-                "WHERE share_class_figi = ? LIMIT 1"
-            ),
+            f"""
+            SELECT i.payload, s.payload, s.snapshot_date
+            FROM {CANONICAL_EQUITY_IDENTITIES_TABLE} i
+            JOIN {CANONICAL_EQUITY_SNAPSHOTS_TABLE} s
+                ON i.share_class_figi = s.share_class_figi
+            WHERE i.share_class_figi = ?
+            ORDER BY s.snapshot_date DESC
+            LIMIT 1
+            """,
             (share_class_figi,),
         ).fetchone()
-        return CanonicalEquity.model_validate_json(row[0]) if row and row[0] else None
 
+        if not row:
+            return None
 
-def _init_canonical_equities_table(conn: sqlite3.Connection) -> None:
-    """
-    Initialises the canonical equities table in the provided SQLite database connection.
+        # unpack: i.payload, s.payload, s.snapshot_date
+        identity_payload, financials_payload, snapshot_date = row
 
-    Creates a table with the name specified by the variable `CANONICAL_EQUITIES_TABLE`
-    if it does not already exist. The table contains two columns: 'share_class_figi' as
-    the primary key and 'payload' as a text field.
-
-    Args:
-        conn (sqlite3.Connection): The SQLite database connection to use for table
-            creation.
-
-    Returns:
-        None
-    """
-    conn.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {CANONICAL_EQUITIES_TABLE} (
-            share_class_figi TEXT PRIMARY KEY,
-            payload          TEXT NOT NULL
-        ) WITHOUT ROWID;
-        """,
-    )
+        # reassemble into a single CanonicalEquity
+        return _build_canonical_equity_from_row(
+            identity_payload, financials_payload, snapshot_date
+        )
 
 
 def load_canonical_equities(
@@ -68,9 +63,8 @@ def load_canonical_equities(
     """
     Loads and rehydrates all CanonicalEquity objects from the database.
 
-    Iterates over all JSON payloads stored in the canonical_equities table,
-    deserialises each payload using CanonicalEquity.model_validate_json, and
-    returns a list of CanonicalEquity instances.
+    For each identity, joins with its latest snapshot and returns a list of
+    CanonicalEquity instances ordered by share_class_figi.
 
     Args:
         refresh_fn (Callable | None, optional): Function to refresh database if stale.
@@ -78,86 +72,245 @@ def load_canonical_equities(
     Returns:
         list[CanonicalEquity]: List of all rehydrated CanonicalEquity objects.
     """
-    # Ensure database is fresh before loading
     ensure_fresh_database(refresh_fn)
 
-    return [
-        CanonicalEquity.model_validate_json(payload)
-        for payload in _iter_canonical_equity_json_payloads()
-    ]
+    with connect() as conn:
+        _init_tables(conn)
+        rows = conn.execute(
+            f"""
+            SELECT i.payload, s.payload, s.snapshot_date
+            FROM {CANONICAL_EQUITY_IDENTITIES_TABLE} i
+            JOIN {CANONICAL_EQUITY_SNAPSHOTS_TABLE} s
+                ON i.share_class_figi = s.share_class_figi
+            WHERE s.snapshot_date = (
+                SELECT MAX(s2.snapshot_date)
+                FROM {CANONICAL_EQUITY_SNAPSHOTS_TABLE} s2
+                WHERE s2.share_class_figi = i.share_class_figi
+            )
+            ORDER BY i.share_class_figi
+            """,
+        ).fetchall()
+
+        return [
+            _build_canonical_equity_from_row(
+                identity_payload, financials_payload, snapshot_date
+            )
+            for identity_payload, financials_payload, snapshot_date in rows
+        ]
 
 
-def _iter_canonical_equity_json_payloads() -> Iterator[str]:
+def load_canonical_equity_history(
+    share_class_figi: str,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> list[CanonicalEquity]:
     """
-    Yields JSON payload strings from canonical_equities table in deterministic order.
+    Load historical snapshots for a given equity.
+
+    Joins the identity with all matching snapshots for the given FIGI, optionally
+    filtered by date range. Returns results ordered by snapshot_date ascending.
 
     Args:
-        None
+        share_class_figi (str): The FIGI identifier of the equity.
+        from_date (str | None, optional): Inclusive start date (YYYY-MM-DD).
+        to_date (str | None, optional): Inclusive end date (YYYY-MM-DD).
 
     Returns:
-        Iterator[str]: Iterator over JSON payload strings, ordered by share_class_figi.
+        list[CanonicalEquity]: List of CanonicalEquity objects with snapshot_date
+            populated, ordered by snapshot_date ascending. Empty if not found.
     """
     with connect() as conn:
-        _init_canonical_equities_table(conn)
-        cursor = conn.execute(
-            (
-                f"SELECT payload FROM {CANONICAL_EQUITIES_TABLE} "
-                "ORDER BY share_class_figi"
-            ),
-        )
-        for (payload_str,) in cursor:
-            if payload_str:
-                yield payload_str
+        _init_tables(conn)
+
+        query = f"""
+            SELECT i.payload, s.payload, s.snapshot_date
+            FROM {CANONICAL_EQUITY_IDENTITIES_TABLE} i
+            JOIN {CANONICAL_EQUITY_SNAPSHOTS_TABLE} s
+                ON i.share_class_figi = s.share_class_figi
+            WHERE i.share_class_figi = ?
+        """
+        params: list[str] = [share_class_figi]
+
+        if from_date is not None:
+            query += " AND s.snapshot_date >= ?"
+            params.append(from_date)
+
+        if to_date is not None:
+            query += " AND s.snapshot_date <= ?"
+            params.append(to_date)
+
+        query += " ORDER BY s.snapshot_date ASC"
+
+        rows = conn.execute(query, params).fetchall()
+
+        return [
+            _build_canonical_equity_from_row(
+                identity_payload, financials_payload, snapshot_date
+            )
+            for identity_payload, financials_payload, snapshot_date in rows
+        ]
 
 
-def save_canonical_equities(canonical_equities: Iterable[CanonicalEquity]) -> None:
+def save_canonical_equities(
+    canonical_equities: Iterable[CanonicalEquity],
+    snapshot_date: str | None = None,
+) -> None:
     """
     Saves a collection of CanonicalEquity objects to the database.
 
-    Each equity is serialised and inserted or replaced in the database table. The
-    function ensures the database connection is established and initialised before
-    performing the operation. Updates the last_updated timestamp for freshness tracking.
+    Each equity is split into identity and financial payloads and stored in
+    separate tables. Identity rows are upserted; snapshot rows are inserted
+    with the given date (defaulting to today).
 
     Args:
-        equities (Iterable[CanonicalEquity]): An iterable of CanonicalEquity objects to
-            be saved to the database.
+        canonical_equities (Iterable[CanonicalEquity]): An iterable of CanonicalEquity
+            objects to be saved to the database.
+        snapshot_date (str | None, optional): The snapshot date in YYYY-MM-DD format.
+            Defaults to today's date.
 
     Returns:
         None
     """
     canonical_equities = list(canonical_equities)
+    date = snapshot_date or datetime.date.today().isoformat()
 
     logger.info("Saving %d canonical equities to database", len(canonical_equities))
 
     with connect() as conn:
-        _init_canonical_equities_table(conn)
+        _init_tables(conn)
+
+        conn.execute("BEGIN")
 
         conn.executemany(
-            f"INSERT OR REPLACE INTO {CANONICAL_EQUITIES_TABLE} "
+            f"INSERT OR REPLACE INTO {CANONICAL_EQUITY_IDENTITIES_TABLE} "
             "(share_class_figi, payload) VALUES (?, ?)",
-            map(_serialise_equity, canonical_equities),
+            (_serialise_identity(e) for e in canonical_equities),
         )
 
-        # Update freshness timestamp
-        update_canonical_equities_timestamp(conn)
+        conn.executemany(
+            f"INSERT OR REPLACE INTO {CANONICAL_EQUITY_SNAPSHOTS_TABLE} "
+            "(share_class_figi, snapshot_date, payload) VALUES (?, ?, ?)",
+            (_serialise_snapshot(e, date) for e in canonical_equities),
+        )
+
+        conn.execute("COMMIT")
 
 
-def _serialise_equity(canonical_equity: CanonicalEquity) -> tuple[str, str]:
+def _init_tables(conn: sqlite3.Connection) -> None:
     """
-    Serialise a CanonicalEquity object into (figi, payload) tuple for database
-    storage.
+    Initialises both the equity identities and equity snapshots tables.
+
+    Args:
+        conn (sqlite3.Connection): The SQLite database connection to use.
+
+    Returns:
+        None
+    """
+    _init_canonical_equity_identities_table(conn)
+    _init_canonical_equity_snapshots_table(conn)
+
+
+def _init_canonical_equity_identities_table(conn: sqlite3.Connection) -> None:
+    """
+    Initialises the equity identities table in the database.
+
+    Args:
+        conn (sqlite3.Connection): The SQLite database connection to use.
+
+    Returns:
+        None
+    """
+    conn.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {CANONICAL_EQUITY_IDENTITIES_TABLE} (
+            share_class_figi TEXT PRIMARY KEY,
+            payload          TEXT NOT NULL
+        ) WITHOUT ROWID;
+        """,
+    )
+
+
+def _init_canonical_equity_snapshots_table(conn: sqlite3.Connection) -> None:
+    """
+    Initialises the equity snapshots table in the database.
+
+    Args:
+        conn (sqlite3.Connection): The SQLite database connection to use.
+
+    Returns:
+        None
+    """
+    conn.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {CANONICAL_EQUITY_SNAPSHOTS_TABLE} (
+            share_class_figi TEXT NOT NULL,
+            snapshot_date    TEXT NOT NULL,
+            payload          TEXT NOT NULL,
+            PRIMARY KEY (share_class_figi, snapshot_date),
+            FOREIGN KEY (share_class_figi)
+                REFERENCES {CANONICAL_EQUITY_IDENTITIES_TABLE}(share_class_figi)
+        ) WITHOUT ROWID;
+        """,
+    )
+
+
+def _build_canonical_equity_from_row(
+    identity_payload: str,
+    financials_payload: str,
+    snapshot_date: str,
+) -> CanonicalEquity:
+    """
+    Builds a CanonicalEquity from a database row's payload columns.
+
+    Deserialises the identity and financials payload columns and combines
+    them with the snapshot date into a single CanonicalEquity instance.
+
+    Args:
+        identity_payload (str): Serialised EquityIdentity payload.
+        financials_payload (str): Serialised EquityFinancials payload.
+        snapshot_date (str): The snapshot date in YYYY-MM-DD format.
+
+    Returns:
+        CanonicalEquity: A fully constructed CanonicalEquity instance.
+    """
+    identity = EquityIdentity.model_validate_json(identity_payload)
+    financials = EquityFinancials.model_validate_json(financials_payload)
+    return CanonicalEquity(
+        identity=identity,
+        financials=financials,
+        snapshot_date=snapshot_date,
+    )
+
+
+def _serialise_identity(canonical_equity: CanonicalEquity) -> tuple[str, str]:
+    """
+    Serialise the identity portion of a CanonicalEquity for database storage.
 
     Args:
         canonical_equity (CanonicalEquity): The CanonicalEquity instance to serialise.
 
     Returns:
-        tuple[str, str]: A tuple containing the share class FIGI as a string and
-            the JSON-serialised CanonicalEquity object as a string.
-
-    Raises:
-        ValueError: If 'share_class_figi' is missing or empty in the provided object.
+        tuple[str, str]: A tuple of (share_class_figi, identity_payload).
     """
     figi = canonical_equity.identity.share_class_figi
+    identity_payload = canonical_equity.identity.model_dump_json()
+    return figi, identity_payload
 
-    json_data = canonical_equity.model_dump_json()
-    return figi, json_data
+
+def _serialise_snapshot(
+    canonical_equity: CanonicalEquity,
+    snapshot_date: str,
+) -> tuple[str, str, str]:
+    """
+    Serialise the financial snapshot of a CanonicalEquity for database storage.
+
+    Args:
+        canonical_equity (CanonicalEquity): The CanonicalEquity instance to serialise.
+        snapshot_date (str): The snapshot date in YYYY-MM-DD format.
+
+    Returns:
+        tuple[str, str, str]: A tuple of (figi, date, financials_payload).
+    """
+    figi = canonical_equity.identity.share_class_figi
+    financials_payload = canonical_equity.financials.model_dump_json()
+    return figi, snapshot_date, financials_payload
