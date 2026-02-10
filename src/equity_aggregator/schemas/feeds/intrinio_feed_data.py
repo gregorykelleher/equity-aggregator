@@ -1,9 +1,11 @@
 # feeds/intrinio_feed_data.py
 
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from ._staleness import is_trade_stale, nullify_price_fields
 from .feed_validators import required
 
 
@@ -78,7 +80,7 @@ class IntrinioFeedData(BaseModel):
         exchange_mic = self.get("exchange_mic")
         mics = [exchange_mic] if exchange_mic else None
 
-        return {
+        fields = {
             # name → RawEquity.name
             "name": self.get("name"),
             # cik → RawEquity.cik
@@ -112,12 +114,36 @@ class IntrinioFeedData(BaseModel):
             ),
         }
 
+        # Null out price-sensitive fields when the last trade timestamp
+        # is too old, preventing stale quotes from being passed through.
+        last_time = _parse_last_time(quote.get("last_time"))
+        if is_trade_stale(last_time):
+            fields = nullify_price_fields(fields)
+
+        return fields
+
     model_config = ConfigDict(
         # ignore extra fields in incoming Intrinio raw data feed
         extra="ignore",
         # defer strict type validation to RawEquity
         strict=False,
     )
+
+
+def _parse_last_time(raw: str | None) -> datetime | None:
+    """
+    Parse an ISO-8601 last-trade timestamp from the Intrinio quote payload.
+
+    Returns:
+        datetime | None: The parsed datetime, or None if absent or malformed.
+    """
+    if raw is None:
+        return None
+
+    try:
+        return datetime.fromisoformat(raw)
+    except (ValueError, TypeError):
+        return None
 
 
 def _percent_to_decimal(percent: str | float | None) -> Decimal | None:
