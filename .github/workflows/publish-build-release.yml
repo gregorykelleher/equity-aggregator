@@ -2,7 +2,7 @@ name: publish-build-release
 
 on:
   schedule:
-    - cron: "0 01 * * *"   # daily 01:00 UTC
+    - cron: "0 22 * * *"   # daily 22:00 UTC (after US market close)
   workflow_dispatch: {}
 
 permissions:
