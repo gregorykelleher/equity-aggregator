@@ -1,9 +1,11 @@
 # feeds/tradingview_feed_data.py
 
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from ._staleness import is_trade_stale, nullify_price_fields
 from .feed_validators import required
 
 
@@ -49,7 +51,7 @@ class TradingViewFeedData(BaseModel):
         by RawEquity.
 
         TradingView provides data in an array format where field 'd' contains
-        19 elements, each at a specific index position corresponding to a
+        20 elements, each at a specific index position corresponding to a
         particular metric.
 
         Args:
@@ -62,7 +64,7 @@ class TradingViewFeedData(BaseModel):
         # Extract the data array
         d = self.get("d", [])
 
-        return {
+        fields = {
             # d[0] → RawEquity.symbol (ticker)
             "symbol": _extract_field(d, 0),
             # d[1] → RawEquity.name (company name)
@@ -101,6 +103,16 @@ class TradingViewFeedData(BaseModel):
             "industry": _extract_field(d, 18),
         }
 
+        # Null out price-sensitive fields when the last trade timestamp
+        # is too old, preventing stale quotes from being passed through.
+        # d[19] → last-price-update-time (Unix timestamp, not mapped to RawEquity)
+        raw_last_price_update_time = _extract_field(d, 19)
+        last_time = _parse_last_time(raw_last_price_update_time)
+        if is_trade_stale(last_time):
+            fields = nullify_price_fields(fields)
+
+        return fields
+
     model_config = ConfigDict(
         # ignore extra fields in incoming TradingView raw data feed
         extra="ignore",
@@ -123,6 +135,23 @@ def _extract_field(data_array: list | None, index: int) -> object | None:
     if not data_array or len(data_array) <= index:
         return None
     return data_array[index]
+
+
+def _parse_last_time(raw: float | None) -> datetime | None:
+    """
+    Parse a Unix timestamp from the TradingView last-price-update-time field.
+
+    Returns:
+        datetime | None: The parsed datetime in UTC, or None if absent or
+            malformed.
+    """
+    if raw is None:
+        return None
+
+    try:
+        return datetime.fromtimestamp(raw, tz=UTC)
+    except (ValueError, TypeError, OSError):
+        return None
 
 
 def _convert_percentage_to_decimal(value: float | None) -> Decimal | None:

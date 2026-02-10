@@ -45,6 +45,7 @@ def test_parse_row_extracts_symbol_and_name() -> None:
             8.5,
             "Technology",
             "Consumer Electronics",
+            1700000000,
         ],
     }
 
@@ -61,7 +62,7 @@ def test_parse_row_preserves_exchange_symbol() -> None:
     """
     row = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 17,
+        "d": ["AAPL", "Apple Inc."] + [None] * 18,
     }
 
     record = _parse_row(row)
@@ -88,7 +89,7 @@ def test_parse_row_returns_none_for_short_array() -> None:
     """
     row = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL"],  # Only 1 element instead of 19
+        "d": ["AAPL"],  # Only 1 element instead of 20
     }
 
     record = _parse_row(row)
@@ -106,12 +107,12 @@ def test_parse_row_logs_warning_for_short_array(
     """
     row = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."],  # Only 2 elements instead of 19
+        "d": ["AAPL", "Apple Inc."],  # Only 2 elements instead of 20
     }
 
     _parse_row(row)
 
-    assert "Invalid data array length: expected 19, got 2" in caplog.text
+    assert "Invalid data array length: expected 20, got 2" in caplog.text
 
 
 def test_parse_row_returns_none_for_null_data_array() -> None:
@@ -138,7 +139,7 @@ def test_parse_row_returns_none_for_missing_symbol() -> None:
     """
     row = {
         "s": "NYSE:AAPL",
-        "d": [None, "Apple Inc."] + [None] * 17,
+        "d": [None, "Apple Inc."] + [None] * 18,
     }
 
     record = _parse_row(row)
@@ -154,7 +155,7 @@ def test_parse_row_returns_none_for_missing_name() -> None:
     """
     row = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", None] + [None] * 17,
+        "d": ["AAPL", None] + [None] * 18,
     }
 
     record = _parse_row(row)
@@ -173,7 +174,7 @@ def test_parse_response_extracts_records() -> None:
         "data": [
             {
                 "s": "NYSE:AAPL",
-                "d": ["AAPL", "Apple Inc."] + [None] * 17,
+                "d": ["AAPL", "Apple Inc."] + [None] * 18,
             },
         ],
     }
@@ -221,7 +222,7 @@ def test_parse_response_filters_invalid_rows() -> None:
     payload = {
         "totalCount": 2,
         "data": [
-            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
+            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
             {"s": "NYSE:INVALID", "d": ["INVALID"]},  # Short array
         ],
     }
@@ -240,7 +241,7 @@ async def test_fetch_page_returns_records_and_count() -> None:
     payload = {
         "totalCount": 1000,
         "data": [
-            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
+            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
         ],
     }
 
@@ -281,7 +282,7 @@ async def test_fetch_all_records_single_page() -> None:
     payload = {
         "totalCount": 500,
         "data": [
-            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
+            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
         ],
     }
 
@@ -313,14 +314,14 @@ async def test_fetch_all_records_multiple_pages() -> None:
             payload = {
                 "totalCount": 1500,
                 "data": [
-                    {"s": "NYSE:FOO", "d": ["FOO", "Foo Inc."] + [None] * 17},
+                    {"s": "NYSE:FOO", "d": ["FOO", "Foo Inc."] + [None] * 18},
                 ],
             }
         else:
             payload = {
                 "totalCount": 1500,
                 "data": [
-                    {"s": "NYSE:BAR", "d": ["BAR", "Bar Inc."] + [None] * 17},
+                    {"s": "NYSE:BAR", "d": ["BAR", "Bar Inc."] + [None] * 18},
                 ],
             }
 
@@ -352,7 +353,7 @@ async def test_fetch_all_records_handles_page_failure() -> None:
                 json={
                     "totalCount": 2000,
                     "data": [
-                        {"s": "NYSE:FOO", "d": ["FOO", "Foo Inc."] + [None] * 17},
+                        {"s": "NYSE:FOO", "d": ["FOO", "Foo Inc."] + [None] * 18},
                     ],
                 },
             )
@@ -373,8 +374,8 @@ def test_deduplicate_by_symbol_filters_duplicates() -> None:
     ASSERT:  returns single unique record
     """
     records = [
-        {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
-        {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
+        {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
+        {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
     ]
 
     unique = _deduplicate_by_symbol(records)
@@ -389,8 +390,8 @@ def test_deduplicate_by_symbol_preserves_first_occurrence() -> None:
     ASSERT:  first occurrence is preserved
     """
     records = [
-        {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
-        {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
+        {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
+        {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
     ]
 
     unique = _deduplicate_by_symbol(records)
@@ -405,9 +406,9 @@ def test_deduplicate_by_symbol_preserves_unique_records() -> None:
     ASSERT:  all three records are preserved
     """
     records = [
-        {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
-        {"s": "NYSE:MSFT", "d": ["MSFT", "Microsoft Corp."] + [None] * 17},
-        {"s": "NYSE:GOOGL", "d": ["GOOGL", "Alphabet Inc."] + [None] * 17},
+        {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
+        {"s": "NYSE:MSFT", "d": ["MSFT", "Microsoft Corp."] + [None] * 18},
+        {"s": "NYSE:GOOGL", "d": ["GOOGL", "Alphabet Inc."] + [None] * 18},
     ]
 
     unique = _deduplicate_by_symbol(records)
@@ -439,8 +440,8 @@ async def test_stream_and_cache_deduplicates_and_caches() -> None:
     payload = {
         "totalCount": 2,
         "data": [
-            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
-            {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
+            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
+            {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
         ],
     }
 
@@ -470,9 +471,9 @@ async def test_stream_and_cache_preserves_record_order() -> None:
     payload = {
         "totalCount": 3,
         "data": [
-            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
-            {"s": "NYSE:MSFT", "d": ["MSFT", "Microsoft Corp."] + [None] * 17},
-            {"s": "NYSE:GOOGL", "d": ["GOOGL", "Alphabet Inc."] + [None] * 17},
+            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
+            {"s": "NYSE:MSFT", "d": ["MSFT", "Microsoft Corp."] + [None] * 18},
+            {"s": "NYSE:GOOGL", "d": ["GOOGL", "Alphabet Inc."] + [None] * 18},
         ],
     }
 
@@ -500,7 +501,7 @@ async def test_fetch_equity_records_uses_existing_cache() -> None:
     ASSERT:  record comes from cache (no HTTP required)
     """
     expected = [
-        {"s": "NYSE:CCC", "d": ["CCC", "Cached Co."] + [None] * 17},
+        {"s": "NYSE:CCC", "d": ["CCC", "Cached Co."] + [None] * 18},
     ]
     save_cache("tradingview_records", expected)
 
@@ -518,8 +519,8 @@ async def test_fetch_equity_records_streams_with_supplied_client() -> None:
     payload = {
         "totalCount": 2,
         "data": [
-            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
-            {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 17},
+            {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
+            {"s": "NASDAQ:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
         ],
     }
 
@@ -576,7 +577,7 @@ def test_parse_row_handles_null_in_data_array() -> None:
     """
     row = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc.", None, "USD", None] + [None] * 14,
+        "d": ["AAPL", "Apple Inc.", None, "USD", None] + [None] * 15,
     }
 
     record = _parse_row(row)
@@ -615,6 +616,7 @@ def test_parse_response_preserves_all_fields() -> None:
                     8.5,
                     "Technology",
                     "Consumer Electronics",
+                    1700000000,
                 ],
             },
         ],
@@ -622,4 +624,5 @@ def test_parse_response_preserves_all_fields() -> None:
 
     records, _ = _parse_response(payload)
 
-    assert len(records[0]["d"]) == 19  # noqa: PLR2004
+    expected_array_length = 20
+    assert len(records[0]["d"]) == expected_array_length

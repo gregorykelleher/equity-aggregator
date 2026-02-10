@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 _TRADINGVIEW_SCAN_URL = "https://scanner.tradingview.com/america/scan"
 _PAGE_SIZE = 1000
-_EXPECTED_ARRAY_LENGTH = 19
+_EXPECTED_ARRAY_LENGTH = 20
 
 _REQUEST_BODY_TEMPLATE = {
     "markets": ["america"],
@@ -46,6 +46,7 @@ _REQUEST_BODY_TEMPLATE = {
         "return_on_assets_fq",
         "sector",
         "industry",
+        "last-price-update-time",
     ],
     "sort": {"sortBy": "name", "sortOrder": "asc"},
     # range is set per request for pagination
