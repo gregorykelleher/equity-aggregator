@@ -257,13 +257,14 @@ def test_field_config_financial_fields_have_deviation_filter() -> None:
     """
     ARRANGE: FIELD_CONFIG dictionary
     ACT:     check financial field max_deviation
-    ASSERT:  median fields have 50% deviation threshold
+    ASSERT:  price fields use tighter 20% threshold, others use 30% default
     """
-    allowed_deviation = Decimal("0.5")
+    tighter_deviation = Decimal("0.2")
+    default_deviation = Decimal("0.3")
     expected_deviation = {
-        "market_cap": allowed_deviation,
-        "last_price": allowed_deviation,
-        "revenue": allowed_deviation,
+        "market_cap": tighter_deviation,
+        "last_price": tighter_deviation,
+        "revenue": default_deviation,
     }
 
     assert {

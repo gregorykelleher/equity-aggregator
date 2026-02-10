@@ -793,7 +793,7 @@ def test_merge_fifty_two_week_min_even_number_median() -> None:
             name="LOW",
             symbol="L",
             share_class_figi="FIGI00000001",
-            fifty_two_week_min=Decimal("4"),
+            fifty_two_week_min=Decimal("8"),
         ),
         RawEquity(
             name="LOW",
@@ -805,7 +805,7 @@ def test_merge_fifty_two_week_min_even_number_median() -> None:
 
     merged = merge(equities)
 
-    assert merged.fifty_two_week_min == Decimal("4")
+    assert merged.fifty_two_week_min == Decimal("8")
 
 
 def test_merge_fifty_two_week_max_even_number_median() -> None:
@@ -819,7 +819,7 @@ def test_merge_fifty_two_week_max_even_number_median() -> None:
             name="HIGH",
             symbol="H",
             share_class_figi="FIGI00000001",
-            fifty_two_week_max=Decimal("14"),
+            fifty_two_week_max=Decimal("22"),
         ),
         RawEquity(
             name="HIGH",
@@ -831,21 +831,21 @@ def test_merge_fifty_two_week_max_even_number_median() -> None:
 
     merged = merge(equities)
 
-    assert merged.fifty_two_week_max == Decimal("14")
+    assert merged.fifty_two_week_max == Decimal("22")
 
 
 def test_merge_dividend_yield_even_number_median() -> None:
     """
-    ARRANGE: two duplicates with dividend yields 2 and 4
+    ARRANGE: two duplicates with dividend yields 3 and 4
     ACT:     merge
-    ASSERT:  median_low == 2
+    ASSERT:  median_low == 3
     """
     equities = [
         RawEquity(
             name="DIV",
             symbol="D",
             share_class_figi="FIGI00000001",
-            dividend_yield=Decimal("2"),
+            dividend_yield=Decimal("3"),
         ),
         RawEquity(
             name="DIV",
@@ -857,7 +857,7 @@ def test_merge_dividend_yield_even_number_median() -> None:
 
     merged = merge(equities)
 
-    assert merged.dividend_yield == Decimal("2")
+    assert merged.dividend_yield == Decimal("3")
 
 
 def test_merge_market_volume_even_number_median() -> None:
@@ -888,16 +888,16 @@ def test_merge_market_volume_even_number_median() -> None:
 
 def test_merge_insiders_even_number_median() -> None:
     """
-    ARRANGE: two duplicates with held_insiders 10 and 20
+    ARRANGE: two duplicates with held_insiders 15 and 20
     ACT:     merge
-    ASSERT:  median_low == 10
+    ASSERT:  median_low == 15
     """
     equities = [
         RawEquity(
             name="I",
             symbol="I",
             share_class_figi="FIGI00000001",
-            held_insiders=Decimal("10"),
+            held_insiders=Decimal("15"),
         ),
         RawEquity(
             name="I",
@@ -909,21 +909,21 @@ def test_merge_insiders_even_number_median() -> None:
 
     merged = merge(equities)
 
-    assert merged.held_insiders == Decimal("10")
+    assert merged.held_insiders == Decimal("15")
 
 
 def test_merge_institutions_even_number_median() -> None:
     """
-    ARRANGE: two duplicates with held_institutions 8 and 15
+    ARRANGE: two duplicates with held_institutions 12 and 15
     ACT:     merge
-    ASSERT:  median_low == 8
+    ASSERT:  median_low == 12
     """
     equities = [
         RawEquity(
             name="INST",
             symbol="I",
             share_class_figi="FIGI00000001",
-            held_institutions=Decimal("8"),
+            held_institutions=Decimal("12"),
         ),
         RawEquity(
             name="INST",
@@ -935,7 +935,7 @@ def test_merge_institutions_even_number_median() -> None:
 
     merged = merge(equities)
 
-    assert merged.held_institutions == Decimal("8")
+    assert merged.held_institutions == Decimal("12")
 
 
 def test_merge_short_interest_even_number_median() -> None:
