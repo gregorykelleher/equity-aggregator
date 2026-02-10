@@ -1,5 +1,6 @@
 # feeds/test_xetra_feed_data.py
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -226,3 +227,128 @@ def test_mics_from_mic_field() -> None:
     actual = XetraFeedData(**payload)
 
     assert actual.mics == ["XETR"]
+
+
+def test_stale_trade_nullifies_price_fields() -> None:
+    """
+    ARRANGE: payload with dateTimeLastPrice 48h ago (exceeds 36h default)
+    ACT:     construct XetraFeedData
+    ASSERT:  last_price is nullified
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    payload = {
+        "name": "Stale AG",
+        "wkn": "STL001",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {
+            "lastPrice": 243.2,
+            "dateTimeLastPrice": stale_time.isoformat(),
+        },
+        "key_data": {"marketCapitalisation": 1000000},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.last_price is None
+
+
+def test_stale_trade_preserves_identity_fields() -> None:
+    """
+    ARRANGE: payload with dateTimeLastPrice 48h ago (exceeds 36h default)
+    ACT:     construct XetraFeedData
+    ASSERT:  non-price fields are preserved
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    payload = {
+        "name": "Stale AG",
+        "wkn": "STL001",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {
+            "lastPrice": 243.2,
+            "dateTimeLastPrice": stale_time.isoformat(),
+        },
+        "key_data": {"marketCapitalisation": 1000000},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.symbol == "STL001"
+
+
+def test_fresh_trade_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with dateTimeLastPrice just now (within 36h default)
+    ACT:     construct XetraFeedData
+    ASSERT:  last_price is preserved
+    """
+    expected_price = 243.2
+    fresh_time = datetime.now(UTC)
+
+    payload = {
+        "name": "Fresh AG",
+        "wkn": "FRH001",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {
+            "lastPrice": expected_price,
+            "dateTimeLastPrice": fresh_time.isoformat(),
+        },
+        "key_data": {"marketCapitalisation": 1000000},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.last_price == expected_price
+
+
+def test_missing_last_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload without dateTimeLastPrice in overview
+    ACT:     construct XetraFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 100.0
+
+    payload = {
+        "name": "No Time AG",
+        "wkn": "NTM001",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {"lastPrice": expected_price},
+        "key_data": {"marketCapitalisation": 1000000},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.last_price == expected_price
+
+
+def test_malformed_last_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with unparseable dateTimeLastPrice string
+    ACT:     construct XetraFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 150.0
+
+    payload = {
+        "name": "Bad Time AG",
+        "wkn": "BDT001",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {
+            "lastPrice": expected_price,
+            "dateTimeLastPrice": "not-a-date",
+        },
+        "key_data": {"marketCapitalisation": 1000000},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.last_price == expected_price
