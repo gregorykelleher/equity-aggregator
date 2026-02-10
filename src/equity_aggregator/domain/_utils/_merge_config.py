@@ -65,16 +65,24 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     # Tighter 20% deviation threshold: spot prices from reliable sources rarely
     # diverge beyond this, and a wider band risks accepting stale feed data
     "market_cap": FieldSpec(
-        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+        Strategy.MEDIAN,
+        min_sources=2,
+        max_deviation=Decimal("0.2"),
     ),
     "last_price": FieldSpec(
-        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+        Strategy.MEDIAN,
+        min_sources=2,
+        max_deviation=Decimal("0.2"),
     ),
     "fifty_two_week_min": FieldSpec(
-        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+        Strategy.MEDIAN,
+        min_sources=2,
+        max_deviation=Decimal("0.2"),
     ),
     "fifty_two_week_max": FieldSpec(
-        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+        Strategy.MEDIAN,
+        min_sources=2,
+        max_deviation=Decimal("0.2"),
     ),
     # Other financial metrics
     # Fields with low coverage (<5%) accept single source to prevent data loss
