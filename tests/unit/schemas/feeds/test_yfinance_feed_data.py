@@ -1,11 +1,13 @@
 # feeds/test_yfinance_feed_data.py
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
 
 from equity_aggregator.schemas import YFinanceFeedData
+from equity_aggregator.schemas.feeds.yfinance_feed_data import _parse_last_time
 
 pytestmark = pytest.mark.unit
 
@@ -120,3 +122,150 @@ def test_last_price_string_with_comma_preserved() -> None:
     actual = YFinanceFeedData(**raw)
 
     assert actual.last_price == "1,23"
+
+
+def test_stale_trade_nullifies_price_fields() -> None:
+    """
+    ARRANGE: payload with regularMarketTime 48h ago (exceeds 36h default)
+    ACT:     construct YFinanceFeedData
+    ASSERT:  last_price is nullified
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    raw = {
+        "longName": "Stale Corp",
+        "underlyingSymbol": "STALE",
+        "currency": "USD",
+        "currentPrice": 100.0,
+        "marketCap": 5000000,
+        "regularMarketTime": stale_time.timestamp(),
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.last_price is None
+
+
+def test_stale_trade_preserves_identity_fields() -> None:
+    """
+    ARRANGE: payload with regularMarketTime 48h ago (exceeds 36h default)
+    ACT:     construct YFinanceFeedData
+    ASSERT:  non-price fields are preserved
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    raw = {
+        "longName": "Stale Corp",
+        "underlyingSymbol": "STALE",
+        "currency": "USD",
+        "currentPrice": 100.0,
+        "marketCap": 5000000,
+        "regularMarketTime": stale_time.timestamp(),
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.symbol == "STALE"
+
+
+def test_fresh_trade_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with regularMarketTime just now (within 36h default)
+    ACT:     construct YFinanceFeedData
+    ASSERT:  last_price is preserved
+    """
+    expected_price = 250.0
+    fresh_time = datetime.now(UTC)
+
+    raw = {
+        "longName": "Fresh Corp",
+        "underlyingSymbol": "FRESH",
+        "currency": "USD",
+        "currentPrice": expected_price,
+        "marketCap": 5000000,
+        "regularMarketTime": fresh_time.timestamp(),
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_missing_regular_market_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload without regularMarketTime
+    ACT:     construct YFinanceFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 300.0
+
+    raw = {
+        "longName": "No Time Corp",
+        "underlyingSymbol": "NOTM",
+        "currency": "USD",
+        "currentPrice": expected_price,
+        "marketCap": 5000000,
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_malformed_regular_market_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with non-numeric regularMarketTime
+    ACT:     construct YFinanceFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 150.0
+
+    raw = {
+        "longName": "Bad Time Corp",
+        "underlyingSymbol": "BADTM",
+        "currency": "USD",
+        "currentPrice": expected_price,
+        "marketCap": 5000000,
+        "regularMarketTime": "not-a-timestamp",
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_parse_last_time_converts_unix_timestamp() -> None:
+    """
+    ARRANGE: Unix timestamp as integer
+    ACT:     parse last time
+    ASSERT:  returns UTC datetime
+    """
+    expected = datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
+
+    actual = _parse_last_time(1700000000)
+
+    assert actual == expected
+
+
+def test_parse_last_time_returns_none_for_none() -> None:
+    """
+    ARRANGE: None value
+    ACT:     parse last time
+    ASSERT:  returns None
+    """
+    actual = _parse_last_time(None)
+
+    assert actual is None
+
+
+def test_parse_last_time_returns_none_for_invalid_value() -> None:
+    """
+    ARRANGE: non-numeric string
+    ACT:     parse last time
+    ASSERT:  returns None
+    """
+    actual = _parse_last_time("not-a-timestamp")
+
+    assert actual is None

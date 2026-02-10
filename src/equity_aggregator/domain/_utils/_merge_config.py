@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum, auto
 from typing import NamedTuple
 
-DEFAULT_MAX_DEVIATION = Decimal("0.5")
+DEFAULT_MAX_DEVIATION = Decimal("0.3")
 
 
 class Strategy(Enum):
@@ -62,11 +62,20 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     "sector": FieldSpec(Strategy.FUZZY_CLUSTER, min_sources=1),
     "mics": FieldSpec(Strategy.UNION, min_sources=1),
     # Critical price and market data (require corroboration from multiple sources)
-    # Fields with >50% multi-source coverage that benefit from cross-validation
-    "market_cap": FieldSpec(Strategy.MEDIAN, min_sources=2),
-    "last_price": FieldSpec(Strategy.MEDIAN, min_sources=2),
-    "fifty_two_week_min": FieldSpec(Strategy.MEDIAN, min_sources=2),
-    "fifty_two_week_max": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    # Tighter 20% deviation threshold: spot prices from reliable sources rarely
+    # diverge beyond this, and a wider band risks accepting stale feed data
+    "market_cap": FieldSpec(
+        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+    ),
+    "last_price": FieldSpec(
+        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+    ),
+    "fifty_two_week_min": FieldSpec(
+        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+    ),
+    "fifty_two_week_max": FieldSpec(
+        Strategy.MEDIAN, min_sources=2, max_deviation=Decimal("0.2"),
+    ),
     # Other financial metrics
     # Fields with low coverage (<5%) accept single source to prevent data loss
     # Fields with moderate coverage (>20%) require corroboration for quality

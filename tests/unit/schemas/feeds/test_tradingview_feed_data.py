@@ -1,5 +1,6 @@
 # feeds/test_tradingview_feed_data.py
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -9,6 +10,7 @@ from equity_aggregator.schemas import TradingViewFeedData
 from equity_aggregator.schemas.feeds.tradingview_feed_data import (
     _convert_percentage_to_decimal,
     _extract_field,
+    _parse_last_time,
 )
 
 pytestmark = pytest.mark.unit
@@ -103,7 +105,7 @@ def test_strips_extra_fields() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 17,
+        "d": ["AAPL", "Apple Inc."] + [None] * 18,
     }
 
     actual = TradingViewFeedData(**raw, unexpected="FIELD")
@@ -119,7 +121,7 @@ def test_missing_required_name_raises() -> None:
     """
     incomplete = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", None] + [None] * 17,
+        "d": ["AAPL", None] + [None] * 18,
     }
 
     with pytest.raises(ValidationError):
@@ -134,7 +136,7 @@ def test_missing_required_symbol_raises() -> None:
     """
     incomplete = {
         "s": "NYSE:AAPL",
-        "d": [None, "Apple Inc."] + [None] * 17,
+        "d": [None, "Apple Inc."] + [None] * 18,
     }
 
     with pytest.raises(ValidationError):
@@ -149,7 +151,7 @@ def test_normalises_symbol_field() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 17,
+        "d": ["AAPL", "Apple Inc."] + [None] * 18,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -165,7 +167,7 @@ def test_normalises_name_field() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 17,
+        "d": ["AAPL", "Apple Inc."] + [None] * 18,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -181,7 +183,7 @@ def test_currency_field_preserved() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc.", "NYSE", "USD"] + [None] * 15,
+        "d": ["AAPL", "Apple Inc.", "NYSE", "USD"] + [None] * 16,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -197,7 +199,7 @@ def test_last_price_maps_from_close() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc.", None, None, 150.50] + [None] * 14,
+        "d": ["AAPL", "Apple Inc.", None, None, 150.50] + [None] * 15,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -213,7 +215,7 @@ def test_market_cap_maps_from_market_cap_basic() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 3 + [2500000000000] + [None] * 13,
+        "d": ["AAPL", "Apple Inc."] + [None] * 3 + [2500000000000] + [None] * 14,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -229,7 +231,7 @@ def test_market_volume_maps_from_volume() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 4 + [50000000] + [None] * 12,
+        "d": ["AAPL", "Apple Inc."] + [None] * 4 + [50000000] + [None] * 13,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -245,7 +247,7 @@ def test_dividend_yield_maps_from_dividends_yield_current() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 5 + [0.005] + [None] * 11,
+        "d": ["AAPL", "Apple Inc."] + [None] * 5 + [0.005] + [None] * 12,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -261,7 +263,7 @@ def test_shares_outstanding_maps_from_total_shares() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 7 + [16000000000] + [None] * 9,
+        "d": ["AAPL", "Apple Inc."] + [None] * 7 + [16000000000] + [None] * 10,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -277,7 +279,7 @@ def test_revenue_maps_from_total_revenue_ttm() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 8 + [500000000000] + [None] * 8,
+        "d": ["AAPL", "Apple Inc."] + [None] * 8 + [500000000000] + [None] * 9,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -293,7 +295,7 @@ def test_ebitda_maps_from_ebitda_ttm() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 9 + [100000000000] + [None] * 7,
+        "d": ["AAPL", "Apple Inc."] + [None] * 9 + [100000000000] + [None] * 8,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -309,7 +311,7 @@ def test_trailing_pe_maps_from_price_earnings_ttm() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 10 + [25.5] + [None] * 6,
+        "d": ["AAPL", "Apple Inc."] + [None] * 10 + [25.5] + [None] * 7,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -325,7 +327,7 @@ def test_price_to_book_maps_from_price_book_fq() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 11 + [5.5] + [None] * 5,
+        "d": ["AAPL", "Apple Inc."] + [None] * 11 + [5.5] + [None] * 6,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -341,7 +343,7 @@ def test_trailing_eps_maps_from_earnings_per_share() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 12 + [6.5] + [None] * 4,
+        "d": ["AAPL", "Apple Inc."] + [None] * 12 + [6.5] + [None] * 5,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -357,7 +359,7 @@ def test_return_on_equity_converted_from_percentage() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 13 + [15.5] + [None] * 3,
+        "d": ["AAPL", "Apple Inc."] + [None] * 13 + [15.5] + [None] * 4,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -373,7 +375,7 @@ def test_return_on_assets_converted_from_percentage() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 14 + [8.5] + [None] * 2,
+        "d": ["AAPL", "Apple Inc."] + [None] * 14 + [8.5] + [None] * 3,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -389,7 +391,7 @@ def test_sector_field_preserved() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 15 + ["Technology", None],
+        "d": ["AAPL", "Apple Inc."] + [None] * 15 + ["Technology", None, None],
     }
 
     actual = TradingViewFeedData(**raw)
@@ -405,7 +407,7 @@ def test_industry_field_preserved() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 16 + ["Consumer Electronics"],
+        "d": ["AAPL", "Apple Inc."] + [None] * 16 + ["Consumer Electronics", None],
     }
 
     actual = TradingViewFeedData(**raw)
@@ -421,7 +423,7 @@ def test_all_financial_fields_can_be_none() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 17,
+        "d": ["AAPL", "Apple Inc."] + [None] * 18,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -437,7 +439,7 @@ def test_decimal_values_handled() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc.", None, None, Decimal("150.50")] + [None] * 14,
+        "d": ["AAPL", "Apple Inc.", None, None, Decimal("150.50")] + [None] * 15,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -453,7 +455,7 @@ def test_omits_unmapped_fields() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 17,
+        "d": ["AAPL", "Apple Inc."] + [None] * 18,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -469,7 +471,7 @@ def test_whitespace_in_name_preserved() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "  Padded Name  "] + [None] * 17,
+        "d": ["AAPL", "  Padded Name  "] + [None] * 18,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -485,7 +487,7 @@ def test_whitespace_in_symbol_preserved() -> None:
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["  AAPL  ", "Apple Inc."] + [None] * 17,
+        "d": ["  AAPL  ", "Apple Inc."] + [None] * 18,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -561,9 +563,147 @@ def test_all_fields_populated() -> None:
             8.5,  # return_on_assets (percentage)
             "Technology",  # sector
             "Consumer Electronics",  # industry
+            1700000000,  # last-price-update-time (Unix timestamp)
         ],
     }
 
     actual = TradingViewFeedData(**raw)
 
     assert actual.symbol == "AAPL"
+
+
+def test_stale_trade_nullifies_price_fields() -> None:
+    """
+    ARRANGE: payload with last-price-update-time 48h ago (exceeds 36h default)
+    ACT:     construct TradingViewFeedData
+    ASSERT:  last_price is nullified
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    raw = {
+        "s": "NYSE:STALE",
+        "d": ["STALE", "Stale Corp", None, "USD", 100.0]
+        + [None] * 14
+        + [stale_time.timestamp()],
+    }
+
+    actual = TradingViewFeedData(**raw)
+
+    assert actual.last_price is None
+
+
+def test_stale_trade_preserves_identity_fields() -> None:
+    """
+    ARRANGE: payload with last-price-update-time 48h ago (exceeds 36h default)
+    ACT:     construct TradingViewFeedData
+    ASSERT:  non-price fields are preserved
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    raw = {
+        "s": "NYSE:STALE",
+        "d": ["STALE", "Stale Corp", None, "USD", 100.0]
+        + [None] * 14
+        + [stale_time.timestamp()],
+    }
+
+    actual = TradingViewFeedData(**raw)
+
+    assert actual.symbol == "STALE"
+
+
+def test_fresh_trade_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with last-price-update-time just now (within 36h default)
+    ACT:     construct TradingViewFeedData
+    ASSERT:  last_price is preserved
+    """
+    expected_price = 250.0
+    fresh_time = datetime.now(UTC)
+
+    raw = {
+        "s": "NYSE:FRESH",
+        "d": ["FRESH", "Fresh Corp", None, "USD", expected_price]
+        + [None] * 14
+        + [fresh_time.timestamp()],
+    }
+
+    actual = TradingViewFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_missing_last_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload without last-price-update-time (None at d[19])
+    ACT:     construct TradingViewFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 300.0
+
+    raw = {
+        "s": "NYSE:NOTM",
+        "d": ["NOTM", "No Time Corp", None, "USD", expected_price]
+        + [None] * 15,
+    }
+
+    actual = TradingViewFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_malformed_last_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with non-numeric last-price-update-time
+    ACT:     construct TradingViewFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 150.0
+
+    raw = {
+        "s": "NYSE:BADTM",
+        "d": ["BADTM", "Bad Time Corp", None, "USD", expected_price]
+        + [None] * 14
+        + ["not-a-timestamp"],
+    }
+
+    actual = TradingViewFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_parse_last_time_converts_unix_timestamp() -> None:
+    """
+    ARRANGE: Unix timestamp as integer
+    ACT:     parse last time
+    ASSERT:  returns UTC datetime
+    """
+    expected = datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
+
+    actual = _parse_last_time(1700000000)
+
+    assert actual == expected
+
+
+def test_parse_last_time_returns_none_for_none() -> None:
+    """
+    ARRANGE: None value
+    ACT:     parse last time
+    ASSERT:  returns None
+    """
+    actual = _parse_last_time(None)
+
+    assert actual is None
+
+
+def test_parse_last_time_returns_none_for_invalid_value() -> None:
+    """
+    ARRANGE: non-numeric string
+    ACT:     parse last time
+    ASSERT:  returns None
+    """
+    actual = _parse_last_time("not-a-timestamp")
+
+    assert actual is None

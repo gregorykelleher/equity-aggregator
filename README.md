@@ -18,11 +18,11 @@ Discovery feeds provide raw equity data from primary market sources:
 
 | Source | Coverage | Description |
 |----------|---------|-------------|
-| 🇺🇸 Intrinio | United States | Intrinio - US-listed equities |
+| 🇺🇸 Intrinio | United States | Intrinio - US listed equities |
 | 🇬🇧 LSEG | International | London Stock Exchange Group - Global equities |
-| 🇺🇸 SEC | United States | Securities and Exchange Commission - US-listed equities |
-| 🇺🇸 Stock Analysis | United States | Stock Analysis - Global equities |
-| 🇺🇸 TradingView | United States | TradingView - US-listed equities |
+| 🇺🇸 SEC | United States | Securities and Exchange Commission - US listed equities |
+| 🇺🇸 Stock Analysis | International | Stock Analysis - Global listed equities |
+| 🇺🇸 TradingView | International | TradingView - Global listed equities |
 | 🇩🇪 XETRA | International | Deutsche Börse electronic trading platform - Global listed equities |
 
 ### Enrichment Feeds

@@ -79,6 +79,11 @@ jobs:
           mkdir -p data/data_store data/logs
           uv run equity-aggregator --verbose seed
 
+      - name: Clean and compact data store
+        run: |
+          sqlite3 data/data_store/data_store.db \
+            "DROP TABLE IF EXISTS object_cache; VACUUM;"
+          
       - name: Compress data store for release
         run: gzip -k data/data_store/data_store.db
 

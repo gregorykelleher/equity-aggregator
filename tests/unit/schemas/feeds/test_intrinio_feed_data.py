@@ -1,5 +1,6 @@
 # feeds/test_intrinio_feed_data.py
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -501,4 +502,114 @@ def test_lei_defaults_to_none() -> None:
     actual = IntrinioFeedData(**raw)
 
     assert actual.lei is None
+
+
+def test_stale_trade_nullifies_price_fields() -> None:
+    """
+    ARRANGE: payload with last_time 48h ago (exceeds 36h default)
+    ACT:     construct IntrinioFeedData
+    ASSERT:  last_price is nullified
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    raw = {
+        "name": "Stale Corp",
+        "ticker": "STALE",
+        "quote": {
+            "last": 100.0,
+            "last_time": stale_time.isoformat(),
+        },
+    }
+
+    actual = IntrinioFeedData(**raw)
+
+    assert actual.last_price is None
+
+
+def test_stale_trade_preserves_identity_fields() -> None:
+    """
+    ARRANGE: payload with last_time 48h ago (exceeds 36h default)
+    ACT:     construct IntrinioFeedData
+    ASSERT:  non-price fields are preserved
+    """
+    hours_ago = 48
+    stale_time = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+    raw = {
+        "name": "Stale Corp",
+        "ticker": "STALE",
+        "quote": {
+            "last": 100.0,
+            "last_time": stale_time.isoformat(),
+        },
+    }
+
+    actual = IntrinioFeedData(**raw)
+
+    assert actual.symbol == "STALE"
+
+
+def test_fresh_trade_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with last_time just now (within 36h default)
+    ACT:     construct IntrinioFeedData
+    ASSERT:  last_price is preserved
+    """
+    expected_price = 250.0
+    fresh_time = datetime.now(UTC)
+
+    raw = {
+        "name": "Fresh Corp",
+        "ticker": "FRESH",
+        "quote": {
+            "last": expected_price,
+            "last_time": fresh_time.isoformat(),
+        },
+    }
+
+    actual = IntrinioFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_missing_last_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload without last_time in quote
+    ACT:     construct IntrinioFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 300.0
+
+    raw = {
+        "name": "No Time Corp",
+        "ticker": "NOTM",
+        "quote": {"last": expected_price},
+    }
+
+    actual = IntrinioFeedData(**raw)
+
+    assert actual.last_price == expected_price
+
+
+def test_malformed_last_time_preserves_price_fields() -> None:
+    """
+    ARRANGE: payload with unparseable last_time string
+    ACT:     construct IntrinioFeedData
+    ASSERT:  last_price is preserved (fail-open)
+    """
+    expected_price = 150.0
+
+    raw = {
+        "name": "Bad Time Corp",
+        "ticker": "BADTM",
+        "quote": {
+            "last": expected_price,
+            "last_time": "not-a-date",
+        },
+    }
+
+    actual = IntrinioFeedData(**raw)
+
+    assert actual.last_price == expected_price
 

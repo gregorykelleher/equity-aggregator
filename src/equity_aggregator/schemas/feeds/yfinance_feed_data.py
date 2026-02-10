@@ -1,9 +1,11 @@
 # feeds/yfinance_feed_data.py
 
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from ._staleness import is_trade_stale, nullify_price_fields
 from .feed_validators import required
 
 
@@ -76,7 +78,7 @@ class YFinanceFeedData(BaseModel):
             dict[str, object]: A new dictionary with renamed keys suitable for the
                 RawEquity schema.
         """
-        return {
+        fields = {
             # longName/shortName → RawEquity.name
             "name": self.get("longName") or self.get("shortName"),
             # underlyingSymbol or symbol → RawEquity.symbol
@@ -147,9 +149,34 @@ class YFinanceFeedData(BaseModel):
             "sector": self.get("sector"),
         }
 
+        # Null out price-sensitive fields when the last trade timestamp
+        # is too old, preventing stale quotes from being passed through.
+        last_time = _parse_last_time(self.get("regularMarketTime"))
+        if is_trade_stale(last_time):
+            fields = nullify_price_fields(fields)
+
+        return fields
+
     model_config = ConfigDict(
         # ignore extra fields in incoming YFinance raw data feed
         extra="ignore",
         # defer strict type validation to RawEquity
         strict=False,
     )
+
+
+def _parse_last_time(raw: float | None) -> datetime | None:
+    """
+    Parse a Unix timestamp from the YFinance regularMarketTime field.
+
+    Returns:
+        datetime | None: The parsed datetime in UTC, or None if absent or
+            malformed.
+    """
+    if raw is None:
+        return None
+
+    try:
+        return datetime.fromtimestamp(raw, tz=UTC)
+    except (ValueError, TypeError, OSError):
+        return None
