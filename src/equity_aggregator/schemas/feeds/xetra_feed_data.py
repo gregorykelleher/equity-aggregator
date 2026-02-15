@@ -1,12 +1,16 @@
 # feeds/xetra_feed_data.py
 
-from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from ._staleness import is_trade_stale, nullify_price_fields
-from .feed_validators import required
+from ._utils import (
+    is_trade_stale,
+    nullify_price_fields,
+    parse_iso_timestamp,
+    percent_to_decimal,
+    required,
+)
 
 
 @required("name", "symbol")
@@ -53,7 +57,7 @@ class XetraFeedData(BaseModel):
         """
         fields = {
             "name": self.get("name"),
-            # wkn → RawEquity.symbol
+            # wkn -> RawEquity.symbol
             "symbol": self.get("wkn"),
             "isin": self.get("isin"),
             # no CUSIP, CIK or FIGI in Xetra feed, so omitting from model
@@ -62,21 +66,34 @@ class XetraFeedData(BaseModel):
             "currency": self.get("currency"),
             # nested fields are flattened
             "last_price": (self.get("overview") or {}).get("lastPrice"),
-            "market_cap": (self.get("key_data") or {}).get("marketCapitalisation"),
-            "fifty_two_week_min": (self.get("performance") or {}).get("weeks52Low"),
-            "fifty_two_week_max": (self.get("performance") or {}).get("weeks52High"),
-            "performance_1_year": (self.get("performance") or {}).get(
-                "performance1Year",
+            "market_cap": (self.get("key_data") or {}).get(
+                "marketCapitalisation",
             ),
-            "dividend_yield": (self.get("key_data") or {}).get("dividendYield"),
-            "price_to_book": (self.get("key_data") or {}).get("priceBookRatio"),
-            "trailing_eps": (self.get("key_data") or {}).get("earningsPerShareBasic"),
+            "fifty_two_week_min": (self.get("performance") or {}).get(
+                "weeks52Low",
+            ),
+            "fifty_two_week_max": (self.get("performance") or {}).get(
+                "weeks52High",
+            ),
+            # Convert from percentage to decimal ratio
+            "performance_1_year": percent_to_decimal(
+                (self.get("performance") or {}).get("performance1Year"),
+            ),
+            "dividend_yield": percent_to_decimal(
+                (self.get("key_data") or {}).get("dividendYield"),
+            ),
+            "price_to_book": (self.get("key_data") or {}).get(
+                "priceBookRatio",
+            ),
+            "trailing_eps": (self.get("key_data") or {}).get(
+                "earningsPerShareBasic",
+            ),
             # no additional fields in Xetra feed, so omitting from model
         }
 
         # Null out price-sensitive fields when the last trade timestamp
         # is too old, preventing stale quotes from being passed through.
-        last_time = _parse_last_time(
+        last_time = parse_iso_timestamp(
             (self.get("overview") or {}).get("dateTimeLastPrice"),
         )
         if is_trade_stale(last_time):
@@ -90,19 +107,3 @@ class XetraFeedData(BaseModel):
         # defer strict type validation to RawEquity
         strict=False,
     )
-
-
-def _parse_last_time(raw: str | None) -> datetime | None:
-    """
-    Parse an ISO-8601 last-trade timestamp from the Xetra overview payload.
-
-    Returns:
-        datetime | None: The parsed datetime, or None if absent or malformed.
-    """
-    if raw is None:
-        return None
-
-    try:
-        return datetime.fromisoformat(raw)
-    except (ValueError, TypeError):
-        return None

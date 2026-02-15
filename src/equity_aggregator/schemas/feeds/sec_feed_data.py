@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from .feed_validators import required
+from ._utils import required
 
 
 @required("name", "symbol")

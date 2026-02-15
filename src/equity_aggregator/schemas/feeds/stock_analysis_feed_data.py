@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from .feed_validators import required
+from ._utils import percent_to_decimal, required
 
 
 @required("name", "symbol")
@@ -66,36 +66,38 @@ class StockAnalysisFeedData(BaseModel):
                 RawEquity schema.
         """
         return {
-            # s → RawEquity.symbol
+            # s -> RawEquity.symbol
             "symbol": self.get("s"),
-            # n → RawEquity.name
+            # n -> RawEquity.name
             "name": self.get("n"),
-            # cusip → RawEquity.cusip
+            # cusip -> RawEquity.cusip
             "cusip": self.get("cusip"),
-            # isin → RawEquity.isin
+            # isin -> RawEquity.isin
             "isin": self.get("isin"),
             # no CIK, FIGI, MICS or currency in Stock Analysis feed, so omitting
-            # marketCap → RawEquity.market_cap
+            # marketCap -> RawEquity.market_cap
             "market_cap": self.get("marketCap"),
-            # price → RawEquity.last_price
+            # price -> RawEquity.last_price
             "last_price": self.get("price"),
-            # volume → RawEquity.market_volume
+            # volume -> RawEquity.market_volume
             "market_volume": self.get("volume"),
-            # peRatio → RawEquity.trailing_pe
+            # peRatio -> RawEquity.trailing_pe
             "trailing_pe": self.get("peRatio"),
-            # sector → RawEquity.sector
+            # sector -> RawEquity.sector
             "sector": self.get("sector"),
-            # industry → RawEquity.industry
+            # industry -> RawEquity.industry
             "industry": self.get("industry"),
-            # revenue → RawEquity.revenue
+            # revenue -> RawEquity.revenue
             "revenue": self.get("revenue"),
-            # fcf → RawEquity.free_cash_flow
+            # fcf -> RawEquity.free_cash_flow
             "free_cash_flow": self.get("fcf"),
-            # roe → RawEquity.return_on_equity
-            "return_on_equity": self.get("roe"),
-            # roa → RawEquity.return_on_assets
-            "return_on_assets": self.get("roa"),
-            # ebitda → RawEquity.ebitda
+            # roe -> RawEquity.return_on_equity
+            # Convert from percentage to decimal ratio
+            "return_on_equity": percent_to_decimal(self.get("roe")),
+            # roa -> RawEquity.return_on_assets
+            # Convert from percentage to decimal ratio
+            "return_on_assets": percent_to_decimal(self.get("roa")),
+            # ebitda -> RawEquity.ebitda
             "ebitda": self.get("ebitda"),
         }
 

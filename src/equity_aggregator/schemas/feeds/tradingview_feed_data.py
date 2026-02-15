@@ -1,12 +1,16 @@
 # feeds/tradingview_feed_data.py
 
-from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from ._staleness import is_trade_stale, nullify_price_fields
-from .feed_validators import required
+from ._utils import (
+    is_trade_stale,
+    nullify_price_fields,
+    parse_unix_timestamp,
+    percent_to_decimal,
+    required,
+)
 
 
 @required("name", "symbol")
@@ -65,49 +69,49 @@ class TradingViewFeedData(BaseModel):
         d = self.get("d", [])
 
         fields = {
-            # d[0] → RawEquity.symbol (ticker)
+            # d[0] -> RawEquity.symbol (ticker)
             "symbol": _extract_field(d, 0),
-            # d[1] → RawEquity.name (company name)
+            # d[1] -> RawEquity.name (company name)
             "name": _extract_field(d, 1),
             # no ISIN, CUSIP, CIK, FIGI or MICS in TradingView feed,
             # so omitting from model
-            # d[3] → RawEquity.currency
+            # d[3] -> RawEquity.currency
             "currency": _extract_field(d, 3),
-            # d[4] → RawEquity.last_price (close price)
+            # d[4] -> RawEquity.last_price (close price)
             "last_price": _extract_field(d, 4),
-            # d[5] → RawEquity.market_cap
+            # d[5] -> RawEquity.market_cap
             "market_cap": _extract_field(d, 5),
-            # d[6] → RawEquity.market_volume
+            # d[6] -> RawEquity.market_volume
             "market_volume": _extract_field(d, 6),
-            # d[7] → RawEquity.dividend_yield (already in decimal format)
+            # d[7] -> RawEquity.dividend_yield (already in decimal format)
             "dividend_yield": _extract_field(d, 7),
-            # d[9] → RawEquity.shares_outstanding
+            # d[9] -> RawEquity.shares_outstanding
             "shares_outstanding": _extract_field(d, 9),
-            # d[10] → RawEquity.revenue
+            # d[10] -> RawEquity.revenue
             "revenue": _extract_field(d, 10),
-            # d[11] → RawEquity.ebitda
+            # d[11] -> RawEquity.ebitda
             "ebitda": _extract_field(d, 11),
-            # d[12] → RawEquity.trailing_pe
+            # d[12] -> RawEquity.trailing_pe
             "trailing_pe": _extract_field(d, 12),
-            # d[13] → RawEquity.price_to_book
+            # d[13] -> RawEquity.price_to_book
             "price_to_book": _extract_field(d, 13),
-            # d[14] → RawEquity.trailing_eps
+            # d[14] -> RawEquity.trailing_eps
             "trailing_eps": _extract_field(d, 14),
-            # d[15] → RawEquity.return_on_equity (convert from percentage to decimal)
-            "return_on_equity": _convert_percentage_to_decimal(_extract_field(d, 15)),
-            # d[16] → RawEquity.return_on_assets (convert from percentage to decimal)
-            "return_on_assets": _convert_percentage_to_decimal(_extract_field(d, 16)),
-            # d[17] → RawEquity.sector
+            # d[15] -> RawEquity.return_on_equity (convert from percentage)
+            "return_on_equity": percent_to_decimal(_extract_field(d, 15)),
+            # d[16] -> RawEquity.return_on_assets (convert from percentage)
+            "return_on_assets": percent_to_decimal(_extract_field(d, 16)),
+            # d[17] -> RawEquity.sector
             "sector": _extract_field(d, 17),
-            # d[18] → RawEquity.industry
+            # d[18] -> RawEquity.industry
             "industry": _extract_field(d, 18),
         }
 
         # Null out price-sensitive fields when the last trade timestamp
         # is too old, preventing stale quotes from being passed through.
-        # d[19] → last-price-update-time (Unix timestamp, not mapped to RawEquity)
+        # d[19] -> last-price-update-time (Unix timestamp, not mapped to RawEquity)
         raw_last_price_update_time = _extract_field(d, 19)
-        last_time = _parse_last_time(raw_last_price_update_time)
+        last_time = parse_unix_timestamp(raw_last_price_update_time)
         if is_trade_stale(last_time):
             fields = nullify_price_fields(fields)
 
@@ -135,39 +139,3 @@ def _extract_field(data_array: list | None, index: int) -> object | None:
     if not data_array or len(data_array) <= index:
         return None
     return data_array[index]
-
-
-def _parse_last_time(raw: float | None) -> datetime | None:
-    """
-    Parse a Unix timestamp from the TradingView last-price-update-time field.
-
-    Returns:
-        datetime | None: The parsed datetime in UTC, or None if absent or
-            malformed.
-    """
-    if raw is None:
-        return None
-
-    try:
-        return datetime.fromtimestamp(raw, tz=UTC)
-    except (ValueError, TypeError, OSError):
-        return None
-
-
-def _convert_percentage_to_decimal(value: float | None) -> Decimal | None:
-    """
-    Convert a percentage value to decimal representation.
-
-    Args:
-        value (float | None): The percentage value (e.g., 20.6 for 20.6%).
-
-    Returns:
-        Decimal | None: The decimal representation (e.g., 0.206), or None if
-            input is None.
-    """
-    if value is None:
-        return None
-    try:
-        return Decimal(str(value)) / Decimal("100")
-    except (ValueError, TypeError, InvalidOperation):
-        return None

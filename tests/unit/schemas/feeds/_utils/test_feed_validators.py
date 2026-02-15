@@ -1,9 +1,9 @@
-# feeds/test_feed_validators.py
+# feeds/_utils/test_feed_validators.py
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from equity_aggregator.schemas.feeds.feed_validators import required
+from equity_aggregator.schemas.feeds._utils._feed_validators import required
 
 pytestmark = pytest.mark.unit
 

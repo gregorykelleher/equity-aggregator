@@ -7,11 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from equity_aggregator.schemas import TradingViewFeedData
-from equity_aggregator.schemas.feeds.tradingview_feed_data import (
-    _convert_percentage_to_decimal,
-    _extract_field,
-    _parse_last_time,
-)
+from equity_aggregator.schemas.feeds.tradingview_feed_data import _extract_field
 
 pytestmark = pytest.mark.unit
 
@@ -49,50 +45,6 @@ def test_extract_field_returns_none_for_out_of_bounds() -> None:
     data = ["AAPL"]
 
     actual = _extract_field(data, 5)
-
-    assert actual is None
-
-
-def test_convert_percentage_to_decimal_converts_correctly() -> None:
-    """
-    ARRANGE: percentage value 20.6
-    ACT:     convert to decimal
-    ASSERT:  returns 0.206
-    """
-    actual = _convert_percentage_to_decimal(20.6)
-
-    assert actual == Decimal("0.206")
-
-
-def test_convert_percentage_to_decimal_handles_none() -> None:
-    """
-    ARRANGE: None value
-    ACT:     convert to decimal
-    ASSERT:  returns None
-    """
-    actual = _convert_percentage_to_decimal(None)
-
-    assert actual is None
-
-
-def test_convert_percentage_to_decimal_handles_zero() -> None:
-    """
-    ARRANGE: zero percentage
-    ACT:     convert to decimal
-    ASSERT:  returns 0.0
-    """
-    actual = _convert_percentage_to_decimal(0.0)
-
-    assert actual == Decimal("0")
-
-
-def test_convert_percentage_to_decimal_handles_invalid_value() -> None:
-    """
-    ARRANGE: invalid value that can't be converted
-    ACT:     convert to decimal
-    ASSERT:  returns None
-    """
-    actual = _convert_percentage_to_decimal({"invalid": "object"})
 
     assert actual is None
 
@@ -524,17 +476,6 @@ def test_handles_empty_data_array() -> None:
         TradingViewFeedData(**raw)
 
 
-def test_percentage_conversion_handles_negative_values() -> None:
-    """
-    ARRANGE: negative percentage value
-    ACT:     convert to decimal
-    ASSERT:  returns correct negative decimal
-    """
-    actual = _convert_percentage_to_decimal(-5.5)
-
-    assert actual == Decimal("-0.055")
-
-
 def test_all_fields_populated() -> None:
     """
     ARRANGE: raw data with all fields populated
@@ -645,8 +586,7 @@ def test_missing_last_time_preserves_price_fields() -> None:
 
     raw = {
         "s": "NYSE:NOTM",
-        "d": ["NOTM", "No Time Corp", None, "USD", expected_price]
-        + [None] * 15,
+        "d": ["NOTM", "No Time Corp", None, "USD", expected_price] + [None] * 15,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -672,38 +612,3 @@ def test_malformed_last_time_preserves_price_fields() -> None:
     actual = TradingViewFeedData(**raw)
 
     assert actual.last_price == expected_price
-
-
-def test_parse_last_time_converts_unix_timestamp() -> None:
-    """
-    ARRANGE: Unix timestamp as integer
-    ACT:     parse last time
-    ASSERT:  returns UTC datetime
-    """
-    expected = datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
-
-    actual = _parse_last_time(1700000000)
-
-    assert actual == expected
-
-
-def test_parse_last_time_returns_none_for_none() -> None:
-    """
-    ARRANGE: None value
-    ACT:     parse last time
-    ASSERT:  returns None
-    """
-    actual = _parse_last_time(None)
-
-    assert actual is None
-
-
-def test_parse_last_time_returns_none_for_invalid_value() -> None:
-    """
-    ARRANGE: non-numeric string
-    ACT:     parse last time
-    ASSERT:  returns None
-    """
-    actual = _parse_last_time("not-a-timestamp")
-
-    assert actual is None

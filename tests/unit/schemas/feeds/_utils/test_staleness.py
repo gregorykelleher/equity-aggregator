@@ -1,12 +1,14 @@
-# feeds/test_staleness.py
+# feeds/_utils/test_staleness.py
 
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from equity_aggregator.schemas.feeds._staleness import (
+from equity_aggregator.schemas.feeds._utils._staleness import (
     is_trade_stale,
     nullify_price_fields,
+    parse_iso_timestamp,
+    parse_unix_timestamp,
 )
 
 pytestmark = pytest.mark.unit
@@ -140,3 +142,73 @@ def test_already_none_fields_stay_none() -> None:
         "name": "APPLE INC.",
     }
     assert actual == expected
+
+
+def test_parse_unix_timestamp_converts_valid_timestamp() -> None:
+    """
+    ARRANGE: valid Unix timestamp
+    ACT:     parse timestamp
+    ASSERT:  returns UTC datetime
+    """
+    expected = datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
+
+    actual = parse_unix_timestamp(1700000000)
+
+    assert actual == expected
+
+
+def test_parse_unix_timestamp_returns_none_for_none() -> None:
+    """
+    ARRANGE: None value
+    ACT:     parse timestamp
+    ASSERT:  returns None
+    """
+    actual = parse_unix_timestamp(None)
+
+    assert actual is None
+
+
+def test_parse_unix_timestamp_returns_none_for_invalid_value() -> None:
+    """
+    ARRANGE: non-numeric string
+    ACT:     parse timestamp
+    ASSERT:  returns None
+    """
+    actual = parse_unix_timestamp("not-a-timestamp")
+
+    assert actual is None
+
+
+def test_parse_iso_timestamp_converts_valid_string() -> None:
+    """
+    ARRANGE: valid ISO-8601 string
+    ACT:     parse timestamp
+    ASSERT:  returns datetime
+    """
+    expected = datetime(2024, 6, 15, 14, 30, 0)
+
+    actual = parse_iso_timestamp("2024-06-15T14:30:00")
+
+    assert actual == expected
+
+
+def test_parse_iso_timestamp_returns_none_for_none() -> None:
+    """
+    ARRANGE: None value
+    ACT:     parse timestamp
+    ASSERT:  returns None
+    """
+    actual = parse_iso_timestamp(None)
+
+    assert actual is None
+
+
+def test_parse_iso_timestamp_returns_none_for_invalid_string() -> None:
+    """
+    ARRANGE: unparseable string
+    ACT:     parse timestamp
+    ASSERT:  returns None
+    """
+    actual = parse_iso_timestamp("not-a-date")
+
+    assert actual is None

@@ -7,7 +7,6 @@ import pytest
 from pydantic import ValidationError
 
 from equity_aggregator.schemas import YFinanceFeedData
-from equity_aggregator.schemas.feeds.yfinance_feed_data import _parse_last_time
 
 pytestmark = pytest.mark.unit
 
@@ -234,38 +233,3 @@ def test_malformed_regular_market_time_preserves_price_fields() -> None:
     actual = YFinanceFeedData(**raw)
 
     assert actual.last_price == expected_price
-
-
-def test_parse_last_time_converts_unix_timestamp() -> None:
-    """
-    ARRANGE: Unix timestamp as integer
-    ACT:     parse last time
-    ASSERT:  returns UTC datetime
-    """
-    expected = datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
-
-    actual = _parse_last_time(1700000000)
-
-    assert actual == expected
-
-
-def test_parse_last_time_returns_none_for_none() -> None:
-    """
-    ARRANGE: None value
-    ACT:     parse last time
-    ASSERT:  returns None
-    """
-    actual = _parse_last_time(None)
-
-    assert actual is None
-
-
-def test_parse_last_time_returns_none_for_invalid_value() -> None:
-    """
-    ARRANGE: non-numeric string
-    ACT:     parse last time
-    ASSERT:  returns None
-    """
-    actual = _parse_last_time("not-a-timestamp")
-
-    assert actual is None

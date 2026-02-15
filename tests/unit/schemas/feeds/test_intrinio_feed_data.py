@@ -112,24 +112,42 @@ def test_maps_marketcap_to_market_cap() -> None:
 
 def test_maps_dividendyield_to_dividend_yield() -> None:
     """
-    ARRANGE: raw payload with quote.dividendyield field
+    ARRANGE: raw payload with quote.dividendyield as percentage (3.2%)
     ACT:     construct IntrinioFeedData
-    ASSERT:  dividendyield is mapped to dividend_yield
+    ASSERT:  dividendyield is converted to decimal ratio (0.032)
     """
-    expected_yield = 3.2
-
     raw = {
         "name": "Coca-Cola",
         "ticker": "KO",
         "quote": {
             "last": 60.0,
-            "dividendyield": expected_yield,
+            "dividendyield": 3.2,
         },
     }
 
     actual = IntrinioFeedData(**raw)
 
-    assert actual.dividend_yield == expected_yield
+    assert actual.dividend_yield == Decimal("0.032")
+
+
+def test_dividend_yield_none_stays_none() -> None:
+    """
+    ARRANGE: raw payload with quote.dividendyield as None
+    ACT:     construct IntrinioFeedData
+    ASSERT:  dividend_yield remains None
+    """
+    raw = {
+        "name": "Growth Corp",
+        "ticker": "GRWT",
+        "quote": {
+            "last": 100.0,
+            "dividendyield": None,
+        },
+    }
+
+    actual = IntrinioFeedData(**raw)
+
+    assert actual.dividend_yield is None
 
 
 def test_converts_percentage_to_decimal() -> None:
@@ -612,4 +630,3 @@ def test_malformed_last_time_preserves_price_fields() -> None:
     actual = IntrinioFeedData(**raw)
 
     assert actual.last_price == expected_price
-

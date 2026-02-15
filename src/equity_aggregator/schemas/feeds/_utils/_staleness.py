@@ -1,4 +1,4 @@
-# feeds/_staleness.py
+# feeds/_utils/_staleness.py
 
 from datetime import UTC, datetime, timedelta
 
@@ -64,6 +64,39 @@ def nullify_price_fields(fields: dict[str, object]) -> dict[str, object]:
         key: None if key in PRICE_SENSITIVE_FIELDS else value
         for key, value in fields.items()
     }
+
+
+def parse_iso_timestamp(raw: str | None) -> datetime | None:
+    """
+    Parse an ISO-8601 timestamp string into a datetime.
+
+    Returns:
+        datetime | None: The parsed datetime, or None if absent or malformed.
+    """
+    if raw is None:
+        return None
+
+    try:
+        return datetime.fromisoformat(raw)
+    except (ValueError, TypeError, OSError):
+        return None
+
+
+def parse_unix_timestamp(raw: float | None) -> datetime | None:
+    """
+    Parse a Unix timestamp into a UTC-aware datetime.
+
+    Returns:
+        datetime | None: The parsed datetime in UTC, or None if absent or
+            malformed.
+    """
+    if raw is None:
+        return None
+
+    try:
+        return datetime.fromtimestamp(raw, tz=UTC)
+    except (ValueError, TypeError, OSError):
+        return None
 
 
 def _ensure_utc(dt: datetime) -> datetime:
