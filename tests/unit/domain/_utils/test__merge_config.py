@@ -222,14 +222,15 @@ def test_field_config_financial_fields_require_multiple_sources() -> None:
     )
 
 
-def test_field_config_low_coverage_fields_accept_single_source() -> None:
+def test_field_config_non_critical_fields_accept_single_source() -> None:
     """
     ARRANGE: FIELD_CONFIG dictionary
-    ACT:     check low-coverage financial field min_sources
-    ASSERT:  fields with <5% coverage accept single source (min_sources=1)
+    ACT:     check non-critical financial field min_sources
+    ASSERT:  non-critical financial fields accept single source (min_sources=1)
     """
-    low_coverage_fields = [
+    non_critical_fields = [
         "dividend_yield",
+        "market_volume",
         "held_insiders",
         "held_institutions",
         "short_interest",
@@ -239,8 +240,15 @@ def test_field_config_low_coverage_fields_accept_single_source() -> None:
         "profit_margin",
         "gross_margin",
         "operating_margin",
+        "free_cash_flow",
         "operating_cash_flow",
+        "return_on_equity",
+        "return_on_assets",
+        "performance_1_year",
         "total_debt",
+        "revenue",
+        "ebitda",
+        "trailing_pe",
         "price_to_book",
         "trailing_eps",
     ]
@@ -249,7 +257,7 @@ def test_field_config_low_coverage_fields_accept_single_source() -> None:
 
     assert all(
         FIELD_CONFIG[field].min_sources == single_source_required
-        for field in low_coverage_fields
+        for field in non_critical_fields
     )
 
 
