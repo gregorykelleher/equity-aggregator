@@ -1,12 +1,16 @@
 # feeds/intrinio_feed_data.py
 
-from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from ._staleness import is_trade_stale, nullify_price_fields
-from .feed_validators import required
+from ._utils import (
+    is_trade_stale,
+    nullify_price_fields,
+    parse_iso_timestamp,
+    percent_to_decimal,
+    required,
+)
 
 
 @required("name", "symbol")
@@ -81,42 +85,45 @@ class IntrinioFeedData(BaseModel):
         mics = [exchange_mic] if exchange_mic else None
 
         fields = {
-            # name → RawEquity.name
+            # name -> RawEquity.name
             "name": self.get("name"),
-            # cik → RawEquity.cik
+            # cik -> RawEquity.cik
             "cik": self.get("cik"),
-            # lei → RawEquity.lei
+            # lei -> RawEquity.lei
             "lei": self.get("lei"),
-            # ticker → RawEquity.symbol
+            # ticker -> RawEquity.symbol
             "symbol": self.get("ticker"),
-            # share_class_figi → RawEquity.share_class_figi
+            # share_class_figi -> RawEquity.share_class_figi
             "share_class_figi": self.get("share_class_figi"),
-            # exchange_mic → RawEquity.mics
+            # exchange_mic -> RawEquity.mics
             "mics": mics,
-            # security.currency → RawEquity.currency
+            # security.currency -> RawEquity.currency
             "currency": self.get("currency"),
-            # last → RawEquity.last_price
+            # last -> RawEquity.last_price
             "last_price": quote.get("last"),
-            # eod_fifty_two_week_low → RawEquity.fifty_two_week_min
+            # eod_fifty_two_week_low -> RawEquity.fifty_two_week_min
             "fifty_two_week_min": quote.get("eod_fifty_two_week_low"),
-            # eod_fifty_two_week_high → RawEquity.fifty_two_week_max
+            # eod_fifty_two_week_high -> RawEquity.fifty_two_week_max
             "fifty_two_week_max": quote.get("eod_fifty_two_week_high"),
-            # market_volume → RawEquity.market_volume
+            # market_volume -> RawEquity.market_volume
             "market_volume": quote.get("market_volume"),
-            # dividendyield → RawEquity.dividend_yield
-            "dividend_yield": quote.get("dividendyield"),
-            # marketcap → RawEquity.market_cap
+            # dividendyield -> RawEquity.dividend_yield
+            # Convert from percentage to decimal ratio
+            "dividend_yield": percent_to_decimal(
+                quote.get("dividendyield"),
+            ),
+            # marketcap -> RawEquity.market_cap
             "market_cap": quote.get("marketcap"),
-            # change_percent_365_days → RawEquity.performance_1_year
+            # change_percent_365_days -> RawEquity.performance_1_year
             # Convert from percentage (e.g., 14.6572) to decimal (0.146572)
-            "performance_1_year": _percent_to_decimal(
+            "performance_1_year": percent_to_decimal(
                 quote.get("change_percent_365_days"),
             ),
         }
 
         # Null out price-sensitive fields when the last trade timestamp
         # is too old, preventing stale quotes from being passed through.
-        last_time = _parse_last_time(quote.get("last_time"))
+        last_time = parse_iso_timestamp(quote.get("last_time"))
         if is_trade_stale(last_time):
             fields = nullify_price_fields(fields)
 
@@ -128,41 +135,3 @@ class IntrinioFeedData(BaseModel):
         # defer strict type validation to RawEquity
         strict=False,
     )
-
-
-def _parse_last_time(raw: str | None) -> datetime | None:
-    """
-    Parse an ISO-8601 last-trade timestamp from the Intrinio quote payload.
-
-    Returns:
-        datetime | None: The parsed datetime, or None if absent or malformed.
-    """
-    if raw is None:
-        return None
-
-    try:
-        return datetime.fromisoformat(raw)
-    except (ValueError, TypeError):
-        return None
-
-
-def _percent_to_decimal(percent: str | float | None) -> Decimal | None:
-    """
-    Convert a percentage value to decimal format.
-
-    Converts percentage values (e.g., 14.6572 representing 14.6572%) to decimal
-    format (0.146572) for consistency with RawEquity's performance_1_year field.
-
-    Args:
-        percent (str | float | None): The percentage value to convert.
-
-    Returns:
-        Decimal | None: The decimal value, or None if input is None or invalid.
-    """
-    if percent is None:
-        return None
-
-    try:
-        return Decimal(str(percent)) / Decimal("100")
-    except (ValueError, TypeError):
-        return None

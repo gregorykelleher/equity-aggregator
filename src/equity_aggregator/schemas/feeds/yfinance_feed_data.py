@@ -1,12 +1,10 @@
 # feeds/yfinance_feed_data.py
 
-from datetime import UTC, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from ._staleness import is_trade_stale, nullify_price_fields
-from .feed_validators import required
+from ._utils import is_trade_stale, nullify_price_fields, parse_unix_timestamp, required
 
 
 @required("name", "symbol")
@@ -25,7 +23,7 @@ class YFinanceFeedData(BaseModel):
         YFinanceFeedData: Instance with fields normalised for RawEquity validation.
     """
 
-    # Fields exactly match RawEquity’s signature
+    # Fields exactly match RawEquity's signature
     name: str
     symbol: str
     currency: str | None
@@ -79,79 +77,79 @@ class YFinanceFeedData(BaseModel):
                 RawEquity schema.
         """
         fields = {
-            # longName/shortName → RawEquity.name
+            # longName/shortName -> RawEquity.name
             "name": self.get("longName") or self.get("shortName"),
-            # underlyingSymbol or symbol → RawEquity.symbol
+            # underlyingSymbol or symbol -> RawEquity.symbol
             "symbol": self.get("underlyingSymbol") or self.get("symbol"),
             # no ISIN, CUSIP, CIK, FIGI or MICS in YFinance feed, so omitting from model
             "currency": self.get("currency"),
             # currentPrice or regularMarketPrice
-            # → RawEquity.last_price
+            # -> RawEquity.last_price
             "last_price": self.get("currentPrice") or self.get("regularMarketPrice"),
-            # marketCap → RawEquity.market_cap
+            # marketCap -> RawEquity.market_cap
             "market_cap": self.get("marketCap"),
-            # fiftyTwoWeekLow → RawEquity.fifty_two_week_min
+            # fiftyTwoWeekLow -> RawEquity.fifty_two_week_min
             "fifty_two_week_min": self.get("fiftyTwoWeekLow"),
-            # fiftyTwoWeekHigh → RawEquity.fifty_two_week_max
+            # fiftyTwoWeekHigh -> RawEquity.fifty_two_week_max
             "fifty_two_week_max": self.get("fiftyTwoWeekHigh"),
-            # dividendYield → RawEquity.dividend_yield
+            # dividendYield -> RawEquity.dividend_yield
             "dividend_yield": self.get("dividendYield"),
-            # volume or regularMarketVolume → RawEquity.market_volume
+            # volume or regularMarketVolume -> RawEquity.market_volume
             "market_volume": self.get("volume") or self.get("regularMarketVolume"),
-            # heldPercentInsiders → RawEquity.held_insiders
+            # heldPercentInsiders -> RawEquity.held_insiders
             "held_insiders": self.get("heldPercentInsiders"),
-            # heldPercentInstitutions → RawEquity.held_institutions
+            # heldPercentInstitutions -> RawEquity.held_institutions
             "held_institutions": self.get("heldPercentInstitutions"),
-            # shortPercentOfFloat → RawEquity.short_interest
+            # shortPercentOfFloat -> RawEquity.short_interest
             "short_interest": self.get("shortPercentOfFloat"),
-            # floatShares → RawEquity.share_float
+            # floatShares -> RawEquity.share_float
             "share_float": self.get("floatShares"),
-            # sharesOutstanding → RawEquity.shares_outstanding
+            # sharesOutstanding -> RawEquity.shares_outstanding
             "shares_outstanding": self.get("sharesOutstanding"),
-            # revenuePerShare → RawEquity.revenue_per_share
+            # revenuePerShare -> RawEquity.revenue_per_share
             "revenue_per_share": self.get("revenuePerShare"),
-            # profitMargins → RawEquity.profit_margin
+            # profitMargins -> RawEquity.profit_margin
             "profit_margin": self.get("profitMargins"),
-            # grossMargins → RawEquity.gross_margin
+            # grossMargins -> RawEquity.gross_margin
             "gross_margin": self.get("grossMargins"),
-            # operatingMargins → RawEquity.operating_margin
+            # operatingMargins -> RawEquity.operating_margin
             "operating_margin": self.get("operatingMargins"),
-            # freeCashflow → RawEquity.free_cash_flow
+            # freeCashflow -> RawEquity.free_cash_flow
             "free_cash_flow": self.get("freeCashflow"),
-            # operatingCashflow → RawEquity.operating_cash_flow
+            # operatingCashflow -> RawEquity.operating_cash_flow
             "operating_cash_flow": self.get("operatingCashflow"),
-            # returnOnEquity → RawEquity.return_on_equity
+            # returnOnEquity -> RawEquity.return_on_equity
             "return_on_equity": self.get("returnOnEquity"),
-            # returnOnAssets → RawEquity.return_on_assets
+            # returnOnAssets -> RawEquity.return_on_assets
             "return_on_assets": self.get("returnOnAssets"),
-            # 52WeekChange or fiftyTwoWeekChangePercent → RawEquity.performance_1_year
+            # 52WeekChange or fiftyTwoWeekChangePercent -> RawEquity.performance_1_year
             "performance_1_year": self.get("52WeekChange")
             or self.get("fiftyTwoWeekChangePercent"),
-            # totalDebt → RawEquity.total_debt
+            # totalDebt -> RawEquity.total_debt
             "total_debt": self.get("totalDebt"),
-            # totalRevenue → RawEquity.revenue
+            # totalRevenue -> RawEquity.revenue
             "revenue": self.get("totalRevenue"),
-            # ebitda → RawEquity.ebitda
+            # ebitda -> RawEquity.ebitda
             "ebitda": self.get("ebitda"),
-            # trailingPE → RawEquity.trailing_pe
+            # trailingPE -> RawEquity.trailing_pe
             "trailing_pe": self.get("trailingPE"),
-            # priceToBook → RawEquity.price_to_book
+            # priceToBook -> RawEquity.price_to_book
             "price_to_book": self.get("priceToBook"),
-            # trailingEps or epsTrailingTwelveMonths → RawEquity.trailing_eps
+            # trailingEps or epsTrailingTwelveMonths -> RawEquity.trailing_eps
             "trailing_eps": self.get("trailingEps")
             or self.get("epsTrailingTwelveMonths"),
-            # recommendationKey or averageAnalystRating → RawEquity.analyst_rating
+            # recommendationKey or averageAnalystRating -> RawEquity.analyst_rating
             "analyst_rating": self.get("recommendationKey")
             or self.get("averageAnalystRating"),
-            # industry → RawEquity.industry
+            # industry -> RawEquity.industry
             "industry": self.get("industry"),
-            # sector → RawEquity.sector
+            # sector -> RawEquity.sector
             "sector": self.get("sector"),
         }
 
         # Null out price-sensitive fields when the last trade timestamp
         # is too old, preventing stale quotes from being passed through.
-        last_time = _parse_last_time(self.get("regularMarketTime"))
+        last_time = parse_unix_timestamp(self.get("regularMarketTime"))
         if is_trade_stale(last_time):
             fields = nullify_price_fields(fields)
 
@@ -163,20 +161,3 @@ class YFinanceFeedData(BaseModel):
         # defer strict type validation to RawEquity
         strict=False,
     )
-
-
-def _parse_last_time(raw: float | None) -> datetime | None:
-    """
-    Parse a Unix timestamp from the YFinance regularMarketTime field.
-
-    Returns:
-        datetime | None: The parsed datetime in UTC, or None if absent or
-            malformed.
-    """
-    if raw is None:
-        return None
-
-    try:
-        return datetime.fromtimestamp(raw, tz=UTC)
-    except (ValueError, TypeError, OSError):
-        return None

@@ -1,4 +1,4 @@
-# feeds/feed_validators.py
+# feeds/_utils/_feed_validators.py
 
 from collections.abc import Callable
 from typing import TypeVar

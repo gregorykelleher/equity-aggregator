@@ -352,3 +352,85 @@ def test_malformed_last_time_preserves_price_fields() -> None:
     actual = XetraFeedData(**payload)
 
     assert actual.last_price == expected_price
+
+
+def test_dividend_yield_converted_from_percentage() -> None:
+    """
+    ARRANGE: payload with dividendYield as percentage (6.1 meaning 6.1%)
+    ACT:     construct XetraFeedData
+    ASSERT:  dividend_yield is converted to decimal ratio (0.061)
+    """
+    payload = {
+        "name": "OMV AG",
+        "wkn": "OMV001",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {"lastPrice": 40.0},
+        "key_data": {"marketCapitalisation": 1000000, "dividendYield": 6.1},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.dividend_yield == Decimal("0.061")
+
+
+def test_dividend_yield_none_stays_none() -> None:
+    """
+    ARRANGE: payload with dividendYield as None
+    ACT:     construct XetraFeedData
+    ASSERT:  dividend_yield remains None
+    """
+    payload = {
+        "name": "Foo AG",
+        "wkn": "FOO01",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {"lastPrice": 10.0},
+        "key_data": {"marketCapitalisation": 1000, "dividendYield": None},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.dividend_yield is None
+
+
+def test_performance_1_year_converted_from_percentage() -> None:
+    """
+    ARRANGE: payload with performance1Year as percentage (25.5 meaning 25.5%)
+    ACT:     construct XetraFeedData
+    ASSERT:  performance_1_year is converted to decimal ratio (0.255)
+    """
+    payload = {
+        "name": "SAP SE",
+        "wkn": "SAP001",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {"lastPrice": 180.0},
+        "key_data": {"marketCapitalisation": 5000000},
+        "performance": {"performance1Year": 25.5},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.performance_1_year == Decimal("0.255")
+
+
+def test_performance_1_year_none_stays_none() -> None:
+    """
+    ARRANGE: payload with performance1Year as None
+    ACT:     construct XetraFeedData
+    ASSERT:  performance_1_year remains None
+    """
+    payload = {
+        "name": "Foo AG",
+        "wkn": "FOO01",
+        "mic": "XETR",
+        "currency": "EUR",
+        "overview": {"lastPrice": 10.0},
+        "key_data": {"marketCapitalisation": 1000},
+        "performance": {"performance1Year": None},
+    }
+
+    actual = XetraFeedData(**payload)
+
+    assert actual.performance_1_year is None

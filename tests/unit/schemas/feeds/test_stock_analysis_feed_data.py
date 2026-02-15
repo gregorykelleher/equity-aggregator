@@ -286,9 +286,9 @@ def test_free_cash_flow_maps_from_fcf() -> None:
 
 def test_return_on_equity_maps_from_roe() -> None:
     """
-    ARRANGE: raw data with 'roe' field
+    ARRANGE: raw data with 'roe' as percentage (15.5%)
     ACT:     construct StockAnalysisFeedData
-    ASSERT:  'roe' is mapped to 'return_on_equity'
+    ASSERT:  'roe' is converted to decimal ratio (0.155)
     """
     raw = {
         "s": "FOO",
@@ -300,14 +300,33 @@ def test_return_on_equity_maps_from_roe() -> None:
 
     actual = StockAnalysisFeedData(**raw)
 
-    assert actual.return_on_equity == 15.5  # noqa: PLR2004
+    assert actual.return_on_equity == Decimal("0.155")
+
+
+def test_return_on_equity_none_stays_none() -> None:
+    """
+    ARRANGE: raw data with 'roe' as None
+    ACT:     construct StockAnalysisFeedData
+    ASSERT:  return_on_equity remains None
+    """
+    raw = {
+        "s": "FOO",
+        "n": "Foo Inc",
+        "cusip": None,
+        "isin": None,
+        "roe": None,
+    }
+
+    actual = StockAnalysisFeedData(**raw)
+
+    assert actual.return_on_equity is None
 
 
 def test_return_on_assets_maps_from_roa() -> None:
     """
-    ARRANGE: raw data with 'roa' field
+    ARRANGE: raw data with 'roa' as percentage (8.5%)
     ACT:     construct StockAnalysisFeedData
-    ASSERT:  'roa' is mapped to 'return_on_assets'
+    ASSERT:  'roa' is converted to decimal ratio (0.085)
     """
     raw = {
         "s": "FOO",
@@ -319,7 +338,26 @@ def test_return_on_assets_maps_from_roa() -> None:
 
     actual = StockAnalysisFeedData(**raw)
 
-    assert actual.return_on_assets == 8.5  # noqa: PLR2004
+    assert actual.return_on_assets == Decimal("0.085")
+
+
+def test_return_on_assets_none_stays_none() -> None:
+    """
+    ARRANGE: raw data with 'roa' as None
+    ACT:     construct StockAnalysisFeedData
+    ASSERT:  return_on_assets remains None
+    """
+    raw = {
+        "s": "FOO",
+        "n": "Foo Inc",
+        "cusip": None,
+        "isin": None,
+        "roa": None,
+    }
+
+    actual = StockAnalysisFeedData(**raw)
+
+    assert actual.return_on_assets is None
 
 
 def test_ebitda_field_preserved() -> None:
