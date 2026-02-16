@@ -191,15 +191,15 @@ def test_market_volume_maps_from_volume() -> None:
     assert actual.market_volume == 50000000  # noqa: PLR2004
 
 
-def test_dividend_yield_maps_from_dividends_yield_current() -> None:
+def test_dividend_yield_converted_from_percentage() -> None:
     """
-    ARRANGE: raw data with dividend yield in d[7]
+    ARRANGE: raw data with dividend yield as percentage (0.5) in d[7]
     ACT:     construct TradingViewFeedData
-    ASSERT:  d[7] is mapped to 'dividend_yield'
+    ASSERT:  d[7] is converted to decimal ratio (0.005)
     """
     raw = {
         "s": "NYSE:AAPL",
-        "d": ["AAPL", "Apple Inc."] + [None] * 5 + [0.005] + [None] * 12,
+        "d": ["AAPL", "Apple Inc."] + [None] * 5 + [0.5] + [None] * 12,
     }
 
     actual = TradingViewFeedData(**raw)
@@ -492,7 +492,7 @@ def test_all_fields_populated() -> None:
             150.0,  # last_price
             2500000000000,  # market_cap
             50000000,  # market_volume
-            0.005,  # dividend_yield
+            0.5,  # dividend_yield (percentage)
             15000000000,  # float_shares (not mapped)
             16000000000,  # shares_outstanding
             500000000000,  # revenue
