@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 
 from pydantic_core import core_schema as cs
 
+_DOTTED_ABBREV = re.compile(r"(?:[A-Za-z]\.){2,}")
 _WORDS = re.compile(r"[^\w]+")
 _SPACES = re.compile(r"\s+")
 
@@ -50,6 +51,7 @@ def to_upper(value: str | float | Decimal | None) -> str | None:
     if not text:
         return None
 
+    text = _DOTTED_ABBREV.sub(lambda m: m.group().replace(".", ""), text)
     text = _WORDS.sub(" ", text)
     text = _SPACES.sub(" ", text)
     return text.strip().upper()

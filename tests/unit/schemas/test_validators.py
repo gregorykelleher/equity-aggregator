@@ -74,6 +74,19 @@ def test_to_upper_whitespace_and_punct() -> None:
     assert actual == "FOO BAR LTD"
 
 
+def test_to_upper_collapses_dotted_abbreviation() -> None:
+    """
+    ARRANGE: name containing a dotted corporate suffix
+    ACT:     to_upper
+    ASSERT:  dotted abbreviation collapsed to single word
+    """
+    value = "PRADA S.P.A."
+
+    actual = validators.to_upper(value)
+
+    assert actual == "PRADA SPA"
+
+
 def test_to_upper_optional_none() -> None:
     """
     ARRANGE: None value with required=False
