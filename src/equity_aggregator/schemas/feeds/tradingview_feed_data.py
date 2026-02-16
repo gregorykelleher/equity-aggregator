@@ -83,8 +83,8 @@ class TradingViewFeedData(BaseModel):
             "market_cap": _extract_field(d, 5),
             # d[6] -> RawEquity.market_volume
             "market_volume": _extract_field(d, 6),
-            # d[7] -> RawEquity.dividend_yield (already in decimal format)
-            "dividend_yield": _extract_field(d, 7),
+            # d[7] -> RawEquity.dividend_yield (convert from percentage)
+            "dividend_yield": percent_to_decimal(_extract_field(d, 7)),
             # d[9] -> RawEquity.shares_outstanding
             "shares_outstanding": _extract_field(d, 9),
             # d[10] -> RawEquity.revenue
