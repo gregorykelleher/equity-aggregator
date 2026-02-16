@@ -205,32 +205,40 @@ def test_field_config_financial_fields_require_multiple_sources() -> None:
     """
     ARRANGE: FIELD_CONFIG dictionary
     ACT:     check financial field min_sources
-    ASSERT:  critical financial fields require min_sources=2
+    ASSERT:  multi-source financial fields require min_sources=2
     """
-    critical_fields = [
+    multi_source_fields = [
         "market_cap",
         "last_price",
         "fifty_two_week_min",
         "fifty_two_week_max",
+        "dividend_yield",
+        "market_volume",
+        "return_on_equity",
+        "return_on_assets",
+        "revenue",
+        "ebitda",
+        "trailing_pe",
+        "price_to_book",
+        "trailing_eps",
+        "performance_1_year",
     ]
 
     expected_min_sources = 2
 
     assert all(
         FIELD_CONFIG[field].min_sources == expected_min_sources
-        for field in critical_fields
+        for field in multi_source_fields
     )
 
 
-def test_field_config_non_critical_fields_accept_single_source() -> None:
+def test_field_config_single_source_fields_accept_single_source() -> None:
     """
     ARRANGE: FIELD_CONFIG dictionary
-    ACT:     check non-critical financial field min_sources
-    ASSERT:  non-critical financial fields accept single source (min_sources=1)
+    ACT:     check single/dual-source financial field min_sources
+    ASSERT:  fields with fewer than 3 sources accept single source (min_sources=1)
     """
-    non_critical_fields = [
-        "dividend_yield",
-        "market_volume",
+    single_source_fields = [
         "held_insiders",
         "held_institutions",
         "short_interest",
@@ -242,22 +250,14 @@ def test_field_config_non_critical_fields_accept_single_source() -> None:
         "operating_margin",
         "free_cash_flow",
         "operating_cash_flow",
-        "return_on_equity",
-        "return_on_assets",
-        "performance_1_year",
         "total_debt",
-        "revenue",
-        "ebitda",
-        "trailing_pe",
-        "price_to_book",
-        "trailing_eps",
     ]
 
     single_source_required = 1
 
     assert all(
         FIELD_CONFIG[field].min_sources == single_source_required
-        for field in non_critical_fields
+        for field in single_source_fields
     )
 
 
