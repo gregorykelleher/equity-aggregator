@@ -1,5 +1,8 @@
 # gleif/download.py
 
+import csv
+import io
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,10 +12,9 @@ import httpx
 from equity_aggregator.adapters.data_sources._utils import make_client
 
 from .api import _fetch_metadata_with_client
-from .parser import parse_zip
 
 
-async def download_and_build_index(
+async def download_and_build_isin_index(
     *,
     client_factory: Callable[[], httpx.AsyncClient] | None = None,
 ) -> dict[str, str]:
@@ -20,14 +22,11 @@ async def download_and_build_index(
     Download the GLEIF ISIN->LEI mapping file and build a lookup index.
 
     Fetches metadata to get the download link, downloads the ZIP file using
-    streaming, extracts the CSV, and builds a dictionary mapping ISINs to LEIs.
-
-    Args:
-        client_factory: Factory function to create an HTTP client.
-            Defaults to make_client from _utils.
+    streaming, extracts the CSV, and builds a dictionary mapping ISINs to
+    LEIs.
 
     Returns:
-        Dictionary mapping ISIN codes to LEI codes.
+        dict[str, str]: Dictionary mapping ISIN codes to LEI codes.
 
     Raises:
         ValueError: If metadata or download link is unavailable.
@@ -54,38 +53,16 @@ async def _download_and_parse(
     """
     Download the GLEIF mapping ZIP file and parse it into an index.
 
-    Uses a temporary directory for the download to avoid persisting large files.
-
-    Args:
-        client: HTTP client to use for the download.
-        download_link: URL to download the ZIP file from.
+    Uses a temporary directory for the download to avoid persisting
+    large files.
 
     Returns:
-        Dictionary mapping ISIN codes to LEI codes.
+        dict[str, str]: Dictionary mapping ISIN codes to LEI codes.
     """
     with TemporaryDirectory() as temp_dir:
         zip_path = Path(temp_dir) / "isin_lei.zip"
-        await _stream_download(client, download_link, zip_path)
-        return parse_zip(zip_path)
-
-
-async def _stream_download(
-    client: httpx.AsyncClient,
-    url: str,
-    destination: Path,
-) -> None:
-    """
-    Stream download a file from a URL to a local path.
-
-    Uses chunked transfer to handle large files efficiently without
-    loading the entire response into memory.
-
-    Args:
-        client: HTTP client to use for the download.
-        url: URL to download from.
-        destination: Local file path to write to.
-    """
-    await _stream_to_file(client, url, destination)
+        await _stream_to_file(client, download_link, zip_path)
+        return _parse_zip(zip_path)
 
 
 async def _stream_to_file(
@@ -96,10 +73,8 @@ async def _stream_to_file(
     """
     Stream response body to a file.
 
-    Args:
-        client: HTTP client to use for the request.
-        url: URL to download from.
-        destination: Local file path to write to.
+    Returns:
+        None
     """
     async with client.stream("GET", url) as response:
         response.raise_for_status()
@@ -107,3 +82,62 @@ async def _stream_to_file(
         with destination.open("wb") as f:
             async for chunk in response.aiter_bytes(chunk_size=65536):
                 f.write(chunk)
+
+
+def _parse_zip(zip_path: Path) -> dict[str, str]:
+    """
+    Extract and parse the CSV from a ZIP file into an ISIN->LEI index.
+
+    Finds the first CSV file in the archive and parses it row by row,
+    building a dictionary that maps ISIN codes to LEI codes.
+
+    Returns:
+        dict[str, str]: Dictionary mapping ISIN codes to LEI codes.
+
+    Raises:
+        ValueError: If no CSV file is found in the archive.
+    """
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        csv_name = _find_csv(zf)
+        if csv_name is None:
+            raise ValueError("No CSV file found in GLEIF ZIP archive.")
+
+        with zf.open(csv_name) as csv_file:
+            return _parse_csv(csv_file)
+
+
+def _find_csv(zf: zipfile.ZipFile) -> str | None:
+    """
+    Find the first CSV file in a ZIP archive.
+
+    Returns:
+        str | None: Name of the first CSV file found, or None.
+    """
+    return next(
+        (name for name in zf.namelist() if name.lower().endswith(".csv")),
+        None,
+    )
+
+
+def _parse_csv(csv_file: io.BufferedReader) -> dict[str, str]:
+    """
+    Parse the GLEIF ISIN->LEI CSV file into a look-up dictionary.
+
+    The CSV has columns: LEI, ISIN.
+
+    Returns:
+        dict[str, str]: Dictionary mapping ISIN codes to LEI codes.
+    """
+    text_wrapper = io.TextIOWrapper(csv_file, encoding="utf-8")
+    reader = csv.DictReader(text_wrapper)
+
+    index: dict[str, str] = {}
+
+    for row in reader:
+        isin = row.get("ISIN", "").strip().upper() or None
+        lei = row.get("LEI", "").strip().upper() or None
+
+        if isin and lei:
+            index[isin] = lei
+
+    return index

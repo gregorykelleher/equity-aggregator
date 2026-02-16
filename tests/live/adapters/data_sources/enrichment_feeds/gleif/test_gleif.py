@@ -3,8 +3,8 @@
 import httpx
 import pytest
 
-from equity_aggregator.adapters.data_sources.enrichment_feeds.gleif.api import (
-    GLEIF_ISIN_LEI_URL,
+from equity_aggregator.adapters.data_sources.enrichment_feeds.gleif.config import (
+    GleifConfig,
 )
 
 pytestmark = pytest.mark.live
@@ -18,7 +18,7 @@ def gleif_response() -> httpx.Response:
     Fetch GLEIF API response once and share across all tests in this module.
     """
     with httpx.Client() as client:
-        return client.get(GLEIF_ISIN_LEI_URL)
+        return client.get(GleifConfig().isin_lei_url)
 
 
 def test_gleif_api_endpoint_returns_ok(gleif_response: httpx.Response) -> None:
