@@ -233,3 +233,91 @@ def test_malformed_regular_market_time_preserves_price_fields() -> None:
     actual = YFinanceFeedData(**raw)
 
     assert actual.last_price == expected_price
+
+
+def test_primary_dividend_yield_passed_through_as_ratio() -> None:
+    """
+    ARRANGE: primary-endpoint payload with dividendYield as a decimal ratio
+    ACT:     construct YFinanceFeedData
+    ASSERT:  dividend_yield is preserved without conversion
+    """
+    raw = {
+        "longName": "Foo Inc",
+        "underlyingSymbol": "FOO",
+        "currency": "USD",
+        "currentPrice": 100.0,
+        "marketCap": 5000000,
+        "dividendYield": 0.0041,
+        "52WeekChange": 0.046,
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    expected = 0.0041
+    assert actual.dividend_yield == expected
+
+
+def test_fallback_dividend_yield_converted_from_percentage() -> None:
+    """
+    ARRANGE: fallback-endpoint payload with dividendYield as a percentage
+    ACT:     construct YFinanceFeedData
+    ASSERT:  dividend_yield is converted to a decimal ratio
+    """
+    expected = Decimal("0.1862")
+
+    raw = {
+        "shortName": "Luotea Plc",
+        "symbol": "LUOTEA.HE",
+        "currency": "EUR",
+        "regularMarketPrice": 2.68,
+        "marketCap": None,
+        "dividendYield": 18.62,
+        "fiftyTwoWeekChangePercent": -70.17,
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.dividend_yield == expected
+
+
+def test_primary_performance_1_year_passed_through_as_ratio() -> None:
+    """
+    ARRANGE: primary-endpoint payload with 52WeekChange as a decimal ratio
+    ACT:     construct YFinanceFeedData
+    ASSERT:  performance_1_year is preserved without conversion
+    """
+    raw = {
+        "longName": "Foo Inc",
+        "underlyingSymbol": "FOO",
+        "currency": "USD",
+        "currentPrice": 100.0,
+        "marketCap": 5000000,
+        "52WeekChange": 0.046,
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    expected = 0.046
+    assert actual.performance_1_year == expected
+
+
+def test_fallback_performance_1_year_converted_from_percentage() -> None:
+    """
+    ARRANGE: fallback-endpoint payload with fiftyTwoWeekChangePercent
+    ACT:     construct YFinanceFeedData
+    ASSERT:  performance_1_year is converted to a decimal ratio
+    """
+    expected = Decimal("-0.7017")
+
+    raw = {
+        "shortName": "Luotea Plc",
+        "symbol": "LUOTEA.HE",
+        "currency": "EUR",
+        "regularMarketPrice": 2.68,
+        "marketCap": None,
+        "fiftyTwoWeekChangePercent": -70.17,
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.performance_1_year == expected

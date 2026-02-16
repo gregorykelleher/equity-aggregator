@@ -4,7 +4,13 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from ._utils import is_trade_stale, nullify_price_fields, parse_unix_timestamp, required
+from ._utils import (
+    is_trade_stale,
+    nullify_price_fields,
+    parse_unix_timestamp,
+    percent_to_decimal,
+    required,
+)
 
 
 @required("name", "symbol")
@@ -67,7 +73,13 @@ class YFinanceFeedData(BaseModel):
         - quote_summary_fallback_url (i.e. '/v7/finance/quote')
 
         Note:
-            The fallback endpoint lacks many financial metrics.
+            The fallback endpoint lacks many financial metrics and uses
+            different scales for some fields. The primary endpoint returns
+            dividendYield and 52WeekChange as decimal ratios (e.g. 0.0041),
+            while the fallback returns dividendYield and
+            fiftyTwoWeekChangePercent as percentages (e.g. 18.62). We detect
+            the source by checking for the primary-only key ``52WeekChange``
+            and apply percent_to_decimal where needed.
 
         Args:
             self (dict[str, object]): Raw payload containing YFinance feed data.
@@ -93,7 +105,15 @@ class YFinanceFeedData(BaseModel):
             # fiftyTwoWeekHigh -> RawEquity.fifty_two_week_max
             "fifty_two_week_max": self.get("fiftyTwoWeekHigh"),
             # dividendYield -> RawEquity.dividend_yield
-            "dividend_yield": self.get("dividendYield"),
+            # The primary endpoint returns this as a decimal ratio
+            # (e.g. 0.0041) but the fallback returns a percentage
+            # (e.g. 18.62). We detect the source via the primary-only
+            # key "52WeekChange" and convert accordingly.
+            "dividend_yield": (
+                self.get("dividendYield")
+                if _is_primary(self)
+                else percent_to_decimal(self.get("dividendYield"))
+            ),
             # volume or regularMarketVolume -> RawEquity.market_volume
             "market_volume": self.get("volume") or self.get("regularMarketVolume"),
             # heldPercentInsiders -> RawEquity.held_insiders
@@ -122,9 +142,15 @@ class YFinanceFeedData(BaseModel):
             "return_on_equity": self.get("returnOnEquity"),
             # returnOnAssets -> RawEquity.return_on_assets
             "return_on_assets": self.get("returnOnAssets"),
-            # 52WeekChange or fiftyTwoWeekChangePercent -> RawEquity.performance_1_year
-            "performance_1_year": self.get("52WeekChange")
-            or self.get("fiftyTwoWeekChangePercent"),
+            # 52WeekChange -> RawEquity.performance_1_year (primary, ratio)
+            # fiftyTwoWeekChangePercent -> same (fallback, percentage)
+            "performance_1_year": (
+                self.get("52WeekChange")
+                if _is_primary(self)
+                else percent_to_decimal(
+                    self.get("fiftyTwoWeekChangePercent")
+                )
+            ),
             # totalDebt -> RawEquity.total_debt
             "total_debt": self.get("totalDebt"),
             # totalRevenue -> RawEquity.revenue
@@ -161,3 +187,17 @@ class YFinanceFeedData(BaseModel):
         # defer strict type validation to RawEquity
         strict=False,
     )
+
+
+def _is_primary(payload: dict[str, object]) -> bool:
+    """
+    Detect whether a raw payload came from the primary quoteSummary endpoint.
+
+    The primary endpoint (v10/quoteSummary) includes the ``52WeekChange`` key
+    from its ``defaultKeyStatistics`` module. The fallback endpoint (v7/quote)
+    never includes this key, using ``fiftyTwoWeekChangePercent`` instead.
+
+    Returns:
+        bool: True when the payload originates from the primary endpoint.
+    """
+    return "52WeekChange" in payload
