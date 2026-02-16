@@ -84,9 +84,9 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
         min_sources=2,
         max_deviation=Decimal("0.2"),
     ),
-    # Other financial metrics
-    "dividend_yield": FieldSpec(Strategy.MEDIAN),
-    "market_volume": FieldSpec(Strategy.MEDIAN),
+    # Other financial metrics (multi-source corroboration where possible)
+    "dividend_yield": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "market_volume": FieldSpec(Strategy.MEDIAN, min_sources=2),
     "held_insiders": FieldSpec(Strategy.MEDIAN),
     "held_institutions": FieldSpec(Strategy.MEDIAN),
     "short_interest": FieldSpec(Strategy.MEDIAN),
@@ -98,15 +98,15 @@ FIELD_CONFIG: dict[str, FieldSpec] = {
     "operating_margin": FieldSpec(Strategy.MEDIAN),
     "free_cash_flow": FieldSpec(Strategy.MEDIAN),
     "operating_cash_flow": FieldSpec(Strategy.MEDIAN),
-    "return_on_equity": FieldSpec(Strategy.MEDIAN),
-    "return_on_assets": FieldSpec(Strategy.MEDIAN),
-    "performance_1_year": FieldSpec(Strategy.MEDIAN),
+    "return_on_equity": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "return_on_assets": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "performance_1_year": FieldSpec(Strategy.MEDIAN, min_sources=2),
     "total_debt": FieldSpec(Strategy.MEDIAN),
-    "revenue": FieldSpec(Strategy.MEDIAN),
-    "ebitda": FieldSpec(Strategy.MEDIAN),
-    "trailing_pe": FieldSpec(Strategy.MEDIAN),
-    "price_to_book": FieldSpec(Strategy.MEDIAN),
-    "trailing_eps": FieldSpec(Strategy.MEDIAN),
+    "revenue": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "ebitda": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "trailing_pe": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "price_to_book": FieldSpec(Strategy.MEDIAN, min_sources=2),
+    "trailing_eps": FieldSpec(Strategy.MEDIAN, min_sources=2),
 }
 
 # Coherent field groups requiring joint validation
