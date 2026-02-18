@@ -96,6 +96,11 @@ def _generate_updates(
     updating each equity with the provided metadata using the _update function. Only
     non-None updated equities are yielded.
 
+    Note:
+        The zip uses strict=True to raise a ValueError if the two sequences differ
+        in length. This guards against silent data loss when the OpenFIGI response
+        is truncated or the cache returns a stale result for a different input set.
+
     Args:
         raw_equities (Sequence[RawEquity]): A sequence of RawEquity objects to update.
         id_metadata (Sequence[IdentificationMetadata]):
@@ -106,7 +111,7 @@ def _generate_updates(
         RawEquity: The updated RawEquity objects, excluding any that are None after
         updating.
     """
-    for equity, metadata in zip(raw_equities, id_metadata, strict=False):
+    for equity, metadata in zip(raw_equities, id_metadata, strict=True):
         updated = _update(equity, metadata)
         if updated is not None:
             yield updated

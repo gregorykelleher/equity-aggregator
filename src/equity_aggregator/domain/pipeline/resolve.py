@@ -35,7 +35,7 @@ class FeedRecord(NamedTuple):
 
 
 # List of discovery feed fetchers and their corresponding data models
-_DISCOVERY_FEEDS: tuple[FeedPair] = [
+_DISCOVERY_FEEDS: list[FeedPair] = [
     (fetch_equity_records_xetra, XetraFeedData),
     (fetch_equity_records_lseg, LsegFeedData),
     (fetch_equity_records_stock_analysis, StockAnalysisFeedData),

@@ -157,11 +157,11 @@ def test_generate_updates_empty_inputs() -> None:
     assert actual_equities == []
 
 
-def test_generate_updates_metadata_shorter_than_equities() -> None:
+def test_generate_updates_metadata_shorter_than_equities_raises() -> None:
     """
     ARRANGE: more raw_equities than metadata
     ACT:     call _generate_updates
-    ASSERT:  only pairs up to the length of metadata are processed
+    ASSERT:  raises ValueError due to strict zip mismatch
     """
     raw_equities = [
         _make_dummy_equity("A", "A"),
@@ -172,18 +172,15 @@ def test_generate_updates_metadata_shorter_than_equities() -> None:
         ("A", "A", "BBG000BLNNH6"),
     ]
 
-    actual_equities = list(
-        _generate_updates(raw_equities, id_metadata),
-    )
-
-    assert len(actual_equities) == 1
+    with pytest.raises(ValueError):
+        list(_generate_updates(raw_equities, id_metadata))
 
 
-def test_generate_updates_metadata_longer_than_equities() -> None:
+def test_generate_updates_metadata_longer_than_equities_raises() -> None:
     """
     ARRANGE: more metadata than raw_equities
     ACT:     call _generate_updates
-    ASSERT:  only pairs up to the length of raw_equities are processed
+    ASSERT:  raises ValueError due to strict zip mismatch
     """
     raw_equities = [_make_dummy_equity("A", "A")]
 
@@ -192,11 +189,8 @@ def test_generate_updates_metadata_longer_than_equities() -> None:
         ("B", "B", "BBG000BLNNH6"),
     ]
 
-    actual_equities = list(
-        _generate_updates(raw_equities, id_metadata),
-    )
-
-    assert len(actual_equities) == 1
+    with pytest.raises(ValueError):
+        list(_generate_updates(raw_equities, id_metadata))
 
 
 def test_update_fallback_symbol_only() -> None:

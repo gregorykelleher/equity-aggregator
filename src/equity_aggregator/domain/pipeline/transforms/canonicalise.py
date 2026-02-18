@@ -3,6 +3,8 @@
 import logging
 from collections.abc import AsyncIterable, AsyncIterator
 
+from pydantic import ValidationError
+
 from equity_aggregator.schemas.canonical import CanonicalEquity
 from equity_aggregator.schemas.raw import RawEquity
 
@@ -15,8 +17,8 @@ async def canonicalise(
     """
     Asynchronously converts a stream of RawEquity objects into CanonicalEquity objects.
 
-    Each RawEquity is validated and transformed into a CanonicalEquity. If a required
-    field (such as share_class_figi) is missing or invalid, a ValidationError is raised.
+    Each RawEquity is validated and transformed into a CanonicalEquity. Records that
+    fail validation are logged and skipped.
 
     Args:
         raw_equities (AsyncIterable[RawEquity]): An asynchronous iterable of RawEquity
@@ -24,15 +26,24 @@ async def canonicalise(
 
     Yields:
         CanonicalEquity: The canonicalised equity object corresponding to each input.
-
-    Raises:
-        ValidationError: If incoming RawEquity is missing any required fields or is
-            invalid.
     """
     canonicalised_count = 0
+    skipped_count = 0
 
     async for raw_equity in raw_equities:
-        canonicalised_count += 1
-        yield CanonicalEquity.from_raw(raw_equity)
+        try:
+            yield CanonicalEquity.from_raw(raw_equity)
+            canonicalised_count += 1
+        except ValidationError:
+            skipped_count += 1
+            logger.warning(
+                "Skipping equity %s (%s): failed canonical validation",
+                raw_equity.symbol,
+                raw_equity.share_class_figi,
+            )
 
-    logger.info("Canonicalised %d equities.", canonicalised_count)
+    logger.info(
+        "Canonicalised %d equities (skipped %d).",
+        canonicalised_count,
+        skipped_count,
+    )

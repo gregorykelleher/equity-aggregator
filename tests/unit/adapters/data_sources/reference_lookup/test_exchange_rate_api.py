@@ -108,11 +108,11 @@ def test_retrieve_conversion_rates_uses_cache() -> None:
     assert actual == payload
 
 
-def test_retrieve_conversion_rates_exits_on_http_error() -> None:
+def test_retrieve_conversion_rates_propagates_http_error() -> None:
     """
     ARRANGE: mock transport always returns HTTP 500
     ACT:     call retrieve_conversion_rates()
-    ASSERT:  SystemExit is raised (fatal exit path taken)
+    ASSERT:  httpx.HTTPStatusError propagates to caller
     """
     os.environ["EXCHANGE_RATE_API_KEY"] = "KEY"
 
@@ -121,7 +121,7 @@ def test_retrieve_conversion_rates_exits_on_http_error() -> None:
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(httpx.HTTPStatusError):
         asyncio.run(retrieve_conversion_rates(client))
 
 

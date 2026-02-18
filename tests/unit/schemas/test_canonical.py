@@ -88,15 +88,16 @@ async def test_canonicalise_emits_canonicals() -> None:
     ]
 
 
-async def test_canonicalise_raises_on_invalid_item() -> None:
+async def test_canonicalise_skips_invalid_item() -> None:
     """
     ARRANGE: async stream with one invalid RawEquity (missing FIGI)
     ACT:    consume canonicalise
-    ASSERT:  raises ValidationError
+    ASSERT:  invalid record is skipped, yielding an empty list
     """
     raw_equities = [
         RawEquity(name="Gamma plc", symbol="GAMMA"),  # no share_class_figi
     ]
 
-    with pytest.raises(ValidationError):
-        _ = [equity async for equity in canonicalise(_stream(raw_equities))]
+    actual = [equity async for equity in canonicalise(_stream(raw_equities))]
+
+    assert actual == []

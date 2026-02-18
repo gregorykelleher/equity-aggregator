@@ -275,3 +275,60 @@ def test_single_monetary_field_value_converted() -> None:
 
     # EUR @ rate 0.5 → 10 / 0.5 = 20.00
     assert actual[0].trailing_eps == Decimal("20.00")
+
+
+def test_unknown_currency_equity_is_skipped() -> None:
+    """
+    ARRANGE: one equity with unrecognised currency, one with valid currency
+    ACT:     convert over that generator
+    ASSERT:  only the valid equity is yielded
+    """
+    unknown = RawEquity(
+        name="Unknown",
+        symbol="UNK",
+        currency="XYZ",
+        last_price=Decimal("100"),
+    )
+    valid = RawEquity(
+        name="Valid",
+        symbol="VAL",
+        currency="EUR",
+        last_price=Decimal("10"),
+    )
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield unknown
+        yield valid
+
+    actual = _run(gen())
+
+    assert len(actual) == 1
+
+
+def test_unknown_currency_does_not_discard_valid() -> None:
+    """
+    ARRANGE: one equity with unrecognised currency, one with valid currency
+    ACT:     convert over that generator
+    ASSERT:  the valid equity is correctly converted
+    """
+    unknown = RawEquity(
+        name="Unknown",
+        symbol="UNK",
+        currency="XYZ",
+        last_price=Decimal("100"),
+    )
+    valid = RawEquity(
+        name="Valid",
+        symbol="VAL",
+        currency="EUR",
+        last_price=Decimal("10"),
+    )
+
+    async def gen() -> AsyncGenerator[RawEquity, None]:
+        yield unknown
+        yield valid
+
+    actual = _run(gen())
+
+    # EUR @ rate 0.5 → 10 / 0.5 = 20.00
+    assert actual[0].last_price == Decimal("20.00")
