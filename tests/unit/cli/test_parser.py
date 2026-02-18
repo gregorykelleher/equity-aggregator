@@ -271,14 +271,3 @@ def test_parser_multiple_flags_debug_set() -> None:
     assert args.debug is True
 
 
-def test_parser_accepts_analyse_command() -> None:
-    """
-    ARRANGE: parser and analyse command
-    ACT:     parse_args with analyse
-    ASSERT:  cmd is set to analyse
-    """
-    parser = create_parser()
-
-    args = parser.parse_args(["analyse"])
-
-    assert args.cmd == "analyse"

@@ -3,7 +3,6 @@
 import sys
 from argparse import Namespace
 
-from equity_aggregator.domain import analyse_canonical_equities as analyse
 from equity_aggregator.domain import download_canonical_equities as download
 from equity_aggregator.domain import seed_canonical_equities as seed
 
@@ -41,7 +40,6 @@ def dispatch_command(args: Namespace, handlers: dict | None = None) -> None:
         handlers = {
             "seed": lambda: run_command(seed),
             "download": lambda: run_command(download),
-            "analyse": lambda: run_command(analyse),
         }
 
     handler = handlers.get(args.cmd)

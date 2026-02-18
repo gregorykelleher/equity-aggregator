@@ -1,16 +1,13 @@
 # integrity/report.py
 
-import json
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 
 from equity_aggregator.schemas.integrity import (
     FindingOutput,
     IntegrityReport,
     SectionOutput,
 )
-from equity_aggregator.storage._utils import get_data_store_path
 
 from .models import SectionReport
 
@@ -46,32 +43,6 @@ def build_integrity_report(
         total_findings=total_findings,
         sections=sections,
     )
-
-
-def save_integrity_report(report: IntegrityReport) -> Path:
-    """
-    Write the integrity report as JSON to the data store directory.
-
-    Args:
-        report: The integrity report to persist.
-
-    Returns:
-        Path: Path to the written JSON file.
-    """
-    dest = get_data_store_path() / "integrity_report.json"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-
-    dest.write_text(
-        json.dumps(
-            report.model_dump(),
-            indent=2,
-            ensure_ascii=False,
-        )
-        + "\n",
-    )
-
-    logger.info("Integrity report saved to %s", dest)
-    return dest
 
 
 def _convert_section(report: SectionReport) -> SectionOutput:

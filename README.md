@@ -164,6 +164,29 @@ Retrieved 90 snapshots
 > [!NOTE]
 > All retrieval functions work independently and automatically download the database if needed, so there's no requirement to call `retrieve_canonical_equities()` first.
 
+#### Analysing Data Integrity
+
+The `analyse_canonical_equities()` function runs a comprehensive data integrity analysis on the locally stored canonical equity dataset. It evaluates data quality across nine dimensions, including financial outliers, identifier quality, temporal anomalies, data consistency, cross-field logic, and currency and geography distribution, returning a structured `IntegrityReport`.
+
+```python
+from equity_aggregator import analyse_canonical_equities
+
+# Run integrity analysis on the local database
+report = analyse_canonical_equities()
+
+print(f"Dataset size: {report.dataset_size}")
+print(f"Snapshots: {report.snapshot_count}")
+print(f"Sections analysed: {report.sections_analysed}")
+print(f"Total findings: {report.total_findings}")
+```
+
+**Example Output:**
+```
+Dataset size: 15000
+Snapshots: 90
+Sections analysed: 9
+Total findings: 42
+```
 
 #### Data Models
 
@@ -197,16 +220,15 @@ Market Cap: 3500000000000
 
 ### CLI Usage
 
-Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers three main commands:
+Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers two main commands:
 
 - **seed** - Aggregate and populate the local database with fresh equity data
 - **download** - Download the latest canonical equity database from remote repository
-- **analyse** - Run data integrity analysis on the canonical equity dataset
 
 Run `equity-aggregator --help` for more information:
 
 ```bash
-usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,download,analyse} ...
+usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,download} ...
 
 aggregate and download canonical equity data
 
@@ -219,10 +241,9 @@ options:
 commands:
   Available operations
 
-  {seed,download,analyse}
+  {seed,download}
     seed                aggregate enriched canonical equity data sourced from data feeds
     download            download latest canonical equity data from remote repository
-    analyse             run data integrity analysis on the canonical equity dataset
 
 Use 'equity-aggregator <command> --help' for help
 ```
@@ -264,17 +285,6 @@ equity-aggregator seed
 > Note that the `seed` command processes thousands of equities and is intentionally rate-limited to respect external API constraints. A full run typically takes 60 minutes depending on network conditions and API response times.
 >
 > This is mitigated by the automated nightly CI pipeline that runs `seed` and publishes the latest canonical equity dataset. Users can download this pre-built data using `equity-aggregator download` instead of running the full aggregation pipeline locally.
-
-#### Analyse Command
-
-The `analyse` command runs a comprehensive data integrity analysis on the canonical equity dataset stored in the local database. It evaluates data quality across nine dimensions, including financial outliers, identifier quality, temporal anomalies, extreme financial values, data consistency, cross-field logic, and currency and geography distribution.
-
-```bash
-# Run data integrity analysis on the local database
-equity-aggregator analyse
-```
-
-The analysis produces a structured JSON report (`integrity_report.json`) saved alongside the database in the data store directory. The report summarises the total number of findings across all sections, making it useful for monitoring data quality over time.
 
 ### Data Storage
 
