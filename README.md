@@ -265,6 +265,17 @@ equity-aggregator seed
 >
 > This is mitigated by the automated nightly CI pipeline that runs `seed` and publishes the latest canonical equity dataset. Users can download this pre-built data using `equity-aggregator download` instead of running the full aggregation pipeline locally.
 
+#### Analyse Command
+
+The `analyse` command runs a comprehensive data integrity analysis on the canonical equity dataset stored in the local database. It evaluates data quality across nine dimensions, including financial outliers, identifier quality, temporal anomalies, extreme financial values, data consistency, cross-field logic, and currency and geography distribution.
+
+```bash
+# Run data integrity analysis on the local database
+equity-aggregator analyse
+```
+
+The analysis produces a structured JSON report (`integrity_report.json`) saved alongside the database in the data store directory. The report summarises the total number of findings across all sections, making it useful for monitoring data quality over time.
+
 ### Data Storage
 
 Equity Aggregator automatically stores its database (i.e. `data_store.db`) in system-appropriate locations using platform-specific directories:
