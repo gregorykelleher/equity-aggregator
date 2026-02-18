@@ -1,5 +1,6 @@
 # domain/__init__.py
 
+from .integrity import analyse_canonical_equities
 from .pipeline import seed_canonical_equities
 from .retrieval import (
     download_canonical_equities,
@@ -9,6 +10,7 @@ from .retrieval import (
 )
 
 __all__ = [
+    "analyse_canonical_equities",
     "seed_canonical_equities",
     "retrieve_canonical_equities",
     "retrieve_canonical_equity",

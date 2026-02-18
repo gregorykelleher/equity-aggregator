@@ -11,12 +11,17 @@ from .feeds import (
     XetraFeedData,
     YFinanceFeedData,
 )
+from .integrity import FindingOutput, IntegrityReport, SectionOutput
 
 __all__ = [
     # canonical
     "EquityFinancials",
     "EquityIdentity",
     "CanonicalEquity",
+    # integrity
+    "FindingOutput",
+    "IntegrityReport",
+    "SectionOutput",
     # discovery feeds
     "IntrinioFeedData",
     "LsegFeedData",

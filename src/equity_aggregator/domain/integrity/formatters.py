@@ -1,10 +1,10 @@
-# data_integrity_analysis/formatters.py
+# integrity/formatters.py
 
 from collections.abc import Iterable
 from decimal import Decimal
 from itertools import islice
 
-from equity_aggregator import CanonicalEquity
+from equity_aggregator.schemas import CanonicalEquity
 
 
 def limit_items(items: Iterable[str], limit: int) -> tuple[str, ...]:
@@ -16,7 +16,7 @@ def limit_items(items: Iterable[str], limit: int) -> tuple[str, ...]:
         limit: Maximum count.
 
     Returns:
-        Limited items.
+        tuple[str, ...]: Limited items.
     """
     return tuple(islice(items, limit))
 
@@ -29,7 +29,7 @@ def format_equity(eq: CanonicalEquity) -> str:
         eq: Canonical equity to format.
 
     Returns:
-        Formatted equity string.
+        str: Formatted equity string.
     """
     name = (eq.identity.name or "Unknown")[:40]
     symbol = eq.identity.symbol or "N/A"
@@ -44,7 +44,7 @@ def format_equity_with_figi(eq: CanonicalEquity) -> str:
         eq: Canonical equity to format.
 
     Returns:
-        Formatted equity string with FIGI.
+        str: Formatted equity string with FIGI.
     """
     name = (eq.identity.name or "Unknown")[:40]
     symbol = eq.identity.symbol or "N/A"
@@ -60,7 +60,7 @@ def format_currency(value: Decimal | float) -> str:
         value: Monetary amount.
 
     Returns:
-        Formatted currency string.
+        str: Formatted currency string.
     """
     number = float(value)
     return f"${int(number):,}" if number.is_integer() else f"${number:,.2f}"
@@ -74,12 +74,14 @@ def format_percentage(value: float) -> str:
         value: Percentage value.
 
     Returns:
-        Formatted percentage string.
+        str: Formatted percentage string.
     """
     return f"{value:.1f}%"
 
 
-def format_coverage_table(items: list[tuple[str, int, int]]) -> tuple[str, ...]:
+def format_coverage_table(
+    items: list[tuple[str, int, int]],
+) -> tuple[str, ...]:
     """
     Format coverage data as aligned table rows.
 
@@ -87,7 +89,7 @@ def format_coverage_table(items: list[tuple[str, int, int]]) -> tuple[str, ...]:
         items: List of (label, count, total) tuples.
 
     Returns:
-        Formatted table rows.
+        tuple[str, ...]: Formatted table rows.
     """
     if not items:
         return ()
@@ -118,7 +120,7 @@ def _format_coverage_row(
         widths: Column widths (label, count, total).
 
     Returns:
-        Formatted row string.
+        str: Formatted row string.
     """
     max_label, max_count, max_total = widths
     percentage = (count / total * 100) if total > 0 else 0.0
@@ -138,7 +140,7 @@ def describe_price_vs_max(eq: CanonicalEquity) -> str:
         eq: Canonical equity.
 
     Returns:
-        Formatted comparison string.
+        str: Formatted comparison string.
     """
     price = eq.financials.last_price
     maximum = eq.financials.fifty_two_week_max
@@ -153,7 +155,7 @@ def describe_price_vs_min(eq: CanonicalEquity) -> str:
         eq: Canonical equity.
 
     Returns:
-        Formatted comparison string.
+        str: Formatted comparison string.
     """
     price = eq.financials.last_price
     minimum = eq.financials.fifty_two_week_min
@@ -168,7 +170,7 @@ def describe_range_bounds(eq: CanonicalEquity) -> str:
         eq: Canonical equity.
 
     Returns:
-        Formatted range string.
+        str: Formatted range string.
     """
     minimum = eq.financials.fifty_two_week_min
     maximum = eq.financials.fifty_two_week_max
@@ -183,7 +185,7 @@ def describe_cap_gap(eq: CanonicalEquity) -> str:
         eq: Canonical equity.
 
     Returns:
-        Formatted gap description.
+        str: Formatted gap description.
     """
     cap_value = eq.financials.market_cap
     return f"{format_equity(eq)} -> cap {format_currency(cap_value)}, price missing"
@@ -197,7 +199,7 @@ def score_equity_completeness(equity: CanonicalEquity) -> int:
         equity: Canonical equity to score.
 
     Returns:
-        Completeness score (higher is more complete).
+        int: Completeness score (higher is more complete).
     """
     identity_score = sum(
         1

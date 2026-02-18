@@ -196,6 +196,22 @@ def save_canonical_equities(
         conn.execute("COMMIT")
 
 
+def count_snapshots() -> int:
+    """
+    Count the number of distinct snapshot dates in the database.
+
+    Returns:
+        int: The number of distinct snapshot dates.
+    """
+    with connect() as conn:
+        _init_tables(conn)
+        row = conn.execute(
+            f"SELECT COUNT(DISTINCT snapshot_date) "
+            f"FROM {CANONICAL_EQUITY_SNAPSHOTS_TABLE}",
+        ).fetchone()
+        return row[0]
+
+
 def _init_tables(conn: sqlite3.Connection) -> None:
     """
     Initialises both the equity identities and equity snapshots tables.

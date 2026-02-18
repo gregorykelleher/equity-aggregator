@@ -132,7 +132,8 @@ tests/
 ├── unit/                      # Unit tests
 │   ├── adapters/              # Adapter layer
 │   ├── domain/                # Domain logic
-│   │   └── pipeline/          # Pipeline transformations
+│   │   ├── pipeline/          # Pipeline transformations
+│   │   └── integrity/         # Integrity analysis
 │   ├── schemas/               # Data validation
 │   └── storage/               # Database operations
 └── integration/               # Integration tests

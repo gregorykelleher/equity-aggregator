@@ -79,3 +79,12 @@ def _add_subcommands(parser: argparse.ArgumentParser) -> None:
         description="retrieve the most recent canonical equity dataset from "
         "the remote data repository",
     )
+
+    # add analyse subcommand
+    sub.add_parser(
+        "analyse",
+        help="run data integrity analysis on the canonical equity dataset",
+        description="execute comprehensive data quality analysis across "
+        "multiple dimensions including financial outliers, identifier "
+        "quality, and data completeness",
+    )
