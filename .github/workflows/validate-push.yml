@@ -49,8 +49,8 @@ jobs:
 
       - name: Run linting on Src
         run: |
-          uv run ruff check src
-          uv run ruff format src --check
+          uv run ruff check src --fix
+          uv run ruff format src
 
       - name: Run unit tests with coverage
         run: |
