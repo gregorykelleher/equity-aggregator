@@ -164,6 +164,7 @@ def compute_price_range_findings(
         ),
     )
 
+
 def _negative_pe_finding(
     equities: Sequence[CanonicalEquity],
     settings: AnalysisSettings,
@@ -210,7 +211,7 @@ def _zero_cap_finding(
     )
 
     samples = limit_items(sample_lines, settings.finding_sample_limit)
-    
+
     return (
         Finding(
             f"Zero or negative market cap entries: {len(matches):,} companies.",
