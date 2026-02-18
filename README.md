@@ -197,15 +197,16 @@ Market Cap: 3500000000000
 
 ### CLI Usage
 
-Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers two main commands:
+Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers three main commands:
 
 - **seed** - Aggregate and populate the local database with fresh equity data
 - **download** - Download the latest canonical equity database from remote repository
+- **analyse** - Run data integrity analysis on the canonical equity dataset
 
 Run `equity-aggregator --help` for more information:
 
 ```bash
-usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,download} ...
+usage: equity-aggregator [-h] [-v] [-d] [-q] {seed,download,analyse} ...
 
 aggregate and download canonical equity data
 
@@ -218,9 +219,10 @@ options:
 commands:
   Available operations
 
-  {seed,download}
+  {seed,download,analyse}
     seed                aggregate enriched canonical equity data sourced from data feeds
     download            download latest canonical equity data from remote repository
+    analyse             run data integrity analysis on the canonical equity dataset
 
 Use 'equity-aggregator <command> --help' for help
 ```
@@ -455,8 +457,11 @@ The codebase is organised following best practices, ensuring a clear separation 
 equity-aggregator/
 ├── src/equity_aggregator/           # Main application source
 │   ├── cli/                         # Command-line interface
-│   ├── domain/pipeline/             # Core aggregation pipeline
-│   │   └── transforms/              # Transformation stages
+│   ├── domain/                      # Core business logic
+│   │   ├── pipeline/                # Aggregation pipeline
+│   │   │   └── transforms/          # Transformation stages
+│   │   ├── retrieval/               # Data download and retrieval
+│   │   └── integrity/               # Data integrity analysis
 │   ├── adapters/data_sources/       # External data integrations
 │   │   ├── discovery_feeds/         # Primary sources (Intrinio, LSEG, SEC, Stock Analysis, TradingView, XETRA)
 │   │   └── enrichment_feeds/        # Enrichment feed integrations (Yahoo Finance)

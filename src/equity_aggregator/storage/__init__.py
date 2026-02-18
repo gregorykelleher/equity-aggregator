@@ -8,6 +8,7 @@ from .cache import (
     save_cache_entry,
 )
 from .data_store import (
+    count_snapshots,
     load_canonical_equities,
     load_canonical_equity,
     load_canonical_equity_history,
@@ -25,6 +26,7 @@ __all__ = [
     "save_cache",
     "save_cache_entry",
     # data_store
+    "count_snapshots",
     "load_canonical_equities",
     "load_canonical_equity",
     "load_canonical_equity_history",

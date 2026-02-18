@@ -12,6 +12,7 @@ from equity_aggregator.storage._utils import (
     connect,
 )
 from equity_aggregator.storage.data_store import (
+    count_snapshots,
     load_canonical_equities,
     load_canonical_equity,
     load_canonical_equity_history,
@@ -423,3 +424,50 @@ def test_save_equities_defaults_snapshot_date_to_today() -> None:
     expected = datetime.date.today().isoformat()
 
     assert loaded.snapshot_date == expected
+
+
+def test_count_snapshots_returns_zero_for_empty_database() -> None:
+    """
+    ARRANGE: empty database
+    ACT:     count_snapshots
+    ASSERT:  returns 0
+    """
+    actual = count_snapshots()
+
+    assert actual == 0
+
+
+def test_count_snapshots_returns_distinct_date_count() -> None:
+    """
+    ARRANGE: equities saved across two distinct dates
+    ACT:     count_snapshots
+    ASSERT:  returns 2
+    """
+    equity = _create_canonical_equity("BBG000SNAPC1", "SNAP COUNT")
+
+    save_canonical_equities([equity], snapshot_date="2025-01-01")
+    save_canonical_equities([equity], snapshot_date="2025-01-02")
+
+    expected = 2
+
+    actual = count_snapshots()
+
+    assert actual == expected
+
+
+def test_count_snapshots_counts_dates_not_rows() -> None:
+    """
+    ARRANGE: two equities saved on the same date
+    ACT:     count_snapshots
+    ASSERT:  returns 1 (one distinct date)
+    """
+    equities = [
+        _create_canonical_equity("BBG000SNAPD1", "ONE"),
+        _create_canonical_equity("BBG000SNAPD2", "TWO"),
+    ]
+
+    save_canonical_equities(equities, snapshot_date="2025-03-01")
+
+    actual = count_snapshots()
+
+    assert actual == 1

@@ -824,6 +824,72 @@ def test_process_stream_passes_through_groups() -> None:
     assert symbols == ["ONE", "TWO"]
 
 
+def test_process_stream_skips_none_results() -> None:
+    """
+    ARRANGE: stream with a valid group and a failing group (mismatched FIGIs)
+    ACT:     run _process_stream
+    ASSERT:  only the valid group's equity is yielded
+    """
+    valid_equity = RawEquity(
+        name="GOOD",
+        symbol="GOOD",
+        share_class_figi="FIGI00000001",
+        mics=["XLON"],
+        currency="USD",
+        last_price=Decimal("10"),
+        market_cap=Decimal("1000"),
+    )
+
+    bad_first = RawEquity(
+        name="BAD",
+        symbol="BAD",
+        share_class_figi="FIGI00000002",
+        mics=["XLON"],
+        currency="USD",
+        last_price=Decimal("5"),
+        market_cap=Decimal("500"),
+    )
+
+    bad_second = RawEquity(
+        name="BAD",
+        symbol="BAD",
+        share_class_figi="FIGIMISMATCH",
+        mics=["XLON"],
+        currency="USD",
+        last_price=Decimal("6"),
+        market_cap=Decimal("600"),
+    )
+
+    async def good_fetcher(
+        symbol: str,
+        name: str,
+        isin: str | None,
+        cusip: str | None,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        return {
+            "name": name,
+            "symbol": symbol,
+            "mics": ["XLON"],
+            "currency": "USD",
+            "last_price": Decimal("10"),
+            "market_cap": Decimal("1000"),
+        }
+
+    mock_feed = EnrichmentFeed(fetch=good_fetcher, model=GoodFeedData)
+
+    async def source() -> AsyncIterable[list[RawEquity]]:
+        yield [valid_equity]
+        yield [bad_first, bad_second]
+
+    async def runner() -> list[RawEquity]:
+        return [equity async for equity in _process_stream(source(), (mock_feed,))]
+
+    actual = asyncio.run(runner())
+
+    assert [e.symbol for e in actual] == ["GOOD"]
+
+
 def test_extract_identifiers_handles_none_values() -> None:
     """
     ARRANGE: sources with None identifiers
@@ -1009,6 +1075,61 @@ def test_init_feed_returns_functional_enrichment_feed() -> None:
     actual = asyncio.run(runner())
 
     assert actual == {"result": "ok"}
+
+
+def test_enrich_equity_group_returns_none_on_internal_failure() -> None:
+    """
+    ARRANGE: two discovery sources with different share_class_figi values
+    ACT:     call _enrich_equity_group (extract_identifiers raises ValueError)
+    ASSERT:  returns None (exception is caught and logged)
+    """
+    first_source = RawEquity(
+        name="AAPL",
+        symbol="AAPL",
+        share_class_figi="BBG000BLNNH6",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("150"),
+        market_cap=Decimal("250000000000"),
+    )
+
+    second_source = RawEquity(
+        name="AAPL",
+        symbol="AAPL",
+        share_class_figi="BBG000MISMCH",
+        mics=["XNAS"],
+        currency="USD",
+        last_price=Decimal("151"),
+        market_cap=Decimal("250000000000"),
+    )
+
+    async def unused_fetcher(**kwargs: object) -> dict[str, object]:
+        return {}
+
+    mock_feed = EnrichmentFeed(fetch=unused_fetcher, model=GoodFeedData)
+
+    actual = asyncio.run(
+        _enrich_equity_group([first_source, second_source], (mock_feed,)),
+    )
+
+    assert actual is None
+
+
+def test_enrich_equity_group_returns_none_on_empty_sources() -> None:
+    """
+    ARRANGE: empty list of discovery sources
+    ACT:     call _enrich_equity_group (extract_identifiers raises ValueError)
+    ASSERT:  returns None (exception is caught, symbol defaults to "?")
+    """
+
+    async def unused_fetcher(**kwargs: object) -> dict[str, object]:
+        return {}
+
+    mock_feed = EnrichmentFeed(fetch=unused_fetcher, model=GoodFeedData)
+
+    actual = asyncio.run(_enrich_equity_group([], (mock_feed,)))
+
+    assert actual is None
 
 
 def test_enrich_yields_merged_equity() -> None:
