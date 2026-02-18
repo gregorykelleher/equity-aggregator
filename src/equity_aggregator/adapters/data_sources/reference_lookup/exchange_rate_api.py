@@ -2,7 +2,6 @@
 
 import logging
 import os
-import sys
 from decimal import Decimal
 from itertools import starmap
 
@@ -46,24 +45,15 @@ async def retrieve_conversion_rates(
     api_key = _get_api_key()
     url = _build_url(api_key)
 
-    try:
-        # obtain an HTTP client if not provided
-        client = client or make_client()
+    # obtain an HTTP client if not provided
+    client = client or make_client()
 
-        rates = await _get_rates(client, url)
+    rates = await _get_rates(client, url)
 
-        # persist retrieved conversion rates to cache and return
-        save_cache(cache_key, rates)
-        logger.info("Saved exchange rates to cache.")
-        return rates
-
-    except (httpx.HTTPError, ValueError) as error:
-        logger.fatal(
-            "Fatal error while fetching exchange rates: %s",
-            error,
-            exc_info=True,
-        )
-        sys.exit(1)
+    # persist retrieved conversion rates to cache and return
+    save_cache(cache_key, rates)
+    logger.info("Saved exchange rates to cache.")
+    return rates
 
 
 def _get_api_key() -> str:

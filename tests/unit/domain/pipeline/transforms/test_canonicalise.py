@@ -123,3 +123,55 @@ async def test_canonicalise_multiple_equities_yields_correct_count() -> None:
     actual = [equity async for equity in canonicalise(_async_list(raw_equities))]
 
     assert len(actual) == expected_count
+
+
+async def test_canonicalise_skips_invalid_record() -> None:
+    """
+    ARRANGE: one RawEquity missing required share_class_figi, one valid
+    ACT:     canonicalise
+    ASSERT:  yields only the valid equity
+    """
+    invalid = RawEquity(
+        share_class_figi=None,
+        name="No FIGI",
+        symbol="NOFIGI",
+        currency="USD",
+    )
+    valid = RawEquity(
+        share_class_figi="BBG000B9XRY4",
+        name="Apple Inc",
+        symbol="AAPL",
+        currency="USD",
+    )
+
+    actual = [
+        equity async for equity in canonicalise(_async_list([invalid, valid]))
+    ]
+
+    assert len(actual) == 1
+
+
+async def test_canonicalise_skipped_record_does_not_block_valid() -> None:
+    """
+    ARRANGE: one RawEquity missing required share_class_figi, one valid
+    ACT:     canonicalise
+    ASSERT:  the valid equity is correctly canonicalised
+    """
+    invalid = RawEquity(
+        share_class_figi=None,
+        name="No FIGI",
+        symbol="NOFIGI",
+        currency="USD",
+    )
+    valid = RawEquity(
+        share_class_figi="BBG000B9XRY4",
+        name="Apple Inc",
+        symbol="AAPL",
+        currency="USD",
+    )
+
+    actual = [
+        equity async for equity in canonicalise(_async_list([invalid, valid]))
+    ]
+
+    assert actual[0].identity.share_class_figi == "BBG000B9XRY4"

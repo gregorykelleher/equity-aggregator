@@ -198,19 +198,52 @@ async def _process_stream(
             async for group in equity_groups
         ]
         for coro in asyncio.as_completed(tasks):
-            yield await coro
+            result = await coro
+            if result is not None:
+                yield result
 
 
 async def _enrich_equity_group(
     discovery_sources: list[RawEquity],
     feeds: tuple[EnrichmentFeed, ...],
-) -> RawEquity:
+) -> RawEquity | None:
     """
     Enrich an equity group and merge all sources.
 
     Extracts representative identifiers from discovery sources, queries
     enrichment feeds with those identifiers, then performs a single merge
     of all data points (discovery + enrichment).
+
+    Note:
+        Exceptions are caught and logged so that a single group failure does
+        not cancel all other in-flight enrichment tasks within the TaskGroup.
+
+    Args:
+        discovery_sources: Discovery feed equities for this group.
+        feeds: Active enrichment feeds.
+
+    Returns:
+        RawEquity | None: Merged equity from all available sources, or None
+            if enrichment or merging failed.
+    """
+    try:
+        return await _enrich_and_merge(discovery_sources, feeds)
+    except Exception:
+        symbol = discovery_sources[0].symbol if discovery_sources else "?"
+        logger.warning(
+            "Failed to enrich/merge group for symbol=%s: skipping",
+            symbol,
+            exc_info=True,
+        )
+        return None
+
+
+async def _enrich_and_merge(
+    discovery_sources: list[RawEquity],
+    feeds: tuple[EnrichmentFeed, ...],
+) -> RawEquity:
+    """
+    Perform the enrichment queries and merge all sources for an equity group.
 
     Args:
         discovery_sources: Discovery feed equities for this group.

@@ -17,7 +17,9 @@ async def convert(
 
     This function:
       - Fetches FX rates once and builds a converter for price conversion.
-      - Iterates over the input stream, yielding each RawEquity with its price in USD.
+      - Iterates over the input stream, yielding each RawEquity with its price
+        in USD.
+      - Skips records whose currency has no available FX rate.
 
     Args:
         raw_equities (AsyncIterable[RawEquity]): Stream of RawEquity records
@@ -29,9 +31,23 @@ async def convert(
     """
     convert_to_usd = await get_usd_converter()
     converted_count = 0
+    skipped_count = 0
 
     async for equity in raw_equities:
-        converted_count += 1
-        yield convert_to_usd(equity)
+        try:
+            yield convert_to_usd(equity)
+            converted_count += 1
+        except ValueError:
+            skipped_count += 1
+            logger.warning(
+                "Skipping equity %s (%s): no FX rate for currency %s",
+                equity.symbol,
+                equity.name,
+                equity.currency,
+            )
 
-    logger.info("Converted %d raw equities.", converted_count)
+    logger.info(
+        "Converted %d raw equities (skipped %d).",
+        converted_count,
+        skipped_count,
+    )
