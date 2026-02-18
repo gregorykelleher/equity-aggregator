@@ -84,11 +84,6 @@ jobs:
           sqlite3 data/data_store/data_store.db \
             "DROP TABLE IF EXISTS object_cache; VACUUM;"
 
-      - name: Run data integrity analysis
-        env:
-          DATA_STORE_DIR: "./data/data_store"
-        run: uv run equity-aggregator analyse
-
       - name: Compress data store for release
         run: gzip -k data/data_store/data_store.db
 
@@ -116,5 +111,4 @@ jobs:
           generate_release_notes: false
           files: |
             data/data_store/data_store.db.gz
-            data/data_store/integrity_report.json
             ${{ steps.latest_log.outputs.latest_log }}

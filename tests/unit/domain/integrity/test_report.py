@@ -1,15 +1,9 @@
 # domain/integrity/test_report.py
 
-import json
-import os
-
 import pytest
 
 from equity_aggregator.domain.integrity.models import Finding, SectionReport
-from equity_aggregator.domain.integrity.report import (
-    build_integrity_report,
-    save_integrity_report,
-)
+from equity_aggregator.domain.integrity.report import build_integrity_report
 
 pytestmark = pytest.mark.unit
 
@@ -122,42 +116,3 @@ def test_build_integrity_report_converts_findings() -> None:
     assert actual.sections[0].findings[0].message == expected
 
 
-def test_save_integrity_report_writes_json_file() -> None:
-    """
-    ARRANGE: built integrity report
-    ACT:     save_integrity_report
-    ASSERT:  JSON file exists at expected path
-    """
-    report = build_integrity_report(_sample_reports(), dataset_size=10, snapshot_count=1)
-
-    path = save_integrity_report(report)
-
-    assert path.exists()
-
-
-def test_save_integrity_report_contains_valid_json() -> None:
-    """
-    ARRANGE: built integrity report
-    ACT:     save_integrity_report and read file
-    ASSERT:  file parses as valid JSON with expected key
-    """
-    report = build_integrity_report(_sample_reports(), dataset_size=10, snapshot_count=1)
-
-    path = save_integrity_report(report)
-    data = json.loads(path.read_text())
-
-    assert data["dataset_size"] == 10
-
-
-def test_save_integrity_report_path_is_in_data_store() -> None:
-    """
-    ARRANGE: built integrity report
-    ACT:     save_integrity_report
-    ASSERT:  file is inside the DATA_STORE_DIR
-    """
-    report = build_integrity_report(_sample_reports(), dataset_size=10, snapshot_count=1)
-
-    path = save_integrity_report(report)
-    expected_dir = os.environ["DATA_STORE_DIR"]
-
-    assert expected_dir in str(path)

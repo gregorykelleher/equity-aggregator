@@ -20,7 +20,7 @@ from .analysers import (
     detect_temporal_anomalies,
 )
 from .models import AnalysisSettings, default_settings
-from .report import build_integrity_report, save_integrity_report
+from .report import build_integrity_report
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def analyse_canonical_equities(
     Run the complete data integrity analysis on stored canonical equities.
 
     Loads equities from the database, executes all analysis sections,
-    builds a structured report, and persists it as JSON.
+    and builds a structured report.
 
     Args:
         settings: Optional analysis thresholds (defaults to standard settings).
@@ -50,8 +50,6 @@ def analyse_canonical_equities(
         dataset_size=len(equities),
         snapshot_count=snapshot_count,
     )
-
-    save_integrity_report(report)
 
     logger.info(
         "Integrity analysis complete: %d findings across %d sections",

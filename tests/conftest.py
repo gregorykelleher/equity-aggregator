@@ -26,19 +26,6 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ["DATA_STORE_DIR"] = root.as_posix()
 
 
-@pytest.fixture
-def data_sql_store_dir() -> Path:
-    """
-    Fixture that provides the path to the temporary data sql store directory for test
-    inspection.
-
-    Returns:
-        Path: The path to the temporary data sql store directory, as specified by the
-            'DATA_STORE_DIR' environment variable.
-    """
-    return Path(os.environ["DATA_STORE_DIR"])
-
-
 @pytest.fixture(autouse=True)
 def fresh_data_store() -> None:
     """

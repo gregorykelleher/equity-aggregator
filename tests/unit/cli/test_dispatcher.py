@@ -175,25 +175,3 @@ def test_dispatch_command_download_handler_execution() -> None:
     assert called is True
 
 
-def test_dispatch_command_analyse_handler_execution() -> None:
-    """
-    ARRANGE: analyse command in Namespace with no-op handler
-    ACT:     dispatch_command
-    ASSERT:  analyse handler is called
-    """
-    called = False
-
-    def analyse_handler() -> None:
-        nonlocal called
-        called = True
-
-    args = Namespace(cmd="analyse")
-    handlers = {
-        "seed": lambda: None,
-        "download": lambda: None,
-        "analyse": analyse_handler,
-    }
-
-    dispatch_command(args, handlers=handlers)
-
-    assert called is True

@@ -88,20 +88,6 @@ def test_analyse_report_sections_analysed() -> None:
     assert actual.sections_analysed == expected_sections
 
 
-def test_analyse_saves_json_report(data_sql_store_dir) -> None:
-    """
-    ARRANGE: database with one equity
-    ACT:     analyse_canonical_equities
-    ASSERT:  integrity_report.json exists in data store
-    """
-    save_canonical_equities([_create_equity("BBG000ANLY06")])
-
-    analyse_canonical_equities()
-
-    report_path = data_sql_store_dir / "integrity_report.json"
-    assert report_path.exists()
-
-
 def test_analyse_empty_database_returns_report() -> None:
     """
     ARRANGE: empty database (no equities)
