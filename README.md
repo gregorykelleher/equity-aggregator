@@ -171,21 +171,29 @@ The `analyse_canonical_equities()` function runs a comprehensive data integrity 
 ```python
 from equity_aggregator import analyse_canonical_equities
 
-# Run integrity analysis on the local database
 report = analyse_canonical_equities()
+print(f"Dataset: {report.dataset_size} equities, {report.total_findings} findings")
 
-print(f"Dataset size: {report.dataset_size}")
-print(f"Snapshots: {report.snapshot_count}")
-print(f"Sections analysed: {report.sections_analysed}")
-print(f"Total findings: {report.total_findings}")
+# Each finding has a message and a tuple of highlights
+finding = report.sections[1].findings[1]
+print(finding.message)
+print(finding.highlights)
 ```
 
 **Example Output:**
 ```
-Dataset size: 15000
-Snapshots: 90
-Sections analysed: 9
-Total findings: 42
+Dataset: 15412 equities, 21 findings
+Market capitalisation distribution summarised.
+('Median market cap: $345,967,337.41', 'Mega caps > $200,000,000,000: 74',
+ 'Micro caps < $300,000,000: 3,733', ...)
+```
+
+Findings can also surface individual equities that trigger a rule:
+
+```
+Price exceeds 52-week max (+10% tolerance) for 4 equities.
+('SIFCO INDUSTRIES (SIF) -> price 12.9 vs max 11.0',
+ 'TOTAL ENERGY SERVICES INC (TOTZF) -> price 12.642 vs max 8.70', ...)
 ```
 
 #### Data Models
