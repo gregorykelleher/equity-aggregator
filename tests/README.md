@@ -133,7 +133,7 @@ tests/
 │   ├── adapters/              # Adapter layer
 │   ├── domain/                # Domain logic
 │   │   ├── pipeline/          # Pipeline transformations
-│   │   └── integrity/         # Integrity analysis
+│   │   └── retrieval/         # Retrieval logic
 │   ├── schemas/               # Data validation
 │   └── storage/               # Database operations
 └── integration/               # Integration tests

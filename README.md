@@ -164,38 +164,6 @@ Retrieved 90 snapshots
 > [!NOTE]
 > All retrieval functions work independently and automatically download the database if needed, so there's no requirement to call `retrieve_canonical_equities()` first.
 
-#### Analysing Data Integrity
-
-The `analyse_canonical_equities()` function runs a comprehensive data integrity analysis on the locally stored canonical equity dataset. It evaluates data quality across nine dimensions, including financial outliers, identifier quality, temporal anomalies, data consistency, cross-field logic, and currency and geography distribution, returning a structured `IntegrityReport`.
-
-```python
-from equity_aggregator import analyse_canonical_equities
-
-report = analyse_canonical_equities()
-print(f"Dataset: {report.dataset_size} equities, {report.total_findings} findings")
-
-# Each finding has a message and a tuple of highlights
-finding = report.sections[1].findings[1]
-print(finding.message)
-print(finding.highlights)
-```
-
-**Example Output:**
-```
-Dataset: 15412 equities, 21 findings
-Market capitalisation distribution summarised.
-('Median market cap: $345,967,337.41', 'Mega caps > $200,000,000,000: 74',
- 'Micro caps < $300,000,000: 3,733', ...)
-```
-
-Findings can also surface individual equities that trigger a rule:
-
-```
-Price exceeds 52-week max (+10% tolerance) for 4 equities.
-('SIFCO INDUSTRIES (SIF) -> price 12.9 vs max 11.0',
- 'TOTAL ENERGY SERVICES INC (TOTZF) -> price 12.642 vs max 8.70', ...)
-```
-
 #### Data Models
 
 All data is returned as type-safe Pydantic models, ensuring data validation and integrity. The `CanonicalEquity` model provides structured access to identity metadata, pricing information, and financial metrics.
@@ -489,8 +457,7 @@ equity-aggregator/
 │   ├── domain/                      # Core business logic
 │   │   ├── pipeline/                # Aggregation pipeline
 │   │   │   └── transforms/          # Transformation stages
-│   │   ├── retrieval/               # Data download and retrieval
-│   │   └── integrity/               # Data integrity analysis
+│   │   └── retrieval/               # Data download and retrieval
 │   ├── adapters/data_sources/       # External data integrations
 │   │   ├── discovery_feeds/         # Primary sources (Intrinio, LSEG, SEC, Stock Analysis, TradingView, XETRA)
 │   │   └── enrichment_feeds/        # Enrichment feed integrations (Yahoo Finance)
