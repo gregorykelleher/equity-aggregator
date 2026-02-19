@@ -16,7 +16,6 @@ src/equity_aggregator/
 ├── domain/                 # Business Logic Layer - Core Domain
 │   ├── pipeline/           # Aggregation pipeline orchestration
 │   ├── retrieval/          # Canonical equity download and retrieval
-│   ├── integrity/          # Data integrity analysis
 │   └── _utils/             # Domain-specific utilities
 ├── adapters/               # Infrastructure Layer - External Integrations
 │   └── data_sources/       # Data source adapters
@@ -233,7 +232,7 @@ class LsegFeedData(BaseModel):
 ### CLI Layer
 
 - **main.py**: Entry point and argument parsing
-- **dispatcher.py**: Command routing (seed, download, analyse)
+- **dispatcher.py**: Command routing (seed, download)
 - **parser.py**: Command-line interface definition
 - **config.py**: Configuration management
 
@@ -242,9 +241,6 @@ class LsegFeedData(BaseModel):
 - **pipeline/runner.py**: Main aggregation orchestrator
 - **pipeline/resolve.py**: Multi-source data resolution
 - **pipeline/transforms/**: Six-stage transformation pipeline
-- **integrity/analyse.py**: Data integrity analysis orchestration
-- **integrity/analysers/**: Nine analysis section modules (outliers, consistency, completeness, etc.)
-- **integrity/report.py**: Report building and JSON persistence
 - **_utils/**: Domain-specific utilities (currency conversion, merging)
 
 ### Adapters Layer
