@@ -15,9 +15,11 @@ from equity_aggregator.storage import load_cache, save_cache
 
 logger = logging.getLogger(__name__)
 
-_STOCK_ANALYSIS_SEARCH_URL = "https://stockanalysis.com/api/screener/s/f"
+_STOCK_ANALYSIS_SEARCH_URL = "https://stockanalysis.com/_api/endpoints/screener/table"
 
 _PARAMS = {
+    # Screener type (s = stocks)
+    "type": "s",
     # Primary metric to use for screening/sorting
     "m": "marketCap",
     # Sort order (desc = descending, asc = ascending)
