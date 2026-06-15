@@ -79,6 +79,7 @@ def _setup_retry_handler() -> tuple[
 HTTP_OK = 200
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
+HTTP_NOT_ALLOWED = 405
 HTTP_INTERNAL_ERROR = 500
 
 RETRY_ATTEMPTS = 3
@@ -185,6 +186,29 @@ async def test_get_retries_after_403_forbidden() -> None:
     assert response.status_code == HTTP_OK
 
 
+async def test_get_retries_after_405_not_allowed() -> None:
+    """
+    ARRANGE: handler that returns 405 (CAPTCHA challenge) then 200
+    ACT:     call get()
+    ASSERT:  final response is 200
+    """
+    responses = deque([httpx.Response(HTTP_NOT_ALLOWED), httpx.Response(HTTP_OK)])
+
+    async def handler(_request: httpx.Request) -> httpx.Response:
+        return responses.popleft()
+
+    real_sleep, asyncio.sleep = asyncio.sleep, _instant_sleep
+
+    try:
+        session = LsegSession(make_client(handler))
+        response = await session.get("https://dummy.com")
+        await close(session._client)
+    finally:
+        asyncio.sleep = real_sleep
+
+    assert response.status_code == HTTP_OK
+
+
 async def test_post_retries_after_403_forbidden() -> None:
     """
     ARRANGE: handler that returns 403 then 200
@@ -263,7 +287,7 @@ async def test_get_raises_lookup_error_after_max_retries() -> None:
     try:
         session = LsegSession(make_client(handler))
 
-        with pytest.raises(LookupError, match="HTTP 403 Forbidden after retries"):
+        with pytest.raises(LookupError, match="HTTP 403 blocked after retries"):
             await session.get("https://dummy.com")
 
         await close(session._client)
