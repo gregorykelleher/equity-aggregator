@@ -21,8 +21,9 @@ class LsegSession:
     Asynchronous session for LSEG JSON endpoints.
 
     This class manages HTTP requests to the LSEG trading platform API, handling
-    rate limits and 403 Forbidden responses with exponential backoff retry logic.
-    It is lightweight and reusable, maintaining only a client and session state.
+    rate limits (403) and CAPTCHA challenge (405) responses with exponential
+    backoff retry logic. It is lightweight and reusable, maintaining only a
+    client and session state.
 
     Args:
         client (httpx.AsyncClient | None): Optional pre-configured HTTP client.
@@ -32,6 +33,17 @@ class LsegSession:
     """
 
     __slots__: tuple[str, ...] = ("_client",)
+
+    # Status codes returned when LSEG's edge blocks the request: 403 for rate
+    # limits and 405 for the JavaScript CAPTCHA challenge served to datacenter
+    # IPs (e.g. CI runners). Both are transient and clear on retry, so both
+    # trigger exponential backoff.
+    _RETRYABLE_STATUS_CODES: frozenset[int] = frozenset(
+        {
+            httpx.codes.FORBIDDEN,  # 403
+            httpx.codes.METHOD_NOT_ALLOWED,  # 405
+        },
+    )
 
     def __init__(
         self,
@@ -69,8 +81,8 @@ class LsegSession:
         """
         Perform a resilient asynchronous GET request to LSEG endpoints.
 
-        This method applies exponential backoff on 403 Forbidden responses
-        to handle rate limiting gracefully.
+        This method applies exponential backoff on blocked responses (403 rate
+        limit, 405 CAPTCHA challenge) to handle anti-bot measures gracefully.
 
         Args:
             url (str): Absolute URL to request.
@@ -94,8 +106,8 @@ class LsegSession:
         """
         Perform a resilient asynchronous POST request to LSEG endpoints.
 
-        This method applies exponential backoff on 403 Forbidden responses
-        to handle rate limiting gracefully.
+        This method applies exponential backoff on blocked responses (403 rate
+        limit, 405 CAPTCHA challenge) to handle anti-bot measures gracefully.
 
         Args:
             url (str): Absolute URL to request.
@@ -117,10 +129,11 @@ class LsegSession:
         **kwargs: object,
     ) -> httpx.Response:
         """
-        Perform a HTTP request with 403 Forbidden retry logic.
+        Perform a HTTP request with retry logic for blocked responses.
 
         This method is the core retry mechanism that handles exponential backoff
-        for 403 responses regardless of the HTTP method used.
+        for blocked responses (403 rate limit, 405 CAPTCHA challenge) regardless
+        of the HTTP method used.
 
         Args:
             request_func (HttpRequestFunc): The HTTP client method to call (get/post).
@@ -131,20 +144,21 @@ class LsegSession:
             httpx.Response: The successful HTTP response.
 
         Raises:
-            LookupError: If the final response is still 403 after all retries.
+            LookupError: If the final response is still blocked after all retries.
         """
         response = await request_func(url, **kwargs)
 
-        # If not a 403, return immediately
-        if response.status_code != httpx.codes.FORBIDDEN:
+        # If not a blocked status, return immediately
+        if response.status_code not in self._RETRYABLE_STATUS_CODES:
             return response
 
-        # Apply exponential backoff for 403 responses
+        # Apply exponential backoff for blocked responses
         max_attempts = 5
 
         for attempt, delay in enumerate(backoff_delays(attempts=max_attempts), 1):
             logger.debug(
-                "403 Forbidden %s - sleeping %.1fs (attempt %d/%d)",
+                "HTTP %d blocked %s - sleeping %.1fs (attempt %d/%d)",
+                response.status_code,
                 url,
                 delay,
                 attempt,
@@ -154,9 +168,11 @@ class LsegSession:
 
             response = await request_func(url, **kwargs)
 
-            # If we get a non-403 response, return it
-            if response.status_code != httpx.codes.FORBIDDEN:
+            # If we get a non-blocked response, return it
+            if response.status_code not in self._RETRYABLE_STATUS_CODES:
                 return response
 
-        # If we still have a 403 after all retries, raise an error
-        raise LookupError(f"HTTP 403 Forbidden after retries for {url}")
+        # If we are still blocked after all retries, raise an error
+        raise LookupError(
+            f"HTTP {response.status_code} blocked after retries for {url}",
+        )
