@@ -130,7 +130,13 @@ async def test_get_quote_summary_raises_on_429() -> None:
         def __init__(self) -> None:
             self.config = _Config()
 
-        async def get(self, _url: str, *, params: dict | None = None) -> httpx.Response:
+        async def get(
+            self,
+            _url: str,
+            *,
+            params: dict | None = None,
+            crumb_ticker: str | None = None,
+        ) -> httpx.Response:
             return resp_429
 
     session = _Session()
@@ -149,8 +155,11 @@ async def test_get_quote_summary_fallback_raises_on_non_200() -> None:
     """
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if "quoteSummary" in str(request.url):
+        url = str(request.url)
+        if "quoteSummary" in url:
             return httpx.Response(500, json={}, request=request)
+        if "getcrumb" in url:
+            return httpx.Response(200, text="crumb", request=request)
         return httpx.Response(404, json={}, request=request)
 
     session = make_session(handler)

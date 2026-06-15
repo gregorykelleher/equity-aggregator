@@ -208,38 +208,35 @@ async def test_fetch_with_retry_retries_on_504_gateway_timeout() -> None:
     assert len(call_count) == expected_attempts
 
 
-async def test_fetch_with_retry_handles_401_by_renewing_crumb() -> None:
+async def test_attempt_request_refreshes_crumb_on_401_for_crumb_endpoint() -> None:
     """
-    ARRANGE: handler returning 401 then 200
-    ACT:     call _fetch_with_retry()
-    ASSERT:  renews crumb and retries successfully
+    ARRANGE: crumb endpoint plus quote endpoint returning 401 then 200
+    ACT:     call get() with a crumb_ticker
+    ASSERT:  refreshes crumb and retries successfully
     """
     expected_status = 200
-    crumb_call_threshold = 2
-    call_count = []
+    quote_calls = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        call_count.append(1)
         url = str(request.url)
 
-        # Handle crumb endpoint
-        if "crumb" in url:
+        if "quoteSummary" in url:
+            quote_calls.append(1)
+            status = 401 if len(quote_calls) == 1 else expected_status
+            return httpx.Response(status, json={"ok": True}, request=request)
+
+        if "getcrumb" in url:
             return httpx.Response(expected_status, text="test-crumb", request=request)
 
-        # First call to quote endpoint returns 401
-        if len(call_count) <= crumb_call_threshold:  # First quote call + crumb call
-            return httpx.Response(401, json={}, request=request)
-
-        # Second call succeeds
-        return httpx.Response(expected_status, json={"success": True}, request=request)
+        return httpx.Response(expected_status, json={}, request=request)
 
     config = FeedConfig()
     session = YFSession(config, client=make_client(handler))
 
-    response = await session._fetch_with_retry(
+    response = await session.get(
         f"{config.quote_summary_primary_url}AAPL",
-        {},
-        delays=[0, 0, 0],
+        params={},
+        crumb_ticker="AAPL",
     )
 
     assert response.status_code == expected_status
@@ -265,137 +262,125 @@ async def test_fetch_with_retry_returns_non_retryable_status_immediately() -> No
     assert response.status_code == expected_status
 
 
-async def test_renew_crumb_once_extracts_ticker_and_fetches_crumb() -> None:
+async def test_get_attaches_crumb_proactively_for_crumb_endpoint() -> None:
     """
-    ARRANGE: session with quote-summary URL
-    ACT:     call _renew_crumb_once()
-    ASSERT:  extracts ticker and adds crumb to params
+    ARRANGE: crumb endpoint plus a param-recording quote endpoint
+    ACT:     call get() with a crumb_ticker
+    ASSERT:  the first quote request already carries the crumb
     """
+    quote_params = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
-
-        if "crumb" in url:
-            return httpx.Response(200, text="new-crumb", request=request)
-
+        if "quoteSummary" in url:
+            quote_params.append(dict(request.url.params))
+            return httpx.Response(200, json={}, request=request)
+        if "getcrumb" in url:
+            return httpx.Response(200, text="proactive-crumb", request=request)
         return httpx.Response(200, json={}, request=request)
 
     config = FeedConfig()
     session = YFSession(config, client=make_client(handler))
-    params = {"symbol": "AAPL"}
 
-    await session._renew_crumb_once(f"{config.quote_summary_primary_url}AAPL", params)
-
-    assert params["crumb"] == "new-crumb"
-
-
-async def test_renew_crumb_once_updates_params_dict() -> None:
-    """
-    ARRANGE: session with empty params
-    ACT:     call _renew_crumb_once()
-    ASSERT:  params dict is mutated with crumb
-    """
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
-        if "crumb" in url:
-            return httpx.Response(200, text="fetched-crumb", request=request)
-        return httpx.Response(200, json={}, request=request)
-
-    config = FeedConfig()
-    session = YFSession(config, client=make_client(handler))
-    params = {}
-
-    await session._renew_crumb_once(f"{config.quote_summary_primary_url}MSFT", params)
-
-    assert "crumb" in params
-
-
-async def test_renew_crumb_once_calls_transport_with_updated_params() -> None:
-    """
-    ARRANGE: session and quote-summary URL
-    ACT:     call _renew_crumb_once()
-    ASSERT:  returns successful response
-    """
-    expected_status = 200
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
-
-        if "crumb" in url:
-            return httpx.Response(expected_status, text="retry-crumb", request=request)
-
-        return httpx.Response(expected_status, json={"ok": True}, request=request)
-
-    config = FeedConfig()
-    session = YFSession(config, client=make_client(handler))
-
-    response = await session._renew_crumb_once(
-        f"{config.quote_summary_primary_url}TSLA",
-        {},
+    await session.get(
+        f"{config.quote_summary_primary_url}AAPL",
+        params={},
+        crumb_ticker="AAPL",
     )
+
+    assert quote_params[0]["crumb"] == "proactive-crumb"
+
+
+async def test_get_does_not_attach_crumb_when_no_ticker() -> None:
+    """
+    ARRANGE: a param-recording handler
+    ACT:     call get() without a crumb_ticker
+    ASSERT:  no crumb is attached to the request
+    """
+    received_params = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        received_params.append(dict(request.url.params))
+        return httpx.Response(200, json={}, request=request)
+
+    session = make_session(handler)
+
+    await session.get("https://example.com", params={"q": "AAPL"})
+
+    assert "crumb" not in received_params[0]
+
+
+async def test_attempt_request_ignores_401_without_crumb_ticker() -> None:
+    """
+    ARRANGE: handler returning 401
+    ACT:     call _attempt_request() without a crumb_ticker
+    ASSERT:  the 401 is returned without a crumb refresh
+    """
+    expected_status = 401
+    session = make_session(
+        lambda r: httpx.Response(expected_status, json={}, request=r),
+    )
+
+    response = await session._attempt_request("https://example.com", {}, None)
 
     assert response.status_code == expected_status
 
 
-async def test_extract_ticker_parses_ticker_from_url() -> None:
+async def test_refresh_crumb_and_replay_updates_params_with_fresh_crumb() -> None:
     """
-    ARRANGE: quote-summary URL with ticker
-    ACT:     call _extract_ticker()
-    ASSERT:  returns ticker symbol
+    ARRANGE: params holding a stale crumb and a crumb endpoint serving a new one
+    ACT:     call _refresh_crumb_and_replay()
+    ASSERT:  the stale crumb is replaced with the fresh crumb
     """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if "getcrumb" in url:
+            return httpx.Response(200, text="fresh-crumb", request=request)
+        return httpx.Response(200, json={}, request=request)
+
     config = FeedConfig()
-    session = YFSession(config)
-    url = f"{config.quote_summary_primary_url}AAPL"
+    session = YFSession(config, client=make_client(handler))
+    params = {"crumb": "stale"}
 
-    ticker = session._extract_ticker(url)
+    await session._refresh_crumb_and_replay(
+        f"{config.quote_summary_primary_url}AAPL",
+        params,
+        "AAPL",
+    )
 
-    assert ticker == "AAPL"
+    assert params["crumb"] == "fresh-crumb"
 
 
-async def test_extract_ticker_handles_url_with_query_params() -> None:
+async def test_fetch_with_retry_reuses_crumb_across_429_retries() -> None:
     """
-    ARRANGE: URL with ticker and query parameters
-    ACT:     call _extract_ticker()
-    ASSERT:  returns ticker without params
+    ARRANGE: quote endpoint returning 429 then 200, recording each crumb
+    ACT:     call _fetch_with_retry() with a pre-attached crumb
+    ASSERT:  both attempts carry the same crumb (no re-bootstrap)
     """
+    quote_crumbs = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if "getcrumb" in url:
+            return httpx.Response(200, text="should-not-fetch", request=request)
+        quote_crumbs.append(request.url.params.get("crumb"))
+        if len(quote_crumbs) == 1:
+            return httpx.Response(429, json={}, request=request)
+        return httpx.Response(200, json={}, request=request)
+
     config = FeedConfig()
-    session = YFSession(config)
-    url = f"{config.quote_summary_primary_url}MSFT?crumb=abc123&modules=price"
+    session = YFSession(config, client=make_client(handler))
+    params = {"crumb": "warm-crumb"}
 
-    ticker = session._extract_ticker(url)
+    await session._fetch_with_retry(
+        f"{config.quote_summary_primary_url}AAPL",
+        params,
+        "AAPL",
+        delays=[0, 0],
+    )
 
-    assert ticker == "MSFT"
-
-
-async def test_extract_ticker_handles_url_with_fragment() -> None:
-    """
-    ARRANGE: URL with ticker and fragment
-    ACT:     call _extract_ticker()
-    ASSERT:  returns ticker without fragment
-    """
-    config = FeedConfig()
-    session = YFSession(config)
-    url = f"{config.quote_summary_primary_url}GOOG#section"
-
-    ticker = session._extract_ticker(url)
-
-    assert ticker == "GOOG"
-
-
-async def test_extract_ticker_handles_url_with_trailing_slash() -> None:
-    """
-    ARRANGE: URL with ticker and trailing slash
-    ACT:     call _extract_ticker()
-    ASSERT:  returns ticker only
-    """
-    config = FeedConfig()
-    session = YFSession(config)
-    url = f"{config.quote_summary_primary_url}NFLX/"
-
-    ticker = session._extract_ticker(url)
-
-    assert ticker == "NFLX"
+    assert quote_crumbs == ["warm-crumb", "warm-crumb"]
 
 
 async def test_get_passes_params_to_fetch() -> None:

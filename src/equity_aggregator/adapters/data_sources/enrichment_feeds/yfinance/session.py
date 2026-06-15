@@ -96,20 +96,27 @@ class YFSession:
         url: str,
         *,
         params: Mapping[str, str] | None = None,
+        crumb_ticker: str | None = None,
     ) -> httpx.Response:
         """
         Perform a resilient asynchronous GET request to Yahoo Finance endpoints.
 
-        This method renews the crumb on a single 401 response and applies
-        exponential backoff on 429 responses. Concurrency is limited to comply
-        with Yahoo's HTTP/2 stream limits.
+        When crumb_ticker is provided, a crumb is attached proactively before the
+        first attempt, as the endpoint requires anti-CSRF authentication. A 401
+        then becomes a meaningful signal that the crumb has expired server-side,
+        triggering a herd-safe refresh and a single replay. Endpoints that do not
+        require a crumb (e.g. search) omit crumb_ticker and never bootstrap.
 
-        All httpx exceptions are converted to LookupError for consistent
-        error handling at the domain boundary.
+        Exponential backoff is applied on 429 responses. Concurrency is limited
+        to comply with Yahoo's HTTP/2 stream limits. All httpx exceptions are
+        converted to LookupError for consistent error handling at the domain
+        boundary.
 
         Args:
             url (str): Absolute URL to request.
             params (Mapping[str, str] | None): Optional query parameters.
+            crumb_ticker (str | None): Symbol used to prime and fetch the crumb
+                for crumb-requiring endpoints; None disables crumb handling.
 
         Returns:
             httpx.Response: The successful HTTP response.
@@ -121,14 +128,33 @@ class YFSession:
             params_dict: dict[str, str] = dict(params or {})
 
             try:
-                return await self._fetch_with_retry(url, params_dict)
+                if crumb_ticker is not None:
+                    await self._apply_crumb(params_dict, crumb_ticker)
+                return await self._fetch_with_retry(url, params_dict, crumb_ticker)
             except httpx.HTTPError as error:
                 raise LookupError("Request failed") from error
+
+    async def _apply_crumb(self, params: dict[str, str], ticker: str) -> None:
+        """
+        Attach a crumb to the query parameters before the first request.
+
+        Uses the cached crumb when available, bootstrapping one only on first
+        use for the session.
+
+        Args:
+            params (dict[str, str]): Query parameters mutated with the crumb.
+            ticker (str): Symbol used to prime and fetch the crumb.
+
+        Returns:
+            None
+        """
+        params["crumb"] = await self._auth.ensure_crumb(ticker, self._transport.get)
 
     async def _fetch_with_retry(
         self,
         url: str,
         params: dict[str, str],
+        crumb_ticker: str | None = None,
         *,
         delays: list[float] | None = None,
     ) -> httpx.Response:
@@ -136,13 +162,15 @@ class YFSession:
         Perform GET request with unified 401 and rate limit handling.
 
         Each attempt (initial + retries) passes through the full response handling
-        chain: connection retry → 401 check/crumb renewal → retryable status check.
+        chain: connection retry → 401 check/crumb refresh → retryable status check.
         This ensures that if a retry hits 401 (e.g., crumb cleared by client reset),
-        the crumb is renewed before continuing.
+        the crumb is refreshed before continuing.
 
         Args:
             url (str): The absolute URL to request.
             params (dict[str, str]): Query parameters (mutated with crumb).
+            crumb_ticker (str | None): Symbol used to refresh the crumb on a 401
+                for crumb-requiring endpoints; None disables crumb handling.
             delays (list[float] | None): Optional delay sequence for testing.
                 If None, uses exponential backoff with 5 retry attempts.
 
@@ -168,7 +196,7 @@ class YFSession:
                 )
                 await asyncio.sleep(delay)
 
-            response = await self._attempt_request(url, params)
+            response = await self._attempt_request(url, params, crumb_ticker)
 
             # If response is not retryable, return it (success or permanent error)
             if response.status_code not in self._RETRYABLE_STATUS_CODES:
@@ -181,63 +209,60 @@ class YFSession:
         self,
         url: str,
         params: dict[str, str],
+        crumb_ticker: str | None = None,
     ) -> httpx.Response:
         """
-        Perform a single request attempt with 401 handling.
+        Perform a single request attempt, refreshing the crumb on a 401.
+
+        A 401 is only actionable for crumb-bearing endpoints; for those it means
+        the crumb has expired and is refreshed before a single replay.
 
         Args:
             url (str): The absolute URL to request.
             params (dict[str, str]): Query parameters (mutated with crumb on 401).
+            crumb_ticker (str | None): Symbol used to refresh the crumb on a 401;
+                None leaves the 401 response untouched.
 
         Returns:
             httpx.Response: The HTTP response.
         """
         response = await self._transport.get(url, params)
 
-        # Handle 401 by renewing crumb (could happen after client reset)
-        if response.status_code == httpx.codes.UNAUTHORIZED:
-            response = await self._renew_crumb_once(url, params)
+        if (
+            crumb_ticker is not None
+            and response.status_code == httpx.codes.UNAUTHORIZED
+        ):
+            response = await self._refresh_crumb_and_replay(url, params, crumb_ticker)
 
         return response
 
-    async def _renew_crumb_once(
+    async def _refresh_crumb_and_replay(
         self,
         url: str,
         params: dict[str, str],
+        crumb_ticker: str,
     ) -> httpx.Response:
         """
-        Refresh the crumb after a 401 Unauthorized and retry the request.
+        Refresh an expired crumb after a 401 and replay the request once.
 
-        This method extracts the ticker from the URL, fetches a new crumb,
-        updates the query parameters, and replays the GET request.
+        The crumb currently in the query parameters is the one that just failed;
+        it is passed as the stale value so the CrumbManager can compare-and-swap,
+        avoiding a refetch herd across concurrent requests.
 
         Args:
             url (str): The original request URL.
             params (dict[str, str]): Mutable query parameters.
+            crumb_ticker (str): Symbol used to prime and fetch the fresh crumb.
 
         Returns:
-            httpx.Response: Response after retrying with a fresh crumb.
+            httpx.Response: Response after replaying with the refreshed crumb.
         """
-        ticker: str = self._extract_ticker(url)
+        stale_crumb = params.get("crumb")
 
-        crumb = await self._auth.ensure_crumb(ticker, self._transport.get)
-
-        params["crumb"] = crumb
+        params["crumb"] = await self._auth.renew_crumb(
+            crumb_ticker,
+            self._transport.get,
+            stale_crumb=stale_crumb,
+        )
 
         return await self._transport.get(url, params)
-
-    def _extract_ticker(self, url: str) -> str:
-        """
-        Extract the ticker symbol from a Yahoo Finance quote-summary URL.
-
-        Args:
-            url (str): The quote-summary endpoint URL.
-
-        Returns:
-            str: The ticker symbol found in the URL path.
-        """
-        remainder: str = url[len(self._config.quote_summary_primary_url) :]
-
-        first_segment: str = remainder.split("/", 1)[0]
-
-        return first_segment.split("?", 1)[0].split("#", 1)[0]
