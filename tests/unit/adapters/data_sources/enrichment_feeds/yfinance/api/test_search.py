@@ -84,7 +84,13 @@ async def test_search_quotes_raises_on_429() -> None:
             self._resp = resp
             self.config = _StubConfig()
 
-        async def get(self, _url: str, *, params: dict | None = None) -> httpx.Response:
+        async def get(
+            self,
+            _url: str,
+            *,
+            params: dict | None = None,
+            crumb_ticker: str | None = None,
+        ) -> httpx.Response:
             return self._resp
 
     session = _StubSession(response_429)

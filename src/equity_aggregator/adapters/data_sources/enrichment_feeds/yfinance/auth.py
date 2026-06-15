@@ -98,6 +98,43 @@ class CrumbManager:
             await self._bootstrap(ticker, fetch)
             return self._crumb
 
+    async def renew_crumb(
+        self,
+        ticker: str,
+        fetch: FetchFn,
+        *,
+        stale_crumb: str | None,
+    ) -> str:
+        """
+        Discard a stale crumb and fetch a fresh one, herd-safe under lock.
+
+        Performs a compare-and-swap under the lock: the crumb is only refetched
+        if the cached value still equals the stale crumb that just failed (or no
+        crumb is cached). If another concurrent task already refreshed it, the
+        newer crumb is returned without a further fetch, preventing a refetch
+        herd when many in-flight requests receive a 401 at once.
+
+        Note:
+            Called only after a 401, which under proactive attachment is a
+            meaningful signal that the crumb has expired server-side.
+
+        Args:
+            ticker (str): Symbol to use for session priming requests.
+            fetch (FetchFn): Async function to perform HTTP GET requests.
+            stale_crumb (str | None): The crumb that just failed authentication.
+
+        Returns:
+            str: A valid crumb string, freshly fetched or already refreshed by
+                a peer task.
+
+        Raises:
+            httpx.HTTPStatusError: If crumb fetch fails.
+        """
+        async with self._lock:
+            if self._crumb is None or self._crumb == stale_crumb:
+                await self._bootstrap(ticker, fetch)
+            return self._crumb
+
     async def _bootstrap(self, ticker: str, fetch: FetchFn) -> None:
         """
         Prime session cookies and fetch the crumb.

@@ -53,6 +53,7 @@ async def get_quote_summary(
             "lang": "en-US",
             "region": "US",
         },
+        crumb_ticker=ticker,
     )
 
     status = response.status_code
@@ -103,6 +104,7 @@ async def _get_quote_summary_fallback(
             "lang": "en-US",
             "region": "US",
         },
+        crumb_ticker=ticker,
     )
 
     status = response.status_code

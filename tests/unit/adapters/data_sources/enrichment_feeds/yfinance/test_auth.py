@@ -318,4 +318,87 @@ async def test_ensure_crumb_returns_same_crumb_after_bootstrap() -> None:
     second = await manager.ensure_crumb("MSFT", fetch)
 
     assert first == second
-    
+
+
+async def test_renew_crumb_bootstraps_when_crumb_matches_stale() -> None:
+    """
+    ARRANGE: CrumbManager whose cached crumb equals the stale crumb
+    ACT:     call renew_crumb() with that stale crumb
+    ASSERT:  a fresh crumb is bootstrapped and returned
+    """
+    manager = CrumbManager("https://example.com/crumb")
+    manager._crumb = "stale"
+
+    async def fetch(url: str, params: dict[str, str]) -> httpx.Response:
+        if "crumb" in url:
+            return httpx.Response(200, text="fresh", request=httpx.Request("GET", url))
+        return httpx.Response(200, text="", request=httpx.Request("GET", url))
+
+    actual = await manager.renew_crumb("AAPL", fetch, stale_crumb="stale")
+
+    assert actual == "fresh"
+
+
+async def test_renew_crumb_bootstraps_when_no_crumb_cached() -> None:
+    """
+    ARRANGE: CrumbManager with no cached crumb
+    ACT:     call renew_crumb() with any stale crumb
+    ASSERT:  a fresh crumb is bootstrapped and returned
+    """
+    manager = CrumbManager("https://example.com/crumb")
+
+    async def fetch(url: str, params: dict[str, str]) -> httpx.Response:
+        if "crumb" in url:
+            return httpx.Response(
+                200,
+                text="bootstrapped",
+                request=httpx.Request("GET", url),
+            )
+        return httpx.Response(200, text="", request=httpx.Request("GET", url))
+
+    actual = await manager.renew_crumb("AAPL", fetch, stale_crumb="anything")
+
+    assert actual == "bootstrapped"
+
+
+async def test_renew_crumb_returns_peer_refreshed_crumb_without_fetch() -> None:
+    """
+    ARRANGE: CrumbManager whose cached crumb differs from the stale crumb
+    ACT:     call renew_crumb() with the older stale crumb
+    ASSERT:  the peer-refreshed crumb is returned without refetching
+    """
+    manager = CrumbManager("https://example.com/crumb")
+    manager._crumb = "fresh"
+
+    async def fetch(url: str, params: dict[str, str]) -> httpx.Response:
+        raise AssertionError("fetch should not be called when crumb already refreshed")
+
+    actual = await manager.renew_crumb("AAPL", fetch, stale_crumb="stale")
+
+    assert actual == "fresh"
+
+
+async def test_renew_crumb_is_herd_safe_under_concurrency() -> None:
+    """
+    ARRANGE: CrumbManager with a stale crumb and concurrent renew_crumb callers
+    ACT:     call renew_crumb() concurrently with the same stale crumb
+    ASSERT:  the crumb is fetched only once
+    """
+    manager = CrumbManager("https://example.com/crumb")
+    manager._crumb = "stale"
+    fetch_count = []
+
+    async def fetch(url: str, params: dict[str, str]) -> httpx.Response:
+        if "crumb" in url:
+            fetch_count.append(1)
+            await asyncio.sleep(0.01)
+            return httpx.Response(200, text="fresh", request=httpx.Request("GET", url))
+        return httpx.Response(200, text="", request=httpx.Request("GET", url))
+
+    await asyncio.gather(
+        manager.renew_crumb("AAPL", fetch, stale_crumb="stale"),
+        manager.renew_crumb("AAPL", fetch, stale_crumb="stale"),
+        manager.renew_crumb("AAPL", fetch, stale_crumb="stale"),
+    )
+
+    assert len(fetch_count) == 1
