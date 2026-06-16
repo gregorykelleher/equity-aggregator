@@ -9,6 +9,7 @@ from equity_aggregator.adapters.data_sources.discovery_feeds.stock_analysis.stoc
     _deduplicate_records,
     _stream_and_cache,
     _stream_stock_analysis,
+    _unique_key,
     fetch_equity_records,
 )
 from equity_aggregator.storage import save_cache
@@ -50,6 +51,50 @@ async def test_deduplicate_records_preserves_first_occurrence() -> None:
     uniques = [record async for record in deduplicator(_gen())]
 
     assert uniques[0]["name"] == "FIRST"
+
+
+def test_unique_key_uses_isin_when_present() -> None:
+    """
+    ARRANGE: record with both ISIN and symbol
+    ACT:     call _unique_key
+    ASSERT:  ISIN is used as the key
+    """
+
+    actual = _unique_key({"isin": "US1234567890", "s": "AAPL"})
+
+    assert actual == "US1234567890"
+
+
+def test_unique_key_falls_back_to_symbol_when_isin_missing() -> None:
+    """
+    ARRANGE: record with symbol but no ISIN
+    ACT:     call _unique_key
+    ASSERT:  symbol is used as the key
+    """
+
+    actual = _unique_key({"s": "AAPL"})
+
+    assert actual == "AAPL"
+
+
+async def test_deduplicate_records_keeps_distinct_symbols_without_isin() -> None:
+    """
+    ARRANGE: two ISIN-less records with distinct symbols
+    ACT:     run deduplicator keyed by _unique_key
+    ASSERT:  both records survive (no false collapse on key None)
+    """
+
+    expected_unique_count = 2
+
+    async def _gen() -> AsyncGenerator[dict, None]:
+        yield {"s": "AAPL"}
+        yield {"s": "MSFT"}
+
+    deduplicator = _deduplicate_records(_unique_key)
+
+    uniques = [record async for record in deduplicator(_gen())]
+
+    assert len(uniques) == expected_unique_count
 
 
 async def test_stream_stock_analysis_yields_records() -> None:

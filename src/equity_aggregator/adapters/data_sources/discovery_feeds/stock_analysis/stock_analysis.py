@@ -87,7 +87,7 @@ async def _stream_and_cache(
     """
     buffer: list[EquityRecord] = []
 
-    async for record in _deduplicate_records(lambda record: record.get("isin"))(
+    async for record in _deduplicate_records(_unique_key)(
         _stream_stock_analysis(client),
     ):
         buffer.append(record)
@@ -117,6 +117,23 @@ async def _stream_stock_analysis(client: AsyncClient) -> RecordStream:
     for record in records:
         if record:
             yield record
+
+
+def _unique_key(record: EquityRecord) -> object:
+    """
+    Return the deduplication key for a raw Stock Analysis record.
+
+    Uses the record's ISIN when present, falling back to its symbol ("s")
+    otherwise. Without the fallback, every ISIN-less record shares the key
+    None and all but the first are discarded as duplicates.
+
+    Args:
+        record (EquityRecord): Raw Stock Analysis record.
+
+    Returns:
+        object: ISIN if present and non-empty, else the symbol.
+    """
+    return record.get("isin") or record.get("s")
 
 
 def _deduplicate_records(extract_key: RecordUniqueKeyExtractor) -> UniqueRecordStream:
