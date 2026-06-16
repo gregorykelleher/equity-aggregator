@@ -12,7 +12,7 @@ from equity_aggregator.adapters.data_sources.discovery_feeds.tradingview.trading
     _stream_and_cache,
     fetch_equity_records,
 )
-from equity_aggregator.storage import save_cache
+from equity_aggregator.storage import load_cache, save_cache
 
 pytestmark = pytest.mark.unit
 
@@ -292,7 +292,7 @@ async def test_fetch_all_records_single_page() -> None:
     transport = httpx.MockTransport(_respond)
 
     async with httpx.AsyncClient(transport=transport) as client:
-        records = await _fetch_all_records(client)
+        records, _ = await _fetch_all_records(client)
 
     assert len(records) == 1
 
@@ -330,16 +330,16 @@ async def test_fetch_all_records_multiple_pages() -> None:
     transport = httpx.MockTransport(_respond)
 
     async with httpx.AsyncClient(transport=transport) as client:
-        records = await _fetch_all_records(client)
+        records, _ = await _fetch_all_records(client)
 
     assert len(records) == 2  # noqa: PLR2004
 
 
-async def test_fetch_all_records_handles_page_failure() -> None:
+async def test_fetch_all_records_flags_incomplete_on_page_failure() -> None:
     """
-    ARRANGE: second page request fails with error
+    ARRANGE: first page reports two pages, the second page 500s
     ACT:     fetch all records
-    ASSERT:  returns partial results from first page only
+    ASSERT:  reports the fetch as incomplete
     """
     request_count = 0
 
@@ -348,23 +348,54 @@ async def test_fetch_all_records_handles_page_failure() -> None:
         request_count += 1
 
         if request_count == 1:
-            return httpx.Response(
-                200,
-                json={
-                    "totalCount": 2000,
-                    "data": [
-                        {"s": "NYSE:FOO", "d": ["FOO", "Foo Inc."] + [None] * 18},
-                    ],
-                },
-            )
+            return _tv_page_response(total_count=2000)
         return httpx.Response(500)
 
     transport = httpx.MockTransport(_respond)
 
     async with httpx.AsyncClient(transport=transport) as client:
-        records = await _fetch_all_records(client)
+        _, complete = await _fetch_all_records(client)
 
-    assert len(records) == 1
+    assert complete is False
+
+
+def _tv_page_response(total_count: int = 500) -> httpx.Response:
+    """
+    Build a valid TradingView scanner page response with a single record.
+    """
+    return httpx.Response(
+        200,
+        json={
+            "totalCount": total_count,
+            "data": [
+                {"s": "NYSE:AAPL", "d": ["AAPL", "Apple Inc."] + [None] * 18},
+            ],
+        },
+    )
+
+
+async def test_stream_and_cache_skips_caching_when_incomplete() -> None:
+    """
+    ARRANGE: first page reports two pages, the second page 500s
+    ACT:     drain _stream_and_cache
+    ASSERT:  nothing is written to the cache
+    """
+    calls = []
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return (
+            _tv_page_response(total_count=2000)
+            if len(calls) == 1
+            else httpx.Response(500)
+        )
+
+    cache_key = "tradingview_partial_test"
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        [record async for record in _stream_and_cache(client, cache_key=cache_key)]
+
+    assert load_cache(cache_key) is None
 
 
 def test_deduplicate_by_symbol_filters_duplicates() -> None:

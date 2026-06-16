@@ -76,7 +76,9 @@ async def _stream_and_cache(
     Stream unique LSEG equity records, cache them, and yield each.
 
     Fetches all records, deduplicates by ISIN (filtering out records with
-    missing or empty ISINs), then yields and caches the unique records.
+    missing or empty ISINs), then yields and caches the unique records. The
+    cache write is skipped when the underlying fetch was incomplete, so a
+    partial dataset is never persisted.
 
     Args:
         session (LsegSession): The LSEG session used for requests.
@@ -86,13 +88,17 @@ async def _stream_and_cache(
         EquityRecord: Each unique LSEG equity record as retrieved.
 
     Side Effects:
-        Saves all streamed records to cache after streaming completes.
+        Saves all streamed records to cache after a complete fetch.
     """
-    all_records = await _fetch_all_records(session)
+    all_records, is_complete = await _fetch_all_records(session)
     unique_records = _deduplicate_by_isin(all_records)
 
     for record in unique_records:
         yield record
+
+    if not is_complete:
+        logger.warning("LSEG fetch incomplete; skipping cache write.")
+        return
 
     save_cache(cache_key, unique_records)
     logger.info("Saved %d LSEG records to cache.", len(unique_records))
@@ -100,30 +106,35 @@ async def _stream_and_cache(
 
 async def _fetch_all_records(
     session: LsegSession,
-) -> list[EquityRecord]:
+) -> tuple[list[EquityRecord], bool]:
     """
     Fetch all equity records from the price-explorer endpoint, handling pagination.
 
-    Retrieves the first page, determines total pages, then fetches
-    remaining pages sequentially with resilient error handling.
+    Retrieves the first page, determines total pages, then fetches remaining pages
+    sequentially. A first-page failure propagates; a later-page failure stops
+    paging and reports the result as incomplete.
 
     Args:
         session: HTTP session for API requests.
 
     Returns:
-        Complete list of equity records from all pages.
+        tuple[list[EquityRecord], bool]: All fetched records and a flag that is
+            True only when every page was fetched successfully.
     """
     # Fetch first page and extract pagination metadata
     first_page_data, pagination_info = await _fetch_page(session, 0)
     total_pages = _extract_total_pages(pagination_info)
 
     if total_pages <= 1:
-        return first_page_data
+        return first_page_data, True
 
     # Fetch remaining pages with error resilience
-    remaining_pages_data = await _fetch_remaining_pages(session, total_pages)
+    remaining_pages_data, is_complete = await _fetch_remaining_pages(
+        session,
+        total_pages,
+    )
 
-    return first_page_data + remaining_pages_data
+    return first_page_data + remaining_pages_data, is_complete
 
 
 async def _fetch_page(
@@ -182,32 +193,36 @@ def _extract_total_pages(pagination_info: dict | None) -> int:
 async def _fetch_remaining_pages(
     session: LsegSession,
     total_pages: int,
-) -> list[EquityRecord]:
+) -> tuple[list[EquityRecord], bool]:
     """
     Fetch all remaining pages sequentially with error handling.
+
+    Stops at the first page that fails and reports the result as incomplete, so
+    the caller can avoid caching a partial dataset.
 
     Args:
         session: HTTP session for API requests.
         total_pages: Total number of pages to fetch.
 
     Returns:
-        Combined records from all successfully fetched remaining pages.
+        tuple[list[EquityRecord], bool]: Records gathered so far and a flag that
+            is True only when every remaining page was fetched successfully.
     """
     all_remaining_records = []
 
     for page in range(1, total_pages):
         try:
             page_data, _ = await _fetch_page(session, page)
-            all_remaining_records.extend(page_data)
         except Exception as error:
             logger.warning(
-                "Failed to fetch page %d: %s",
+                "Failed to fetch LSEG page %d; caching skipped: %s",
                 page,
                 error,
             )
-            break  # Stop on first error to avoid cascade failures
+            return all_remaining_records, False
+        all_remaining_records.extend(page_data)
 
-    return all_remaining_records
+    return all_remaining_records, True
 
 
 def _deduplicate_by_isin(records: list[EquityRecord]) -> list[EquityRecord]:

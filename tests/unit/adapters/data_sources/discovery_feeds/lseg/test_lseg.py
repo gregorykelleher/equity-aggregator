@@ -15,7 +15,7 @@ from equity_aggregator.adapters.data_sources.discovery_feeds.lseg.lseg import (
 from equity_aggregator.adapters.data_sources.discovery_feeds.lseg.session import (
     LsegSession,
 )
-from equity_aggregator.storage import save_cache
+from equity_aggregator.storage import load_cache, save_cache
 
 pytestmark = pytest.mark.unit
 
@@ -342,7 +342,7 @@ async def test_fetch_all_records_single_page() -> None:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     session = LsegSession(client)
 
-    actual = await _fetch_all_records(session)
+    actual, _ = await _fetch_all_records(session)
 
     assert len(actual) == 1
 
@@ -383,16 +383,16 @@ async def test_fetch_all_records_multiple_pages() -> None:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     session = LsegSession(client)
 
-    actual = await _fetch_all_records(session)
+    actual, _ = await _fetch_all_records(session)
 
     assert len(actual) == expected_total_pages
 
 
-async def test_fetch_remaining_pages_stops_on_first_error() -> None:
+async def test_fetch_remaining_pages_flags_incomplete_on_error() -> None:
     """
     ARRANGE: first remaining page returns 500
-    ACT:     call _fetch_remaining_pages
-    ASSERT:  returns empty list and stops
+    ACT:     call _fetch_remaining_pages with no retries
+    ASSERT:  reports the fetch as incomplete
     """
 
     def handler(_: httpx.Request) -> httpx.Response:
@@ -401,9 +401,9 @@ async def test_fetch_remaining_pages_stops_on_first_error() -> None:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     session = LsegSession(client)
 
-    actual = await _fetch_remaining_pages(session, total_pages=3)
+    _, complete = await _fetch_remaining_pages(session, total_pages=3)
 
-    assert actual == []
+    assert complete is False
 
 
 async def test_fetch_remaining_pages_collects_successful_pages() -> None:
@@ -437,9 +437,58 @@ async def test_fetch_remaining_pages_collects_successful_pages() -> None:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     session = LsegSession(client)
 
-    actual = await _fetch_remaining_pages(session, total_pages=2)
+    actual, _ = await _fetch_remaining_pages(session, total_pages=2)
 
     assert len(actual) == 1
+
+
+def _lseg_page_response(total_pages: int = 2) -> httpx.Response:
+    """
+    Build a valid LSEG price-explorer page response with a single record.
+    """
+    return httpx.Response(
+        200,
+        json={
+            "components": [
+                {
+                    "type": "price-explorer",
+                    "content": [
+                        {
+                            "name": "priceexplorersearch",
+                            "value": {
+                                "content": [{"isin": "GB0001", "tidm": "A"}],
+                                "totalPages": total_pages,
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
+    )
+
+
+async def test_stream_and_cache_skips_caching_when_incomplete() -> None:
+    """
+    ARRANGE: first page reports 3 total pages, a later page 500s
+    ACT:     drain _stream_and_cache
+    ASSERT:  nothing is written to the cache
+    """
+    calls = []
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return (
+            _lseg_page_response(total_pages=3)
+            if len(calls) == 1
+            else httpx.Response(500)
+        )
+
+    session = LsegSession(httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    cache_key = "lseg_partial_test"
+
+    [record async for record in _stream_and_cache(session, cache_key=cache_key)]
+
+    assert load_cache(cache_key) is None
 
 
 async def test_stream_and_cache_deduplicates_records() -> None:
