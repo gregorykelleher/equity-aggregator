@@ -22,7 +22,7 @@ from equity_aggregator.adapters.data_sources.discovery_feeds.intrinio.intrinio i
 from equity_aggregator.adapters.data_sources.discovery_feeds.intrinio.session import (
     IntrinioSession,
 )
-from equity_aggregator.storage import save_cache
+from equity_aggregator.storage import load_cache, save_cache
 
 pytestmark = pytest.mark.unit
 
@@ -321,6 +321,25 @@ async def test_fetch_company_securities_returns_empty_on_error() -> None:
     assert records == []
 
 
+async def test_fetch_company_securities_logs_warning_on_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    ARRANGE: mock response returns 404
+    ACT:     call _fetch_company_securities
+    ASSERT:  warning logged with the company ticker for context
+    """
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(404)
+
+    session = make_session(handler)
+    company = {"company_ticker": "NOTK", "name": "Not Found Inc"}
+    await _fetch_company_securities(session, company)
+
+    assert "NOTK" in caplog.text
+
+
 async def test_fetch_company_securities_uses_response_company_data() -> None:
     """
     ARRANGE: response company data differs from input company
@@ -425,6 +444,24 @@ async def test_fetch_quote_returns_none_on_error() -> None:
     assert quote is None
 
 
+async def test_fetch_quote_logs_warning_on_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    ARRANGE: mock response returns 404
+    ACT:     call _fetch_quote
+    ASSERT:  warning logged with the share_class_figi for context
+    """
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(404)
+
+    session = make_session(handler)
+    await _fetch_quote(session, "BBG000NOTFOUND")
+
+    assert "BBG000NOTFOUND" in caplog.text
+
+
 async def test_attach_quote_adds_quote_to_security() -> None:
     """
     ARRANGE: security record and mock quote response
@@ -516,6 +553,29 @@ async def test_stream_and_cache_yields_unique_records() -> None:
     records = [r async for r in _stream_and_cache(session, cache_key="test_stream")]
 
     assert len(records) == 1
+
+
+async def test_stream_and_cache_skips_caching_when_empty() -> None:
+    """
+    ARRANGE: companies endpoint yields one company, but its securities 404
+    ACT:     drain _stream_and_cache (producing zero records)
+    ASSERT:  nothing is written to the cache
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "/securities" in str(request.url):
+            return httpx.Response(404)
+        return httpx.Response(
+            200,
+            json={"companies": [{"id": "1", "ticker": "AAPL", "name": "Apple"}]},
+        )
+
+    session = make_session(handler)
+    cache_key = "test_stream_empty"
+
+    [r async for r in _stream_and_cache(session, cache_key=cache_key)]
+
+    assert load_cache(cache_key) is None
 
 
 async def test_fetch_equity_records_uses_cache() -> None:
