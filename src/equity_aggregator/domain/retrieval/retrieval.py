@@ -331,11 +331,15 @@ async def _stream_download(
 
     tmp_path = dest_path.with_suffix(dest_path.suffix + ".tmp")
 
-    # stream download to temporary file
-    written_bytes = await _download_to_temp(client, url, tmp_path)
+    try:
+        # stream download to temporary file
+        download_result = await _download_to_temp(client, url, tmp_path)
 
-    # validate download completeness and finalise
-    return _finalise_download(tmp_path, dest_path, written_bytes)
+        # validate download completeness and finalise
+        return _finalise_download(tmp_path, dest_path, download_result)
+    finally:
+        # never leave a partial temp file behind if streaming raised
+        tmp_path.unlink(missing_ok=True)
 
 
 async def _download_to_temp(

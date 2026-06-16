@@ -1,7 +1,14 @@
 # transforms/identify.py
 
 import logging
-from collections.abc import AsyncIterable, AsyncIterator, Iterator, Sequence
+from collections.abc import (
+    AsyncIterable,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterator,
+    Sequence,
+)
 
 from equity_aggregator.adapters import fetch_equity_identification
 from equity_aggregator.schemas.raw import RawEquity
@@ -13,7 +20,10 @@ type IdentificationMetadata = tuple[str | None, str | None, str | None]
 
 async def identify(
     raw_equities_stream: AsyncIterable[RawEquity],
-    fetch_fn: callable = fetch_equity_identification,
+    fetch_fn: Callable[
+        [Sequence[RawEquity]],
+        Awaitable[Sequence[IdentificationMetadata]],
+    ] = fetch_equity_identification,
 ) -> AsyncIterator[RawEquity]:
     """
     Identifies and updates raw equities with metadata from OpenFIGI.
@@ -26,7 +36,7 @@ async def identify(
     Args:
         raw_equities_stream (AsyncIterable[RawEquity]):
             An asynchronous iterable of RawEquity records to be identified.
-        fetch_fn (callable, optional):
+        fetch_fn (Callable, optional):
             A function to fetch identification metadata for a batch of RawEquity
             objects. Defaults to fetch_equity_identification.
 

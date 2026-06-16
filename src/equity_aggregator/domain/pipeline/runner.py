@@ -27,7 +27,7 @@ async def aggregate_canonical_equities() -> list[CanonicalEquity]:
         None
 
     Returns:
-        list[RawEquity]: Unique, fully enriched canonical equities.
+        list[CanonicalEquity]: Unique, fully enriched canonical equities.
     """
     # resolve the stream of raw equities
     stream = resolve()
