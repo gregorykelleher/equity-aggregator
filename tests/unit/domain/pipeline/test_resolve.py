@@ -1,6 +1,7 @@
 # pipeline/test_resolve.py
 
 import asyncio
+import logging
 from collections.abc import AsyncIterable
 
 import pytest
@@ -13,6 +14,26 @@ from equity_aggregator.domain.pipeline.resolve import (
 )
 
 pytestmark = pytest.mark.unit
+
+_RESOLVE_LOGGER = "equity_aggregator.domain.pipeline.resolve"
+
+
+@pytest.fixture
+def resolve_caplog(
+    caplog: pytest.LogCaptureFixture,
+) -> AsyncIterable[pytest.LogCaptureFixture]:
+    """
+    Capture resolve's logs even though the app config disables propagation.
+
+    The `equity_aggregator` logger sets `propagate: False`, so once logging is
+    configured its records never reach the root logger that caplog listens on.
+    Attaching caplog's handler directly to the resolve logger captures them
+    regardless of propagation.
+    """
+    caplog.set_level(logging.INFO, logger=_RESOLVE_LOGGER)
+    logging.getLogger(_RESOLVE_LOGGER).addHandler(caplog.handler)
+    yield caplog
+    logging.getLogger(_RESOLVE_LOGGER).removeHandler(caplog.handler)
 
 
 async def _generate_values(*values: int) -> AsyncIterable[dict[str, int]]:
@@ -230,3 +251,60 @@ async def test_resolve_ignores_failing_feed() -> None:
     records = [record async for record in resolve(feeds)]
 
     assert records[0].raw_data == {"value": 42}
+
+
+async def test_produce_logs_record_count_on_success(
+    resolve_caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    ARRANGE: a queue and a fetcher that yields two records
+    ACT:     call _produce
+    ASSERT:  the per-feed record count is logged
+    """
+    queue: asyncio.Queue[FeedRecord | None] = asyncio.Queue()
+
+    await _produce(dummy_fetch_success, DummyModel, queue)
+
+    assert "produced 2 records" in resolve_caplog.text
+
+
+async def test_produce_logs_error_on_zero_records(
+    resolve_caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    ARRANGE: a queue and a fetcher that yields nothing
+    ACT:     call _produce
+    ASSERT:  a zero-record error is logged
+    """
+    queue: asyncio.Queue[FeedRecord | None] = asyncio.Queue()
+
+    await _produce(dummy_fetch_empty, DummyModel, queue)
+
+    assert "returned zero records" in resolve_caplog.text
+
+
+async def test_produce_logs_traceback_on_failure(
+    resolve_caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    ARRANGE: a queue and a fetcher that raises an error
+    ACT:     call _produce
+    ASSERT:  the failure is logged with a traceback (exc_info)
+    """
+    queue: asyncio.Queue[FeedRecord | None] = asyncio.Queue()
+
+    await _produce(dummy_fetch_error, DummyModel, queue)
+
+    assert "Traceback (most recent call last)" in resolve_caplog.text
+
+
+async def test_resolve_raises_when_all_feeds_empty() -> None:
+    """
+    ARRANGE: a single feed that yields no records
+    ACT:     drain resolve
+    ASSERT:  raises RuntimeError rather than persisting an empty dataset
+    """
+    feeds = ((dummy_fetch_empty, DummyModel),)
+
+    with pytest.raises(RuntimeError, match="All discovery feeds"):
+        [record async for record in resolve(feeds)]

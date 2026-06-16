@@ -67,13 +67,20 @@ async def resolve(
     feeds = feeds or _DISCOVERY_FEEDS
     queue: asyncio.Queue[FeedRecord | None] = asyncio.Queue()
 
+    total_yielded = 0
     async with asyncio.TaskGroup() as task_group:
         for fetcher, model in feeds:
             task_group.create_task(_produce(fetcher, model, queue))
 
         # consume the queue until all producers are exhausted
         async for record in _consume(queue, len(feeds)):
+            total_yielded += 1
             yield record
+
+    if total_yielded == 0:
+        raise RuntimeError(
+            "All discovery feeds returned zero records; aborting seed.",
+        )
 
 
 async def _produce(
@@ -97,13 +104,41 @@ async def _produce(
     Returns:
         None
     """
+    feed_name = model.__name__
+    count = 0
     try:
         async for record in fetcher():
             await queue.put(FeedRecord(model, record))
+            count += 1
     except Exception as error:
-        logger.warning("Producer for %s failed: %s", model.__name__, error)
+        logger.error(
+            "Discovery feed %s failed after %d records: %s",
+            feed_name,
+            count,
+            error,
+            exc_info=True,
+        )
+    else:
+        _log_feed_outcome(feed_name, count)
     finally:
         await queue.put(None)
+
+
+def _log_feed_outcome(feed_name: str, count: int) -> None:
+    """
+    Log the outcome of a successfully completed discovery feed producer.
+
+    Args:
+        feed_name (str): Name of the feed's data model.
+        count (int): Number of records the feed produced.
+
+    Returns:
+        None
+    """
+    if count == 0:
+        logger.error("Discovery feed %s returned zero records", feed_name)
+    else:
+        logger.info("Discovery feed %s produced %d records", feed_name, count)
 
 
 async def _consume(
