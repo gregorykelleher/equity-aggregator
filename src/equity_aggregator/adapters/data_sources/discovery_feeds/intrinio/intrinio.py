@@ -91,6 +91,10 @@ async def _stream_and_cache(
     for record in unique_records:
         yield record
 
+    if not unique_records:
+        logger.warning("Intrinio produced 0 records; skipping cache write.")
+        return
+
     save_cache(cache_key, unique_records)
     logger.info("Saved %d Intrinio records to cache.", len(unique_records))
 
@@ -240,6 +244,11 @@ async def _fetch_company_securities(
         response.raise_for_status()
         return parse_securities_response(response.json())
     except Exception:
+        logger.warning(
+            "Failed to fetch Intrinio securities for company %s",
+            company_ticker,
+            exc_info=True,
+        )
         return []
 
 
@@ -286,6 +295,11 @@ async def _fetch_quote(
         response.raise_for_status()
         return response.json()
     except Exception:
+        logger.warning(
+            "Failed to fetch Intrinio quote for %s",
+            share_class_figi,
+            exc_info=True,
+        )
         return None
 
 

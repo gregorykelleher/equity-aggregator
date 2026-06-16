@@ -94,8 +94,9 @@ async def _stream_and_cache(
     """
     Stream TradingView equity records, deduplicate by symbol, cache them, and yield.
 
-    Fetches all records using pagination, deduplicates by symbol to ensure uniqueness,
-    then yields each record and caches the complete set.
+    Fetches all records using pagination, deduplicates by symbol to ensure
+    uniqueness, then yields each record. The cache write is skipped when the
+    underlying fetch was incomplete, so a partial dataset is never persisted.
 
     Args:
         client (AsyncClient): The HTTP client used for requests.
@@ -105,36 +106,45 @@ async def _stream_and_cache(
         EquityRecord: Each unique TradingView equity record as retrieved.
 
     Side Effects:
-        Saves all streamed records to cache after streaming completes.
+        Saves all streamed records to cache after a complete fetch.
     """
-    all_records = await _fetch_all_records(client)
+    all_records, is_complete = await _fetch_all_records(client)
     unique_records = _deduplicate_by_symbol(all_records)
 
     for record in unique_records:
         yield record
 
+    if not is_complete:
+        logger.warning("TradingView fetch incomplete; skipping cache write.")
+        return
+
     save_cache(cache_key, unique_records)
     logger.info("Saved %d TradingView records to cache.", len(unique_records))
 
 
-async def _fetch_all_records(client: AsyncClient) -> list[EquityRecord]:
+async def _fetch_all_records(
+    client: AsyncClient,
+) -> tuple[list[EquityRecord], bool]:
     """
     Fetch all equity records from TradingView scanner, handling pagination.
 
     Retrieves the first page to determine total count, then fetches remaining
-    pages sequentially. Stops on first error to avoid cascade failures.
+    pages sequentially. A first-page failure propagates; a later-page failure
+    stops paging and reports the result as incomplete so the caller can avoid
+    caching a partial dataset.
 
     Args:
         client (AsyncClient): The HTTP client used for requests.
 
     Returns:
-        list[EquityRecord]: All fetched equity records across all pages.
+        tuple[list[EquityRecord], bool]: All fetched records and a flag that is
+            True only when every page was fetched successfully.
     """
     # Fetch first page to get total count
     first_page_records, total_count = await _fetch_page(client, 0, _PAGE_SIZE)
 
     if total_count <= _PAGE_SIZE:
-        return first_page_records
+        return first_page_records, True
 
     # Calculate total pages needed
     total_pages = math.ceil(total_count / _PAGE_SIZE)
@@ -147,17 +157,17 @@ async def _fetch_all_records(client: AsyncClient) -> list[EquityRecord]:
 
         try:
             page_records, _ = await _fetch_page(client, start, end)
-            all_records.extend(page_records)
         except Exception as error:
             logger.warning(
-                "Failed to fetch page range [%d, %d]: %s. Returning partial results.",
+                "Failed to fetch TradingView page range [%d, %d]; caching skipped: %s",
                 start,
                 end,
                 error,
             )
-            break
+            return all_records, False
+        all_records.extend(page_records)
 
-    return all_records
+    return all_records, True
 
 
 async def _fetch_page(

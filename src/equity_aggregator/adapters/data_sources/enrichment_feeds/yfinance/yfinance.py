@@ -287,12 +287,12 @@ class YFinanceFeed:
             LookupError: If all candidates fail validation.
         """
         for symbol in symbols:
-            data = await get_quote_summary(
-                self._session,
-                symbol,
-                modules=self._session.config.modules,
-            )
             try:
+                data = await get_quote_summary(
+                    self._session,
+                    symbol,
+                    modules=self._session.config.modules,
+                )
                 return _validate_quote_summary(data, symbol)
             except LookupError:
                 continue

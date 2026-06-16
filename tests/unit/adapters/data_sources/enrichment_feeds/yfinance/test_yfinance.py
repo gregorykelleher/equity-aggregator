@@ -912,6 +912,30 @@ async def test_fetch_first_valid_quote_skips_invalid_quotes() -> None:
     assert actual.get("quoteType") == "EQUITY"
 
 
+async def test_fetch_first_valid_quote_skips_fetch_failure() -> None:
+    """
+    ARRANGE: first symbol's quoteSummary fetch fails (404), second is valid
+    ACT:     call _fetch_first_valid_quote
+    ASSERT:  returns second quote data instead of aborting the chain
+    """
+    quote_calls = []
+
+    def handler(r: httpx.Request) -> httpx.Response:
+        if "quoteSummary" not in str(r.url):
+            return httpx.Response(200, text="crumb")
+        quote_calls.append(1)
+        if len(quote_calls) == 1:
+            return httpx.Response(404, json={})
+        return make_quote_summary_response("EQUITY", "Valid Corp")
+
+    session = make_session(handler)
+    feed = YFinanceFeed(session)
+
+    actual = await feed._fetch_first_valid_quote(["BAD", "GOOD"])
+
+    assert actual.get("quoteType") == "EQUITY"
+
+
 async def test_fetch_first_valid_quote_raises_when_all_fail() -> None:
     """
     ARRANGE: all symbols return invalid quotes

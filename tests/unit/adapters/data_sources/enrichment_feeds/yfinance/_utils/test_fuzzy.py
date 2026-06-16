@@ -86,7 +86,9 @@ def test_score_quote_total_matches_component_sum() -> None:
         expected_name="Microsoft Corporation",
     )
 
-    symbol_score = fuzz.partial_ratio(symbol, "MSFT", processor=rf_utils.default_process)
+    symbol_score = fuzz.partial_ratio(
+        symbol, "MSFT", processor=rf_utils.default_process
+    )
     name_score = fuzz.WRatio(
         name,
         "Microsoft Corporation",
