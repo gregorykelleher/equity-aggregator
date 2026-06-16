@@ -149,7 +149,6 @@ testpaths = ["tests"]                 # Discovery path
 asyncio_mode = "auto"                 # Automatic async detection
 timeout = 30                          # Test timeout
 env = [
-  "CACHE_DIR=data/cache/.pytest_cache",
   "CACHE_TTL_MINUTES=0",              # Disable caching in tests
 ]
 ```
