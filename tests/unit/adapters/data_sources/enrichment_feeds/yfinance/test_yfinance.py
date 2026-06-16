@@ -10,6 +10,7 @@ from equity_aggregator.adapters.data_sources.enrichment_feeds.yfinance.yfinance 
     YFinanceFeed,
     _build_identifier_sequence,
     _build_search_terms,
+    _cache_key,
     _rank_viable_candidates,
     _select_identifier_min_score,
     _validate_quote_summary,
@@ -420,7 +421,7 @@ async def test_fetch_equity_returns_cached_entry() -> None:
     ACT:     call fetch_equity
     ASSERT:  returns cached data
     """
-    save_cache_entry("yfinance_equities", "CACHED_TEST_001", {"test": "data"})
+    save_cache_entry("yfinance_equities", "CACHED_TEST_001|Test", {"test": "data"})
     session = make_session(lambda r: httpx.Response(200, json={}))
     feed = YFinanceFeed(session)
 
@@ -435,7 +436,11 @@ async def test_fetch_equity_cache_hit_skips_search() -> None:
     ACT:     call fetch_equity
     ASSERT:  returns cached data without calling handler
     """
-    save_cache_entry("yfinance_equities", "CACHED_TEST_002", {"cached": "value"})
+    save_cache_entry(
+        "yfinance_equities",
+        "CACHED_TEST_002|Skip Test",
+        {"cached": "value"},
+    )
 
     def failing_handler(r: httpx.Request) -> httpx.Response:
         raise AssertionError("Should not be called")
@@ -446,6 +451,32 @@ async def test_fetch_equity_cache_hit_skips_search() -> None:
     actual = await feed.fetch_equity(symbol="CACHED_TEST_002", name="Skip Test")
 
     assert actual == {"cached": "value"}
+
+
+def test_cache_key_distinguishes_same_symbol_different_isin() -> None:
+    """
+    ARRANGE: one symbol shared by two equities with different ISINs
+    ACT:     build a cache key for each
+    ASSERT:  the keys differ, so cross-exchange lookups never collide
+    """
+    expected_distinct = _cache_key("ABC", "US0000000001", "Alpha Corp") != _cache_key(
+        "ABC",
+        "NL0000000002",
+        "Beta NV",
+    )
+
+    assert expected_distinct
+
+
+def test_cache_key_falls_back_to_name_without_isin() -> None:
+    """
+    ARRANGE: an equity with no ISIN
+    ACT:     build a cache key
+    ASSERT:  the key combines symbol with the company name
+    """
+    actual = _cache_key("ABC", None, "Alpha Corp")
+
+    assert actual == "ABC|Alpha Corp"
 
 
 async def test_fetch_equity_raises_when_no_candidates_found() -> None:
