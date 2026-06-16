@@ -39,6 +39,7 @@ UnsignedDecOpt = Annotated[Decimal | None, BeforeValidator(to_unsigned_decimal)]
 
 # Valid ISIN must be exactly 12 characters, start with two letters,
 # followed by nine alphanumeric chars, and end with a digit.
+# Doesn't strictly enforce the ISIN Luhn check digit.
 ISINStrOpt = Annotated[
     str | None,
     BeforeValidator(to_isin),
@@ -59,6 +60,7 @@ CIKStrOpt = Annotated[
 ]
 
 # Valid LEI must be exactly 20 characters: 18 alphanumeric + 2 check digits.
+# Doesn't strictly enforce the LEI ISO-7064 mod-97-10 checksum.
 LEIStrOpt = Annotated[
     str | None,
     BeforeValidator(to_lei),

@@ -112,6 +112,11 @@ def to_isin(value: str | float | Decimal | None) -> str | None:
     - Validates that the result matches the ISO-6166 12-character pattern:
       two uppercase letters, nine alphanumeric characters, and a final digit.
 
+    Note:
+        Format-only check. The final digit is the ISO-6166 Luhn check digit,
+        but the checksum itself is not verified (consistent with the
+        format-only handling of CUSIP and FIGI).
+
     Args:
         value (str | float | Decimal | None): The input ISIN code.
         info (cs.ValidationInfo): Validation context with field metadata.
@@ -266,8 +271,13 @@ def to_lei(value: str | float | Decimal | None) -> str | None:
     - Accepts None or blank input and returns None.
     - Normalises input using to_upper (removes punctuation, collapses spaces,
       converts to uppercase).
-    - Validates that the result matches the ISO-17442 20-character pattern:
-      18 alphanumeric characters followed by 2 check digits.
+    - Validates that the result matches the ISO-17442 20-character format:
+      18 alphanumeric characters followed by two trailing digits.
+
+    Note:
+        Format-only check. The two trailing digits are the ISO-7064 mod-97-10
+        check digits, but the checksum itself is not verified (consistent with
+        the format-only handling of CUSIP and FIGI).
 
     Args:
         value (str | float | Decimal | None): The input LEI code.
