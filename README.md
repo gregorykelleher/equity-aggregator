@@ -11,7 +11,7 @@
 
 Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (Intrinio, LSEG, SEC, XETRA, Stock Analysis, TradingView), before enriching it with third-party market vendor data from enrichment feeds (Yahoo Finance and Global LEI Foundation) to produce a unified canonical dataset of unique equities.
 
-Altogether, this tool makes it possible to retrieve up-to-date information on over 15,000+ equities from countries worldwide.
+Altogether, this tool makes it possible to retrieve up-to-date information on over 18,000 equities from countries worldwide.
 
 ## What kind of Equity Data is available?
 
@@ -55,6 +55,37 @@ Equity Aggregator provides a comprehensive profile for each equity in its canoni
 >
 > OpenFIGI provides standardised, globally unique identifiers that work consistently across all equity markets and exchanges, hence its selection for Equity Aggregator.
 
+## Equity Data at a Glance
+
+<!-- STATS:START -->
+| Metric | Value |
+|--------|------:|
+| **Canonical equities** | 18,044 |
+| **Sectors / Industries** | 35 / 255 |
+| **Listing venues (MICs)** | 10 |
+| **Daily snapshots** | 66 (since 2026-02-16) |
+| **Aggregate market cap** | $118.80T |
+| **Largest / Median market cap** | $5.02T / $288M |
+| **Price within 52-week range** | 99% |
+| **Market cap ≈ price × shares** (±25%) | 94% |
+
+**Market capitalisation distribution**
+
+| Cap tier | Equities |
+|----------|---------:|
+| Mega (> $200B) | 87 |
+| Large ($10B–$200B) | 1,149 |
+| Mid ($2B–$10B) | 1,346 |
+| Small ($300M–$2B) | 1,910 |
+| Micro (< $300M) | 4,588 |
+<!-- STATS:END -->
+
+> [!NOTE]
+> A live view of scale, composition, market capitalisation, and internal
+> consistency, computed over the latest daily snapshot and refreshed
+> automatically by the nightly pipeline. Consistency ratios are taken over
+> equities for which the relevant fields are present.
+
 ## Where does the Equity Data come from?
 
 ### Discovery Feeds
@@ -63,12 +94,12 @@ Discovery feeds provide raw equity data from primary market sources:
 
 | Source | Coverage | Description |
 |----------|---------|-------------|
-| 🇺🇸 Intrinio | United States | Intrinio - US listed equities |
-| 🇬🇧 LSEG | International | London Stock Exchange Group - Global equities |
-| 🇺🇸 SEC | United States | Securities and Exchange Commission - US listed equities |
-| 🇺🇸 Stock Analysis | International | Stock Analysis - Global listed equities |
-| 🇺🇸 TradingView | International | TradingView - Global listed equities |
-| 🇩🇪 XETRA | International | Deutsche Börse electronic trading platform - Global listed equities |
+| 🇺🇸 Intrinio | United States | Intrinio |
+| 🇬🇧 LSEG | International | London Stock Exchange Group |
+| 🇺🇸 SEC | United States | Securities and Exchange Commission |
+| 🇺🇸 Stock Analysis | International | Stock Analysis |
+| 🇺🇸 TradingView | International | TradingView |
+| 🇩🇪 XETRA | International | Deutsche Börse electronic trading platform |
 
 ### Enrichment Feeds
 
@@ -240,7 +271,7 @@ The `download` command retrieves the latest canonical equity database from GitHu
 
 - Downloads the compressed database (`data_store.db.gz`) from the latest nightly build
 - Decompresses and atomically replaces the local database
-- Provides access to 15,000+ equities with full historical snapshots
+- Provides access to 18,000+ equities with full historical snapshots
 
 > [!TIP]
 > **Optional: Increase Rate Limits**
