@@ -260,10 +260,38 @@ def _merge_price_range(
         }
 
     # Fallback: merge fields independently
-    return {
+    merged = {
         field: _apply_strategy(group, field, FIELD_CONFIG[field])
         for field in PRICE_RANGE_FIELDS
     }
+    return _nullify_inverted_range(merged)
+
+
+def _nullify_inverted_range(
+    prices: dict[str, Decimal | None],
+) -> dict[str, Decimal | None]:
+    """
+    Null both 52-week bounds when they are present but inverted (min > max).
+
+    Independent fallback merging can pick a min from one source and a max from
+    another, yielding a contradictory range. Rather than emit a known-bad
+    fifty_two_week_min/max pair, both are dropped (last_price is left untouched).
+
+    Args:
+        prices (dict[str, Decimal | None]): Merged price-range fields.
+
+    Returns:
+        dict[str, Decimal | None]: The same mapping, with both 52-week bounds set
+            to None when they are inverted.
+    """
+    low = prices["fifty_two_week_min"]
+    high = prices["fifty_two_week_max"]
+
+    if low is not None and high is not None and low > high:
+        prices["fifty_two_week_min"] = None
+        prices["fifty_two_week_max"] = None
+
+    return prices
 
 
 def _is_price_complete(eq: RawEquity) -> bool:
