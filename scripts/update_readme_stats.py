@@ -26,6 +26,8 @@ COVERAGE_START = "<!-- COVERAGE:START -->"
 COVERAGE_END = "<!-- COVERAGE:END -->"
 STATS_START = "<!-- STATS:START -->"
 STATS_END = "<!-- STATS:END -->"
+CAPDIST_START = "<!-- CAPDIST:START -->"
+CAPDIST_END = "<!-- CAPDIST:END -->"
 
 # (label, description, payload field). A payload field of None marks a required
 # column that is always present, so its coverage is reported as 100%.
@@ -65,22 +67,25 @@ def main(argv: list[str]) -> None:
     with sqlite3.connect(database_path) as connection:
         latest = _latest_snapshot_date(connection)
         count = _equity_count(connection)
-        coverage_table = _render_coverage_table(connection)
-        stats_block = _render_stats_block(connection, latest, count)
+        blocks = {
+            (COVERAGE_START, COVERAGE_END): _render_coverage_table(connection),
+            (STATS_START, STATS_END): _render_key_figures(connection, latest, count),
+            (CAPDIST_START, CAPDIST_END): _render_cap_distribution(connection, latest),
+        }
     _emit_count(count)
-    _rewrite_readme(Path(readme_path), coverage_table, stats_block)
+    _rewrite_readme(Path(readme_path), blocks)
 
 
-def _rewrite_readme(readme_path: Path, coverage_table: str, stats_block: str) -> None:
+def _rewrite_readme(readme_path: Path, blocks: dict[tuple[str, str], str]) -> None:
     """
-    Write the coverage table and the summary block back into the README.
+    Write each generated block back into the README between its markers.
 
     Returns:
         None
     """
     text = readme_path.read_text(encoding="utf-8")
-    text = _replace_block(text, COVERAGE_START, COVERAGE_END, coverage_table)
-    text = _replace_block(text, STATS_START, STATS_END, stats_block)
+    for (start, end), content in blocks.items():
+        text = _replace_block(text, start, end, content)
     readme_path.write_text(text, encoding="utf-8")
 
 
@@ -152,22 +157,6 @@ def _identity_coverage(connection: sqlite3.Connection, payload_field: str) -> in
 # ────────────────────────── Equity data summary ───────────────────────────
 
 
-def _render_stats_block(
-    connection: sqlite3.Connection,
-    latest: str,
-    count: int,
-) -> str:
-    """
-    Build the "Equity Data at a Glance" summary, with the cap distribution.
-
-    Returns:
-        str: The Markdown summary, two tables, without markers.
-    """
-    figures = _render_key_figures(connection, latest, count)
-    distribution = _render_cap_distribution(connection, latest)
-    return f"{figures}\n\n**Market capitalisation distribution**\n\n{distribution}"
-
-
 def _render_key_figures(
     connection: sqlite3.Connection,
     latest: str,
@@ -196,13 +185,16 @@ def _render_key_figures(
         "| Metric | Value |",
         "|--------|------:|",
         f"| **Canonical equities** | {count:,} |",
-        f"| **Sectors / Industries** | {sectors} / {industries} |",
+        f"| **Sectors** | {sectors} |",
+        f"| **Industries** | {industries} |",
         f"| **Listing venues (MICs)** | {venues} |",
-        f"| **Daily snapshots** | {snapshots} (since {earliest}) |",
+        f"| **Daily snapshots** | {snapshots} |",
+        f"| **History since** | {earliest} |",
         f"| **Aggregate market cap** | {total} |",
-        f"| **Largest / Median market cap** | {largest} / {median} |",
+        f"| **Largest market cap** | {largest} |",
+        f"| **Median market cap** | {median} |",
         f"| **Price within 52-week range** | {in_range}% |",
-        f"| **Market cap ≈ price × shares** (±25%) | {cap_consistent}% |",
+        f"| **Market cap within 25% of price × shares** | {cap_consistent}% |",
     )
     return "\n".join(rows)
 
@@ -218,7 +210,7 @@ def _render_cap_distribution(connection: sqlite3.Connection, latest: str) -> str
     rows = ["| Cap tier | Equities |", "|----------|---------:|"]
     for label, lower, upper in CAP_TIERS:
         tier_count = _cap_tier_count(connection, latest, market_cap, lower, upper)
-        rows.append(f"| {label} | {tier_count:,} |")
+        rows.append(f"| **{label}** | {tier_count:,} |")
     return "\n".join(rows)
 
 
