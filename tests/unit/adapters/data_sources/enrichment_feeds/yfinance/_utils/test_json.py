@@ -44,9 +44,10 @@ def test_safe_json_parse_raises_on_non_json_content_type() -> None:
     with pytest.raises(LookupError) as exc_info:
         safe_json_parse(response, "AAPL")
 
-    assert "Non-JSON response" in str(exc_info.value)
-    assert "text/html" in str(exc_info.value)
-    assert "AAPL" in str(exc_info.value)
+    message = str(exc_info.value)
+    expected_fragments = ("Non-JSON response", "text/html", "AAPL")
+
+    assert all(fragment in message for fragment in expected_fragments)
 
 
 def test_safe_json_parse_raises_on_invalid_json() -> None:
@@ -65,8 +66,10 @@ def test_safe_json_parse_raises_on_invalid_json() -> None:
     with pytest.raises(LookupError) as exc_info:
         safe_json_parse(response, "MSFT")
 
-    assert "Invalid JSON response" in str(exc_info.value)
-    assert "MSFT" in str(exc_info.value)
+    message = str(exc_info.value)
+    expected_fragments = ("Invalid JSON response", "MSFT")
+
+    assert all(fragment in message for fragment in expected_fragments)
 
 
 def test_safe_json_parse_accepts_content_type_with_charset() -> None:
@@ -103,5 +106,7 @@ def test_safe_json_parse_raises_when_content_type_header_missing() -> None:
     with pytest.raises(LookupError) as exc_info:
         safe_json_parse(response, "NFLX")
 
-    assert "Non-JSON response" in str(exc_info.value)
-    assert "NFLX" in str(exc_info.value)
+    message = str(exc_info.value)
+    expected_fragments = ("Non-JSON response", "NFLX")
+
+    assert all(fragment in message for fragment in expected_fragments)

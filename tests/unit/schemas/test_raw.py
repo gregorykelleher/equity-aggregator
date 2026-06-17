@@ -189,31 +189,38 @@ def test_empty_symbol_raises() -> None:
         RawEquity(**payload)
 
 
-def test_mics_accepts_none_or_list() -> None:
+def test_mics_accepts_none() -> None:
     """
-    ARRANGE: mics as None and as list
-    ACT:     construct RawEquity for both
-    ASSERT:  mics is set as expected
+    ARRANGE: mics as None
+    ACT:     construct RawEquity
+    ASSERT:  mics is None
     """
-    payload_none = {
+    payload = {
         "name": "ACME CORP",
         "symbol": "ACME",
         "mics": None,
     }
 
-    actual_none = RawEquity(**payload_none)
+    actual = RawEquity(**payload)
 
-    assert actual_none.mics is None
+    assert actual.mics is None
 
-    payload_list = {
+
+def test_mics_accepts_list() -> None:
+    """
+    ARRANGE: mics as a list of MIC codes
+    ACT:     construct RawEquity
+    ASSERT:  mics equals the provided list
+    """
+    payload = {
         "name": "ACME CORP",
         "symbol": "ACME",
         "mics": ["XNAS", "XLON"],
     }
 
-    actual_list = RawEquity(**payload_list)
+    actual = RawEquity(**payload)
 
-    assert actual_list.mics == ["XNAS", "XLON"]
+    assert actual.mics == ["XNAS", "XLON"]
 
 
 def test_mic_lowercase_uppercased() -> None:
