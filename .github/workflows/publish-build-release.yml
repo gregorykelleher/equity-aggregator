@@ -84,6 +84,24 @@ jobs:
           sqlite3 data/data_store/data_store.db \
             "DROP TABLE IF EXISTS object_cache; VACUUM;"
 
+      - name: Compute canonical equity count
+        id: equity_count
+        run: |
+          COUNT=$(sqlite3 data/data_store/data_store.db \
+            "SELECT COUNT(*) FROM canonical_equity_identities;")
+          FORMATTED=$(python3 -c "print(f'{int(\"$COUNT\"):,}')")
+          echo "count=$FORMATTED" >> "$GITHUB_OUTPUT"
+
+      - name: Create canonical equities badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_AUTH }}
+          gistID: ce6ce2d7e3c247c34aba66dedcd7ede3
+          filename: canonical-equities-badge.json
+          label: Canonical Equities
+          message: ${{ steps.equity_count.outputs.count }}
+          color: blue
+
       - name: Compress data store for release
         run: gzip -k data/data_store/data_store.db
 

@@ -5,6 +5,7 @@
 [![Licence](https://img.shields.io/badge/license-MIT-green)](LICENCE.txt)
 [![Validation Status](https://img.shields.io/github/actions/workflow/status/gregorykelleher/equity-aggregator/validate-push.yml?branch=master&label=build)](https://github.com/gregorykelleher/equity-aggregator/actions/workflows/validate-push.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/gregorykelleher/ce6ce2d7e3c247c34aba66dedcd7ede3/raw/coverage-badge.json)](https://github.com/gregorykelleher/equity-aggregator/actions/workflows/validate-push.yml)
+[![Canonical Equities](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/gregorykelleher/ce6ce2d7e3c247c34aba66dedcd7ede3/raw/canonical-equities-badge.json)](https://github.com/gregorykelleher/equity-aggregator/releases/latest)
 
 ## Description
 
