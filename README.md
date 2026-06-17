@@ -55,6 +55,37 @@ Equity Aggregator provides a comprehensive profile for each equity in its canoni
 >
 > OpenFIGI provides standardised, globally unique identifiers that work consistently across all equity markets and exchanges, hence its selection for Equity Aggregator.
 
+## Equity Data at a Glance
+
+<!-- STATS:START -->
+| Metric | Value |
+|--------|------:|
+| **Canonical equities** | 18,044 |
+| **Sectors / Industries** | 35 / 255 |
+| **Listing venues (MICs)** | 10 |
+| **Daily snapshots** | 66 (since 2026-02-16) |
+| **Aggregate market cap** | $118.80T |
+| **Largest / Median market cap** | $5.02T / $288M |
+| **Price within 52-week range** | 99% |
+| **Market cap ≈ price × shares** (±25%) | 94% |
+
+**Market capitalisation distribution**
+
+| Cap tier | Equities |
+|----------|---------:|
+| Mega (> $200B) | 87 |
+| Large ($10B–$200B) | 1,149 |
+| Mid ($2B–$10B) | 1,346 |
+| Small ($300M–$2B) | 1,910 |
+| Micro (< $300M) | 4,588 |
+<!-- STATS:END -->
+
+> [!NOTE]
+> A live view of scale, composition, market capitalisation, and internal
+> consistency, computed over the latest daily snapshot and refreshed
+> automatically by the nightly pipeline. Consistency ratios are taken over
+> equities for which the relevant fields are present.
+
 ## Where does the Equity Data come from?
 
 ### Discovery Feeds
