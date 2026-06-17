@@ -47,7 +47,7 @@ def _cache_get(conn: sqlite3.Connection, cache_name: str, key: str) -> object | 
     """
     _init_cache_table(conn)
 
-    _purge_expired(conn, cache_name, key)
+    _purge_expired(conn)
 
     row = conn.execute(
         f"SELECT payload FROM {CACHE_TABLE} WHERE cache_name = ? AND key = ?",
@@ -82,32 +82,27 @@ def _init_cache_table(conn: sqlite3.Connection) -> None:
     )
 
 
-def _purge_expired(conn: sqlite3.Connection, cache_name: str, key: str | None) -> None:
+def _purge_expired(conn: sqlite3.Connection) -> None:
     """
-    Remove expired cache entries from database for a given cache and key.
+    Remove all expired cache entries from the database, table-wide.
 
-    Entries are considered expired if the time elapsed since their creation
-    exceeds the configured time-to-live (TTL) value. If TTL is set to 0,
-    expiry is disabled and no entries are removed.
+    Sweeps every cache name and key, deleting entries whose age exceeds the
+    configured time-to-live (TTL). Because the TTL is global, the sweep is not
+    scoped to a single key; this keeps the cache bounded even when keys are
+    never read a second time. If TTL is set to 0, expiry is disabled and no
+    entries are removed.
 
     Args:
         conn: The SQLite database connection to use for deletion.
-        cache_name: The name of the cache to purge expired entries from.
-        key: The specific cache key to purge. If None, purges entries
-            with a NULL key.
     """
     ttl = ttl_seconds()
 
     if ttl == 0:
         return  # expiry disabled
 
-    now = int(time.time())
-    where_key = "key = ?" if key is not None else "key IS ?"
-
     conn.execute(
-        f"DELETE FROM {CACHE_TABLE} "
-        f"WHERE cache_name = ? AND {where_key} AND ? - created_at > ?",
-        (cache_name, key, now, ttl),
+        f"DELETE FROM {CACHE_TABLE} WHERE ? - created_at > ?",
+        (int(time.time()), ttl),
     )
 
 

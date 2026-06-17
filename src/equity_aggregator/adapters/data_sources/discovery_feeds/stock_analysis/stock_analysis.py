@@ -4,12 +4,13 @@ import logging
 
 from httpx import AsyncClient
 
-from equity_aggregator.adapters.data_sources._utils import make_client
+from equity_aggregator.adapters.data_sources._utils import (
+    deduplicate_records,
+    make_client,
+)
 from equity_aggregator.adapters.data_sources._utils._record_types import (
     EquityRecord,
     RecordStream,
-    RecordUniqueKeyExtractor,
-    UniqueRecordStream,
 )
 from equity_aggregator.storage import load_cache, save_cache
 
@@ -87,7 +88,7 @@ async def _stream_and_cache(
     """
     buffer: list[EquityRecord] = []
 
-    async for record in _deduplicate_records(_unique_key)(
+    async for record in deduplicate_records(_unique_key)(
         _stream_stock_analysis(client),
     ):
         buffer.append(record)
@@ -134,36 +135,3 @@ def _unique_key(record: EquityRecord) -> object:
         object: ISIN if present and non-empty, else the symbol.
     """
     return record.get("isin") or record.get("s")
-
-
-def _deduplicate_records(extract_key: RecordUniqueKeyExtractor) -> UniqueRecordStream:
-    """
-    Creates a deduplication coroutine for async iterators of dictionaries, yielding only
-    unique records based on a key extracted from each record.
-    Args:
-        extract_key (RecordUniqueKeyExtractor): A function that takes a
-            dictionary record and returns a value used to determine uniqueness.
-    Returns:
-        UniqueRecordStream: A coroutine that accepts an async iterator of dictionaries,
-            yields only unique records, as determined by the extracted key.
-    """
-
-    async def deduplicator(records: RecordStream) -> RecordStream:
-        """
-        Deduplicate async iterator of dicts by a key extracted from each record.
-
-        Args:
-            records (RecordStream): Async iterator of records to deduplicate.
-
-        Yields:
-            EquityRecord: Unique records, as determined by the extracted key.
-        """
-        seen: set[object] = set()
-        async for record in records:
-            key = extract_key(record)
-            if key in seen:
-                continue
-            seen.add(key)
-            yield record
-
-    return deduplicator

@@ -74,6 +74,12 @@ def median_decimal(values: Sequence[Decimal]) -> Decimal | None:
     """
     Calculates the median value of a sequence of Decimal values.
 
+    Note:
+        Uses median_low: an even-count input returns the lower of the two middle
+        values - deliberately a value a source actually reported, never a synthetic
+        average. filter_by_deviation centres on the true median, but only to
+        detect outliers.
+
     Args:
         values (Sequence[Decimal]): A sequence of Decimal values.
 

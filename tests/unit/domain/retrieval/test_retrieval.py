@@ -1,5 +1,6 @@
 # retrieval/test_retrieval.py
 
+import contextlib
 import gzip
 import os
 import sqlite3
@@ -48,6 +49,22 @@ class _Stream(httpx.AsyncByteStream):
         return None
 
     def __aiter__(self) -> None:
+        return self.aiter_bytes()
+
+
+class _RaisingStream(httpx.AsyncByteStream):
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = chunks
+
+    async def aiter_bytes(self) -> "AsyncGenerator[bytes, None]":
+        for chunk in self._chunks:
+            yield chunk
+        raise RuntimeError("stream boom")
+
+    async def aclose(self) -> None:
+        return None
+
+    def __aiter__(self) -> "AsyncGenerator[bytes, None]":
         return self.aiter_bytes()
 
 
@@ -227,6 +244,30 @@ async def test_stream_download_creates_final_file() -> None:
     returned = await _stream_download(client, "https://example/a", dest)
 
     assert returned.read_bytes() == body
+
+
+async def test_stream_download_removes_tmp_on_stream_error() -> None:
+    """
+    ARRANGE: a transport whose stream raises part-way through the download
+    ACT:     _stream_download, suppressing the resulting error
+    ASSERT:  no partial .tmp file is left on disk
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"Content-Length": "10"},
+            stream=_RaisingStream([b"ab"]),
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    dest = _DATA_STORE_PATH / "partial.gz"
+    tmp_path = dest.with_suffix(dest.suffix + ".tmp")
+
+    with contextlib.suppress(RuntimeError):
+        await _stream_download(client, "https://example/a", dest)
+
+    assert not tmp_path.exists()
 
 
 def test_finalise_download_raises_on_mismatch() -> None:

@@ -11,6 +11,7 @@ from equity_aggregator.domain._utils._merge_config import (
     FieldSpec,
     Strategy,
 )
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
 
@@ -94,50 +95,15 @@ def test_field_spec_custom_values() -> None:
 
 def test_field_config_contains_all_raw_equity_fields() -> None:
     """
-    ARRANGE: FIELD_CONFIG dictionary
-    ACT:     check keys
-    ASSERT:  contains all expected RawEquity fields
+    ARRANGE: FIELD_CONFIG keys and the RawEquity model fields
+    ACT:     derive the expected set from the model (share_class_figi is merged
+        separately in merge(), never via FIELD_CONFIG)
+    ASSERT:  FIELD_CONFIG covers every RawEquity field exactly, so a field added
+        to the schema but forgotten in FIELD_CONFIG fails loudly
     """
-    expected_fields = {
-        "name",
-        "symbol",
-        "isin",
-        "cusip",
-        "cik",
-        "lei",
-        "currency",
-        "analyst_rating",
-        "industry",
-        "sector",
-        "mics",
-        "market_cap",
-        "last_price",
-        "fifty_two_week_min",
-        "fifty_two_week_max",
-        "dividend_yield",
-        "market_volume",
-        "held_insiders",
-        "held_institutions",
-        "short_interest",
-        "share_float",
-        "shares_outstanding",
-        "revenue_per_share",
-        "profit_margin",
-        "gross_margin",
-        "operating_margin",
-        "free_cash_flow",
-        "operating_cash_flow",
-        "return_on_equity",
-        "return_on_assets",
-        "performance_1_year",
-        "total_debt",
-        "revenue",
-        "ebitda",
-        "trailing_pe",
-        "price_to_book",
-        "trailing_eps",
-    }
-    assert set(FIELD_CONFIG.keys()) == expected_fields
+    expected_fields = set(RawEquity.model_fields) - {"share_class_figi"}
+
+    assert set(FIELD_CONFIG) == expected_fields
 
 
 def test_field_config_identifier_fields_use_mode() -> None:

@@ -1770,6 +1770,35 @@ def test_merge_price_range_uses_consistent_last_price() -> None:
     assert merged.last_price == Decimal("76")
 
 
+def test_merge_price_range_fallback_nullifies_inverted_bounds() -> None:
+    """
+    ARRANGE: two records whose bounds are inverted (min > max), so no record is
+        price-consistent and the independent fallback runs
+    ACT:     merge
+    ASSERT:  both 52-week bounds are nulled rather than emitting min > max
+    """
+    equities = [
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            fifty_two_week_min=Decimal("100"),
+            fifty_two_week_max=Decimal("50"),
+        ),
+        RawEquity(
+            name="TEST",
+            symbol="TST",
+            share_class_figi="FIGI00000001",
+            fifty_two_week_min=Decimal("100"),
+            fifty_two_week_max=Decimal("50"),
+        ),
+    ]
+
+    merged = merge(equities)
+
+    assert (merged.fifty_two_week_min, merged.fifty_two_week_max) == (None, None)
+
+
 def test_extract_identifiers_empty_group_raises() -> None:
     """
     ARRANGE: no equities

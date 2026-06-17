@@ -56,7 +56,6 @@ markers = [
   "unit: tests that validate individual components in isolation",
 ]
 env = [
-  "CACHE_DIR=data/cache/.pytest_cache",
   "CACHE_TTL_MINUTES=0",
 ]
 
@@ -68,6 +67,7 @@ omit = [
   "*/__init__.py",
   "*/__main__.py",
   "*/logging_config.py",
+  # orchestration glue: wires resolve() + transforms; not unit-testable offline
   "*/pipeline/runner.py",
 ]
 
@@ -98,12 +98,6 @@ max-statements = 15
 max-branches = 5
 max-args = 5
 max-returns = 3
-
-[tool.uv.sources]
-equity-aggregator = { workspace = true }
-
-[tool.uv.workspace]
-members = ["equity-aggregator/src"]
 
 [tool.uv]
 package = true

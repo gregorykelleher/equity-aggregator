@@ -75,6 +75,32 @@ def test_load_cache_returns_none_when_expired() -> None:
     os.environ["CACHE_TTL_MINUTES"] = "0"
 
 
+def test_purge_expired_sweeps_all_keys() -> None:
+    """
+    ARRANGE: two aged entries under different keys, positive TTL
+    ACT:     read one key (triggers a table-wide purge)
+    ASSERT:  the other, unread key's entry is also removed
+    """
+    os.environ["CACHE_TTL_MINUTES"] = "1"
+    save_cache_entry("sweep", "k1", value=1)
+    save_cache_entry("sweep", "k2", value=2)
+
+    ttl = ttl_seconds()
+    with connect() as conn:
+        conn.execute(
+            f"UPDATE {CACHE_TABLE} SET created_at = created_at - ?",
+            (ttl + 1,),
+        )
+
+    load_cache_entry("sweep", "k1")
+    actual = load_cache_entry("sweep", "k2")
+
+    # restore cache ttl minutes to original value
+    os.environ["CACHE_TTL_MINUTES"] = "0"
+
+    assert actual is None
+
+
 def test_ttl_seconds_negative_raises_value_error() -> None:
     """
     ARRANGE: CACHE_TTL_MINUTES = -5

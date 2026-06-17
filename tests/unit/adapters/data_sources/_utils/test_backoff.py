@@ -1,12 +1,10 @@
-# _test_utils/test_backoff.py
+# _utils/test_backoff.py
 
 import random
 
 import pytest
 
-from equity_aggregator.adapters.data_sources.discovery_feeds.lseg._utils.backoff import (
-    backoff_delays,
-)
+from equity_aggregator.adapters.data_sources._utils.backoff import backoff_delays
 
 pytestmark = pytest.mark.unit
 

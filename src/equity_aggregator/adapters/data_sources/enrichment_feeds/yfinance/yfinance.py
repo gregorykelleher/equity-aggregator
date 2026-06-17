@@ -99,7 +99,9 @@ class YFinanceFeed:
         Raises:
             LookupError: If no matching equity data is found.
         """
-        if record := load_cache_entry("yfinance_equities", symbol):
+        cache_key = _cache_key(symbol, isin, name)
+
+        if record := load_cache_entry("yfinance_equities", cache_key):
             return record
 
         try:
@@ -112,7 +114,7 @@ class YFinanceFeed:
 
             data = await self._fetch_first_valid_quote(candidates)
 
-            save_cache_entry("yfinance_equities", symbol, data)
+            save_cache_entry("yfinance_equities", cache_key, data)
             return data
 
         except LookupError:
@@ -298,6 +300,20 @@ class YFinanceFeed:
                 continue
 
         raise LookupError("All candidates failed validation")
+
+
+def _cache_key(symbol: str, isin: str | None, name: str) -> str:
+    """
+    Build a collision-resistant cache key for a Yahoo enrichment lookup.
+
+    Combines the ticker symbol with a unique discriminator (ISIN when
+    available, otherwise the company name) so equities that share a ticker
+    across exchanges resolve to distinct cache entries.
+
+    Returns:
+        str: Cache key of the form "<symbol>|<isin-or-name>".
+    """
+    return f"{symbol}|{isin or name}"
 
 
 def _build_identifier_sequence(
