@@ -64,7 +64,7 @@ async def resolve(
     """
     logger.info("Resolving raw equities from discovery feeds...")
 
-    feeds = feeds or _DISCOVERY_FEEDS
+    feeds = feeds if feeds is not None else _DISCOVERY_FEEDS
     queue: asyncio.Queue[FeedRecord | None] = asyncio.Queue()
 
     total_yielded = 0

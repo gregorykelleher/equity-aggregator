@@ -202,6 +202,15 @@ async def test_resolve_yields_all_items() -> None:
     assert len(records) == expected_records
 
 
+async def test_resolve_empty_feeds_raises() -> None:
+    """
+    ARRANGE:    an explicit empty feeds tuple
+    ACT/ASSERT: resolve raises RuntimeError rather than silently running all feeds
+    """
+    with pytest.raises(RuntimeError, match="zero records"):
+        [record async for record in resolve(())]
+
+
 async def test_resolve_propagates_models() -> None:
     """
     ARRANGE: a feed generator yielding one item and a dummy model

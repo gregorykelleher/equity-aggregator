@@ -1,5 +1,6 @@
 # equity-aggregator/logging_config.py
 
+import copy
 import logging.config
 import os
 from datetime import date
@@ -67,7 +68,7 @@ def configure_logging(override_level: str = None) -> None:
     Returns:
         None
     """
-    config = LOGGING.copy()
+    config = copy.deepcopy(LOGGING)
 
     # Resolve the log file path
     config["handlers"]["file"]["filename"] = _resolve_log_file()
