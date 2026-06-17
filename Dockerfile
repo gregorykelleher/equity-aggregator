@@ -14,5 +14,9 @@ ENV UV_SYSTEM_PYTHON=1
 # Set the environment file for equity-aggregator
 ENV UV_ENV_FILE=".env"
 
+# Persist the database and logs under the mounted /app/data volume
+ENV DATA_STORE_DIR="/app/data/data_store"
+ENV LOG_DIR="/app/data/logs"
+
 # Aggregate and seed canonical equities database
 CMD ["uv", "run", "equity-aggregator", "seed"]
