@@ -11,7 +11,7 @@
 
 Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (Intrinio, LSEG, SEC, XETRA, Stock Analysis, TradingView), before enriching it with third-party market vendor data from enrichment feeds (Yahoo Finance and Global LEI Foundation) to produce a unified canonical dataset of unique equities.
 
-Altogether, this tool makes it possible to retrieve up-to-date information on over 15,000+ equities from countries worldwide.
+Altogether, this tool makes it possible to retrieve up-to-date information on over 18,000 equities from countries worldwide.
 
 ## What kind of Equity Data is available?
 
@@ -271,7 +271,7 @@ The `download` command retrieves the latest canonical equity database from GitHu
 
 - Downloads the compressed database (`data_store.db.gz`) from the latest nightly build
 - Decompresses and atomically replaces the local database
-- Provides access to 15,000+ equities with full historical snapshots
+- Provides access to 18,000+ equities with full historical snapshots
 
 > [!TIP]
 > **Optional: Increase Rate Limits**
