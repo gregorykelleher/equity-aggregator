@@ -20,6 +20,9 @@ jobs:
       UV_SYSTEM_PYTHON: 1
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.EQUITY_AGGREGATOR }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -54,18 +57,7 @@ jobs:
         run: uv run pytest -m live -v
 
       - name: Restore previous data store
-        run: |
-          mkdir -p data/data_store data/logs
-          gh release download latest-build-release \
-            --pattern "data_store.db.gz" \
-            --dir data/data_store \
-            --clobber || true
-          if [ -f data/data_store/data_store.db.gz ]; then
-            gunzip data/data_store/data_store.db.gz
-            echo "Restored previous data store"
-          else
-            echo "No previous data store found, starting fresh"
-          fi
+        run: bash scripts/restore_data_store.sh
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -84,13 +76,9 @@ jobs:
           sqlite3 data/data_store/data_store.db \
             "DROP TABLE IF EXISTS object_cache; VACUUM;"
 
-      - name: Compute canonical equity count
-        id: equity_count
-        run: |
-          COUNT=$(sqlite3 data/data_store/data_store.db \
-            "SELECT COUNT(*) FROM canonical_equity_identities;")
-          FORMATTED=$(python3 -c "print(f'{int(\"$COUNT\"):,}')")
-          echo "count=$FORMATTED" >> "$GITHUB_OUTPUT"
+      - name: Generate dataset stats
+        id: stats
+        run: python3 scripts/update_readme_stats.py data/data_store/data_store.db README.md
 
       - name: Create canonical equities badge
         uses: schneegans/dynamic-badges-action@v1.7.0
@@ -99,7 +87,7 @@ jobs:
           gistID: ce6ce2d7e3c247c34aba66dedcd7ede3
           filename: canonical-equities-badge.json
           label: Canonical Equities
-          message: ${{ steps.equity_count.outputs.count }}
+          message: ${{ steps.stats.outputs.count }}
           color: blue
 
       - name: Compress data store for release
@@ -130,3 +118,16 @@ jobs:
           files: |
             data/data_store/data_store.db.gz
             ${{ steps.latest_log.outputs.latest_log }}
+
+      - name: Commit updated coverage table
+        run: |
+          if git diff --quiet README.md; then
+            echo "Coverage table unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore: update equity data coverage table [skip ci]"
+          git pull --rebase --autostash origin master
+          git push origin master

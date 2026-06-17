@@ -13,6 +13,50 @@ Equity Aggregator is a financial data tool that collects and normalises raw equi
 
 Altogether, this tool makes it possible to retrieve up-to-date information on over 15,000+ equities from countries worldwide.
 
+## What kind of Equity Data is available?
+
+Equity Aggregator provides a comprehensive profile for each equity in its canonical collection, structured through validated schemas that ensure clean separation between essential identity metadata and extensive financial metrics:
+
+### Identity Metadata
+
+<!-- COVERAGE:START -->
+| Field | Description | Populated |
+|-------|-------------|-----------|
+| **name** | Full company name | 100% |
+| **symbol** | Trading symbol | 100% |
+| **share class figi** | Definitive OpenFIGI identifier | 100% |
+| **isin** | International Securities Identification Number | 52% |
+| **cusip** | CUSIP identifier | 26% |
+| **cik** | Central Index Key for SEC filings | 42% |
+| **lei** | Legal Entity Identifier (ISO 17442) | 37% |
+<!-- COVERAGE:END -->
+
+> [!NOTE]
+> The **Populated** column reports the share of canonical equities for which
+> each field is present, refreshed automatically by the nightly pipeline.
+
+### Financial Metrics
+| Category | Fields |
+|----------|--------|
+| **Market Data** | `last_price`, `market_cap`, `currency`, `market_volume` |
+| **Trading Venues** | `mics`
+| **Price Performance** | `fifty_two_week_min`, `fifty_two_week_max`, `performance_1_year` |
+| **Share Structure** | `shares_outstanding`, `share_float`, `dividend_yield` |
+| **Ownership** | `held_insiders`, `held_institutions`, `short_interest` |
+| **Profitability** | `profit_margin`, `gross_margin`, `operating_margin` |
+| **Cash Flow** | `free_cash_flow`, `operating_cash_flow` |
+| **Valuation** | `trailing_pe`, `price_to_book`, `trailing_eps` |
+| **Returns** | `return_on_equity`, `return_on_assets` |
+| **Fundamentals** | `revenue`, `revenue_per_share`, `ebitda`, `total_debt` |
+| **Classification** | `industry`, `sector`, `analyst_rating` |
+
+> [!NOTE]
+> The OpenFIGI Share Class FIGI is the only definitive unique identifier for each equity in this dataset. While other identifiers like ISIN, CUSIP, CIK and LEI are also collected, they may not be universally available across all global markets or may have inconsistencies in formatting and coverage.
+>
+> OpenFIGI provides standardised, globally unique identifiers that work consistently across all equity markets and exchanges, hence its selection for Equity Aggregator.
+
+## Where does the Equity Data come from?
+
 ### Discovery Feeds
 
 Discovery feeds provide raw equity data from primary market sources:
@@ -34,41 +78,6 @@ Enrichment feeds provide supplementary data to enhance the canonical equity data
 |--------|-------------|
 | Yahoo Finance | Market data, financial metrics, and equity metadata |
 | GLEIF | Legal Entity Identifier (LEI) lookups via the Global LEI Foundation |
-
-## What kind of Equity Data is available?
-
-Equity Aggregator provides a comprehensive profile for each equity in its canonical collection, structured through validated schemas that ensure clean separation between essential identity metadata and extensive financial metrics:
-
-### Identity Metadata
-| Field | Description |
-|-------|-------------|
-| **name** | Full company name |
-| **symbol** | Trading symbol |
-| **share class figi** | Definitive OpenFIGI identifier |
-| **isin** | International Securities Identification Number |
-| **cusip** | CUSIP identifier |
-| **cik** | Central Index Key for SEC filings |
-| **lei** | Legal Entity Identifier (ISO 17442) |
-
-### Financial Metrics
-| Category | Fields |
-|----------|--------|
-| **Market Data** | `last_price`, `market_cap`, `currency`, `market_volume` |
-| **Trading Venues** | `mics`
-| **Price Performance** | `fifty_two_week_min`, `fifty_two_week_max`, `performance_1_year` |
-| **Share Structure** | `shares_outstanding`, `share_float`, `dividend_yield` |
-| **Ownership** | `held_insiders`, `held_institutions`, `short_interest` |
-| **Profitability** | `profit_margin`, `gross_margin`, `operating_margin` |
-| **Cash Flow** | `free_cash_flow`, `operating_cash_flow` |
-| **Valuation** | `trailing_pe`, `price_to_book`, `trailing_eps` |
-| **Returns** | `return_on_equity`, `return_on_assets` |
-| **Fundamentals** | `revenue`, `revenue_per_share`, `ebitda`, `total_debt` |
-| **Classification** | `industry`, `sector`, `analyst_rating` |
-
-> [!NOTE]
-> The OpenFIGI Share Class FIGI is the only definitive unique identifier for each equity in this dataset. While other identifiers like ISIN, CUSIP, CIK and LEI are also collected, they may not be universally available across all global markets or may have inconsistencies in formatting and coverage.
->
-> OpenFIGI provides standardised, globally unique identifiers that work consistently across all equity markets and exchanges, hence its selection for Equity Aggregator.
 
 ## How do I get started?
 
