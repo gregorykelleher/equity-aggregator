@@ -6,9 +6,7 @@ from collections.abc import Mapping
 
 import httpx
 
-from equity_aggregator.adapters.data_sources._utils import make_client
-
-from ._utils import backoff_delays
+from equity_aggregator.adapters.data_sources._utils import backoff_delays, make_client
 
 logger: logging.Logger = logging.getLogger(__name__)
 

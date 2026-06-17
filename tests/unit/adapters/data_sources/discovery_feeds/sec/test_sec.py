@@ -1,12 +1,10 @@
 # discovery_feeds/sec/test_sec.py
 
-from collections.abc import AsyncGenerator
 
 import httpx
 import pytest
 
 from equity_aggregator.adapters.data_sources.discovery_feeds.sec.sec import (
-    _deduplicate_records,
     _parse_row,
     _stream_and_cache,
     _stream_sec,
@@ -41,42 +39,6 @@ def test_parse_row_unknown_exchange() -> None:
     record = _parse_row(row)
 
     assert record["mics"] == []
-
-
-async def test_deduplicate_records_filters_duplicates() -> None:
-    """
-    ARRANGE: two records share identical CIK
-    ACT:     run deduplicator
-    ASSERT:  yields a single unique record
-    """
-
-    async def _gen() -> AsyncGenerator[dict, None]:
-        yield {"cik": 1}
-        yield {"cik": 1}
-
-    deduplicator = _deduplicate_records(lambda r: r["cik"])
-
-    uniques = [record async for record in deduplicator(_gen())]
-
-    assert len(uniques) == 1
-
-
-async def test_deduplicate_records_preserves_first_occurrence() -> None:
-    """
-    ARRANGE: first record differs from duplicate that follows
-    ACT:     run deduplicator
-    ASSERT:  first record is preserved
-    """
-
-    async def _gen() -> AsyncGenerator[dict, None]:
-        yield {"cik": 1, "name": "FIRST"}
-        yield {"cik": 1, "name": "SECOND"}
-
-    deduplicator = _deduplicate_records(lambda record: record["cik"])
-
-    uniques = [record async for record in deduplicator(_gen())]
-
-    assert uniques[0]["name"] == "FIRST"
 
 
 async def test_stream_sec_yields_records() -> None:

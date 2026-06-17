@@ -6,7 +6,8 @@ from collections.abc import Mapping
 
 import httpx
 
-from ._utils import backoff_delays
+from equity_aggregator.adapters.data_sources._utils import backoff_delays
+
 from .auth import CrumbManager
 from .config import FeedConfig
 from .transport import HttpTransport

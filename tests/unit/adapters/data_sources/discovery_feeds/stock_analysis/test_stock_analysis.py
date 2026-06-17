@@ -5,8 +5,8 @@ from collections.abc import AsyncGenerator
 import httpx
 import pytest
 
+from equity_aggregator.adapters.data_sources._utils import deduplicate_records
 from equity_aggregator.adapters.data_sources.discovery_feeds.stock_analysis.stock_analysis import (  # noqa: E501
-    _deduplicate_records,
     _stream_and_cache,
     _stream_stock_analysis,
     _unique_key,
@@ -15,42 +15,6 @@ from equity_aggregator.adapters.data_sources.discovery_feeds.stock_analysis.stoc
 from equity_aggregator.storage import save_cache
 
 pytestmark = pytest.mark.unit
-
-
-async def test_deduplicate_records_filters_duplicates() -> None:
-    """
-    ARRANGE: two records share identical ISIN
-    ACT:     run deduplicator
-    ASSERT:  yields a single unique record
-    """
-
-    async def _gen() -> AsyncGenerator[dict, None]:
-        yield {"isin": "US1234567890"}
-        yield {"isin": "US1234567890"}
-
-    deduplicator = _deduplicate_records(lambda record: record.get("isin"))
-
-    uniques = [record async for record in deduplicator(_gen())]
-
-    assert len(uniques) == 1
-
-
-async def test_deduplicate_records_preserves_first_occurrence() -> None:
-    """
-    ARRANGE: first record differs from duplicate that follows
-    ACT:     run deduplicator
-    ASSERT:  first record is preserved
-    """
-
-    async def _gen() -> AsyncGenerator[dict, None]:
-        yield {"isin": "US1234567890", "name": "FIRST"}
-        yield {"isin": "US1234567890", "name": "SECOND"}
-
-    deduplicator = _deduplicate_records(lambda record: record.get("isin"))
-
-    uniques = [record async for record in deduplicator(_gen())]
-
-    assert uniques[0]["name"] == "FIRST"
 
 
 def test_unique_key_uses_isin_when_present() -> None:
@@ -90,7 +54,7 @@ async def test_deduplicate_records_keeps_distinct_symbols_without_isin() -> None
         yield {"s": "AAPL"}
         yield {"s": "MSFT"}
 
-    deduplicator = _deduplicate_records(_unique_key)
+    deduplicator = deduplicate_records(_unique_key)
 
     uniques = [record async for record in deduplicator(_gen())]
 
@@ -385,25 +349,6 @@ async def test_stream_stock_analysis_preserves_all_fields() -> None:
         records = [record async for record in _stream_stock_analysis(client)]
 
     assert records[0]["marketCap"] == 1000000  # noqa: PLR2004
-
-
-async def test_deduplicate_records_preserves_unique_records() -> None:
-    """
-    ARRANGE: three records with unique ISINs
-    ACT:     run deduplicator
-    ASSERT:  all three records are yielded
-    """
-
-    async def _gen() -> AsyncGenerator[dict, None]:
-        yield {"isin": "US1111111111", "symbol": "FOO"}
-        yield {"isin": "US2222222222", "symbol": "BAR"}
-        yield {"isin": "US3333333333", "symbol": "BAZ"}
-
-    deduplicator = _deduplicate_records(lambda record: record.get("isin"))
-
-    uniques = [record async for record in deduplicator(_gen())]
-
-    assert len(uniques) == 3  # noqa: PLR2004
 
 
 async def test_stream_and_cache_preserves_record_order() -> None:

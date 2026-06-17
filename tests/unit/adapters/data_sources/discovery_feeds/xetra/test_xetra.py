@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
 
 import httpx
 import pytest
@@ -11,7 +10,6 @@ from httpx import AsyncClient, MockTransport
 from equity_aggregator.adapters.data_sources.discovery_feeds.xetra.xetra import (
     _build_payload,
     _consume_queue,
-    _deduplicate_records,
     _extract_records,
     _fetch_page,
     _get_total_records,
@@ -239,26 +237,6 @@ def test_fetch_page_read_timeout_propagates() -> None:
 
     with pytest.raises(httpx.ReadTimeout):
         asyncio.run(_fetch_page(client, offset=0))
-
-
-def test_deduplicate_records_single_output_for_duplicate_isin() -> None:
-    """
-    ARRANGE: two dicts share same ISIN
-    ACT:     run through _deduplicate_records
-    ASSERT:  only first dict yielded
-    """
-
-    async def source() -> AsyncIterator[dict[str, str]]:
-        for record in [{"isin": "DUP"}, {"isin": "DUP"}]:
-            yield record
-
-    async def collect() -> list[dict[str, str]]:
-        dedup = _deduplicate_records(lambda record: record["isin"])
-        return [record async for record in dedup(source())]
-
-    actual = asyncio.run(collect())
-
-    assert len(actual) == 1
 
 
 def test_consume_queue_yields_until_sentinel() -> None:
