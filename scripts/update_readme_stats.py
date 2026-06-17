@@ -136,7 +136,7 @@ def _render_coverage_row(
         populated = "100%"
     else:
         populated = f"{_identity_coverage(connection, payload_field)}%"
-    return f"| **{label}** | {description} | {populated} |"
+    return f"| {label} | {description} | {populated} |"
 
 
 def _identity_coverage(connection: sqlite3.Connection, payload_field: str) -> int:
@@ -184,17 +184,17 @@ def _render_key_figures(
     rows = (
         "| Metric | Value |",
         "|--------|------:|",
-        f"| **Canonical equities** | {count:,} |",
-        f"| **Sectors** | {sectors} |",
-        f"| **Industries** | {industries} |",
-        f"| **Listing venues (MICs)** | {venues} |",
-        f"| **Daily snapshots** | {snapshots} |",
-        f"| **History since** | {earliest} |",
-        f"| **Aggregate market cap** | {total} |",
-        f"| **Largest market cap** | {largest} |",
-        f"| **Median market cap** | {median} |",
-        f"| **Price within 52-week range** | {in_range}% |",
-        f"| **Market cap within 25% of price × shares** | {cap_consistent}% |",
+        f"| Canonical equities | {count:,} |",
+        f"| Sectors | {sectors} |",
+        f"| Industries | {industries} |",
+        f"| Listing venues (MICs) | {venues} |",
+        f"| Daily snapshots | {snapshots} |",
+        f"| History since | {earliest} |",
+        f"| Aggregate market cap | {total} |",
+        f"| Largest market cap | {largest} |",
+        f"| Median market cap | {median} |",
+        f"| Price within 52-week range | {in_range}% |",
+        f"| Market cap within 25% of price × shares | {cap_consistent}% |",
     )
     return "\n".join(rows)
 
@@ -207,10 +207,10 @@ def _render_cap_distribution(connection: sqlite3.Connection, latest: str) -> str
         str: The Markdown distribution table.
     """
     market_cap = _real("market_cap")
-    rows = ["| Cap tier | Equities |", "|----------|---------:|"]
+    rows = ["| Cap tier | Canonical Equities |", "|----------|---------:|"]
     for label, lower, upper in CAP_TIERS:
         tier_count = _cap_tier_count(connection, latest, market_cap, lower, upper)
-        rows.append(f"| **{label}** | {tier_count:,} |")
+        rows.append(f"| {label} | {tier_count:,} |")
     return "\n".join(rows)
 
 

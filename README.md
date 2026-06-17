@@ -19,16 +19,18 @@ Equity Aggregator provides a comprehensive profile for each equity in its canoni
 
 ### Identity Metadata
 
+The essential metadata that uniquely identifies each equity, with live population coverage across the canonical collection:
+
 <!-- COVERAGE:START -->
 | Field | Description | Populated |
 |-------|-------------|-----------|
-| **name** | Full company name | 100% |
-| **symbol** | Trading symbol | 100% |
-| **share class figi** | Definitive OpenFIGI identifier | 100% |
-| **isin** | International Securities Identification Number | 52% |
-| **cusip** | CUSIP identifier | 26% |
-| **cik** | Central Index Key for SEC filings | 42% |
-| **lei** | Legal Entity Identifier (ISO 17442) | 37% |
+| name | Full company name | 100% |
+| symbol | Trading symbol | 100% |
+| share class figi | Definitive OpenFIGI identifier | 100% |
+| isin | International Securities Identification Number | 52% |
+| cusip | CUSIP identifier | 26% |
+| cik | Central Index Key for SEC filings | 42% |
+| lei | Legal Entity Identifier (ISO 17442) | 37% |
 <!-- COVERAGE:END -->
 
 > [!NOTE]
@@ -36,19 +38,22 @@ Equity Aggregator provides a comprehensive profile for each equity in its canoni
 > each field is present, refreshed automatically by the nightly pipeline.
 
 ### Financial Metrics
+
+The supplementary market and fundamental metrics, grouped into the following categories:
+
 | Category | Fields |
 |----------|--------|
-| **Market Data** | `last_price`, `market_cap`, `currency`, `market_volume` |
-| **Trading Venues** | `mics`
-| **Price Performance** | `fifty_two_week_min`, `fifty_two_week_max`, `performance_1_year` |
-| **Share Structure** | `shares_outstanding`, `share_float`, `dividend_yield` |
-| **Ownership** | `held_insiders`, `held_institutions`, `short_interest` |
-| **Profitability** | `profit_margin`, `gross_margin`, `operating_margin` |
-| **Cash Flow** | `free_cash_flow`, `operating_cash_flow` |
-| **Valuation** | `trailing_pe`, `price_to_book`, `trailing_eps` |
-| **Returns** | `return_on_equity`, `return_on_assets` |
-| **Fundamentals** | `revenue`, `revenue_per_share`, `ebitda`, `total_debt` |
-| **Classification** | `industry`, `sector`, `analyst_rating` |
+| Market Data | `last_price`, `market_cap`, `currency`, `market_volume` |
+| Trading Venues | `mics`
+| Price Performance | `fifty_two_week_min`, `fifty_two_week_max`, `performance_1_year` |
+| Share Structure | `shares_outstanding`, `share_float`, `dividend_yield` |
+| Ownership | `held_insiders`, `held_institutions`, `short_interest` |
+| Profitability | `profit_margin`, `gross_margin`, `operating_margin` |
+| Cash Flow | `free_cash_flow`, `operating_cash_flow` |
+| Valuation | `trailing_pe`, `price_to_book`, `trailing_eps` |
+| Returns | `return_on_equity`, `return_on_assets` |
+| Fundamentals | `revenue`, `revenue_per_share`, `ebitda`, `total_debt` |
+| Classification | `industry`, `sector`, `analyst_rating` |
 
 > [!NOTE]
 > The OpenFIGI Share Class FIGI is the only definitive unique identifier for each equity in this dataset. While other identifiers like ISIN, CUSIP, CIK and LEI are also collected, they may not be universally available across all global markets or may have inconsistencies in formatting and coverage.
@@ -61,32 +66,36 @@ A live view of the canonical dataset's scale, composition, market capitalisation
 
 ### Key Figures
 
+Headline measures of the dataset's scale, composition, market capitalisation, and internal consistency:
+
 <!-- STATS:START -->
 | Metric | Value |
 |--------|------:|
-| **Canonical equities** | 18,044 |
-| **Sectors** | 35 |
-| **Industries** | 255 |
-| **Listing venues (MICs)** | 10 |
-| **Daily snapshots** | 66 |
-| **History since** | 2026-02-16 |
-| **Aggregate market cap** | $118.80T |
-| **Largest market cap** | $5.02T |
-| **Median market cap** | $288M |
-| **Price within 52-week range** | 99% |
-| **Market cap within 25% of price × shares** | 94% |
+| Canonical equities | 18,044 |
+| Sectors | 35 |
+| Industries | 255 |
+| Listing venues (MICs) | 10 |
+| Daily snapshots | 66 |
+| History since | 2026-02-16 |
+| Aggregate market cap | $118.80T |
+| Largest market cap | $5.02T |
+| Median market cap | $288M |
+| Price within 52-week range | 99% |
+| Market cap within 25% of price × shares | 94% |
 <!-- STATS:END -->
 
 ### Market Capitalisation Distribution
 
+The number of canonical equities falling within each market capitalisation tier:
+
 <!-- CAPDIST:START -->
-| Cap tier | Equities |
+| Cap tier | Canonical Equities |
 |----------|---------:|
-| **Mega (> $200B)** | 87 |
-| **Large ($10B–$200B)** | 1,149 |
-| **Mid ($2B–$10B)** | 1,346 |
-| **Small ($300M–$2B)** | 1,910 |
-| **Micro (< $300M)** | 4,588 |
+| Mega (> $200B) | 87 |
+| Large ($10B–$200B) | 1,149 |
+| Mid ($2B–$10B) | 1,346 |
+| Small ($300M–$2B) | 1,910 |
+| Micro (< $300M) | 4,588 |
 <!-- CAPDIST:END -->
 
 ## Where does the Equity Data come from?
