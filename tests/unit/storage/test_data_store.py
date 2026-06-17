@@ -1,5 +1,6 @@
 # storage/test_data_store.py
 
+import contextlib
 import datetime
 import os
 
@@ -373,7 +374,9 @@ def test_load_canonical_equity_history_filters_by_date_range() -> None:
             snapshot_date=date,
         )
 
-    actual = load_canonical_equity_history(figi, from_date="2025-01-02", to_date="2025-01-02")
+    actual = load_canonical_equity_history(
+        figi, from_date="2025-01-02", to_date="2025-01-02"
+    )
 
     assert len(actual) == 1
 
@@ -471,3 +474,32 @@ def test_count_snapshots_counts_dates_not_rows() -> None:
     actual = count_snapshots()
 
     assert actual == 1
+
+
+def test_save_equities_raises_when_batch_contains_invalid_record() -> None:
+    """
+    ARRANGE: a batch with one valid equity followed by a None record
+    ACT:     save_canonical_equities (None fails serialisation inside the
+        transaction, after BEGIN)
+    ASSERT:  AttributeError propagates
+    """
+    batch = [_create_canonical_equity("BBG000ROLL01", "VALID"), None]
+
+    with pytest.raises(AttributeError):
+        save_canonical_equities(batch)
+
+
+def test_save_equities_rolls_back_when_record_fails_mid_batch() -> None:
+    """
+    ARRANGE: attempt to save a batch whose second record (None) fails after the
+        first valid identity row has already been inserted within the transaction
+    ACT:     count the committed identity rows
+    ASSERT:  none persist - the whole transaction rolled back atomically
+    """
+    batch = [_create_canonical_equity("BBG000ROLL02", "VALID"), None]
+    with contextlib.suppress(AttributeError):
+        save_canonical_equities(batch)
+
+    actual = _count_rows(CANONICAL_EQUITY_IDENTITIES_TABLE)
+
+    assert actual == 0

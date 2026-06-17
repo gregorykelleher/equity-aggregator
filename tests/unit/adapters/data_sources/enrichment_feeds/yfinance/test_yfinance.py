@@ -174,6 +174,8 @@ def test__select_identifier_min_score_zero_results() -> None:
 
     assert actual == default_threshold
 
+
+def test__validate_quote_summary_returns_equity_data_unchanged() -> None:
     """
     ARRANGE: valid EQUITY data with longName
     ACT:     call _validate_quote_summary

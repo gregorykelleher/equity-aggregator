@@ -668,6 +668,25 @@ def test_merge_mismatched_share_class_figi_raises_error() -> None:
         merge(raw_equities)
 
 
+def test_merge_three_heterogeneous_figis_raises_error_lists_all() -> None:
+    """
+    ARRANGE: group with three distinct FIGIs
+    ACT:     merge
+    ASSERT:  ValueError lists every offending FIGI
+    """
+    raw_equities = [
+        RawEquity(name="FIRST CORP", symbol="FST", share_class_figi="FIGI00000001"),
+        RawEquity(name="SECOND CORP", symbol="SND", share_class_figi="FIGI00000002"),
+        RawEquity(name="THIRD CORP", symbol="THD", share_class_figi="FIGI00000003"),
+    ]
+    expected_figis = ("FIGI00000001", "FIGI00000002", "FIGI00000003")
+
+    with pytest.raises(ValueError) as exc_info:
+        merge(raw_equities)
+
+    assert all(figi in str(exc_info.value) for figi in expected_figis)
+
+
 def test_merge_name_best_cluster_appears_later() -> None:
     """
     ARRANGE: first name belongs to a 1-member cluster,

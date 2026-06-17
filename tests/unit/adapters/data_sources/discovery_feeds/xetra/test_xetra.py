@@ -329,6 +329,49 @@ def test_fetch_equity_records_streams_two_records() -> None:
     assert len(records) == expected_total_records
 
 
+def test_fetch_equity_records_empty_middle_page_continues_pagination() -> None:
+    """
+    ARRANGE: recordsTotal=201 across three pages; the middle page (offset 100)
+        returns zero records while the final page (offset 200) carries one
+    ACT:     iterate fetch_equity_records with MockTransport
+    ASSERT:  101 records are returned (the empty middle page is not a stop signal)
+    """
+
+    def make_row(index: int) -> dict[str, object]:
+        return {
+            "name": {"originalValue": f"R{index}"},
+            "wkn": "",
+            "isin": f"ISIN_{index}",
+            "slug": "",
+            "overview": {},
+            "performance": {},
+            "keyData": {},
+            "sustainability": {},
+        }
+
+    page_size = 100
+    pages = {
+        0: [make_row(i) for i in range(page_size)],  # first page (full)
+        page_size: [],  # empty middle page
+        page_size * 2: [make_row(page_size)],  # final page (1 row)
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        offset = json.loads(request.content)["offset"]
+        return httpx.Response(200, json={"recordsTotal": 201, "data": pages[offset]})
+
+    expected_total_records = 101
+
+    client = AsyncClient(transport=MockTransport(handler))
+
+    async def collect() -> list[dict[str, object]]:
+        return [record async for record in fetch_equity_records(client)]
+
+    records = asyncio.run(collect())
+
+    assert len(records) == expected_total_records
+
+
 def test_fetch_equity_records_exits_on_first_page_500() -> None:
     """
     ARRANGE: first page returns 500

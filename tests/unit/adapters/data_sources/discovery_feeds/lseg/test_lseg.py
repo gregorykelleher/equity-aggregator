@@ -388,6 +388,56 @@ async def test_fetch_all_records_multiple_pages() -> None:
     assert len(actual) == expected_total_pages
 
 
+async def test_fetch_all_records_empty_middle_page_continues() -> None:
+    """
+    ARRANGE: first page reports 3 total pages; the middle page returns zero
+        records while the final page carries one
+    ACT:     call _fetch_all_records
+    ASSERT:  the populated pages are collected and the fetch is complete
+        (an empty middle page is not treated as a stop signal)
+    """
+    call_count = 0
+    total_pages = 3
+    empty_page_call = 2
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal call_count
+        call_count += 1
+        content = (
+            []
+            if call_count == empty_page_call
+            else [{"isin": f"GB000{call_count}", "tidm": f"T{call_count}"}]
+        )
+        return httpx.Response(
+            200,
+            json={
+                "components": [
+                    {
+                        "type": "price-explorer",
+                        "content": [
+                            {
+                                "name": "priceexplorersearch",
+                                "value": {
+                                    "content": content,
+                                    "totalPages": total_pages,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        )
+
+    expected = (2, True)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    session = LsegSession(client)
+
+    actual_records, actual_complete = await _fetch_all_records(session)
+
+    assert (len(actual_records), actual_complete) == expected
+
+
 async def test_fetch_remaining_pages_flags_incomplete_on_error() -> None:
     """
     ARRANGE: first remaining page returns 500

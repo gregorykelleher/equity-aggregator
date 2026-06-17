@@ -453,8 +453,7 @@ async def test_fetch_with_retry_sleeps_on_retry() -> None:
         delays=iter([0, 0.001]),
     )
 
-    assert response.status_code == expected_status
-    assert call_count == expected_call_count
+    assert (response.status_code, call_count) == (expected_status, expected_call_count)
 
 
 async def test_fetch_with_retry_raises_after_exhausting_all_attempts() -> None:

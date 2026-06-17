@@ -1,6 +1,5 @@
 # storage/test_freshness.py
 
-import datetime
 import os
 import sqlite3
 
@@ -47,8 +46,7 @@ def test_ensure_fresh_database_calls_refresh_when_stale() -> None:
     """
     os.environ["CACHE_TTL_MINUTES"] = "1"
     equity = _create_canonical_equity("BBG000TEST01")
-    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
-    save_canonical_equities([equity], snapshot_date=yesterday)
+    save_canonical_equities([equity], snapshot_date="2000-01-01")
 
     refresh_called = False
 
@@ -71,8 +69,7 @@ def test_ensure_fresh_database_returns_true_when_stale() -> None:
     """
     os.environ["CACHE_TTL_MINUTES"] = "1"
     equity = _create_canonical_equity("BBG000TEST04")
-    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
-    save_canonical_equities([equity], snapshot_date=yesterday)
+    save_canonical_equities([equity], snapshot_date="2000-01-01")
 
     def mock_refresh() -> None:
         pass
@@ -92,8 +89,7 @@ def test_ensure_fresh_database_skips_refresh_when_fresh() -> None:
     """
     os.environ["CACHE_TTL_MINUTES"] = "60"
     equity = _create_canonical_equity("BBG000TEST02")
-    today = datetime.date.today().isoformat()
-    save_canonical_equities([equity], snapshot_date=today)
+    save_canonical_equities([equity], snapshot_date="2999-12-31")
 
     refresh_called = False
 
@@ -116,8 +112,7 @@ def test_ensure_fresh_database_returns_false_when_fresh() -> None:
     """
     os.environ["CACHE_TTL_MINUTES"] = "60"
     equity = _create_canonical_equity("BBG000TEST05")
-    today = datetime.date.today().isoformat()
-    save_canonical_equities([equity], snapshot_date=today)
+    save_canonical_equities([equity], snapshot_date="2999-12-31")
 
     def mock_refresh() -> None:
         pass
@@ -137,8 +132,7 @@ def test_ensure_fresh_database_skips_refresh_when_no_refresh_fn() -> None:
     """
     os.environ["CACHE_TTL_MINUTES"] = "1"
     equity = _create_canonical_equity("BBG000TEST03")
-    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
-    save_canonical_equities([equity], snapshot_date=yesterday)
+    save_canonical_equities([equity], snapshot_date="2000-01-01")
 
     actual = ensure_fresh_database(None)
 

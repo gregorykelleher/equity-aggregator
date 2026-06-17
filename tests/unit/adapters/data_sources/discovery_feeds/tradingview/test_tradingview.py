@@ -335,6 +335,35 @@ async def test_fetch_all_records_multiple_pages() -> None:
     assert len(records) == 2  # noqa: PLR2004
 
 
+async def test_fetch_all_records_empty_middle_page_continues() -> None:
+    """
+    ARRANGE: totalCount spans three pages; the middle page returns zero records
+        while the final page carries one
+    ACT:     fetch all records
+    ASSERT:  the populated pages are collected and the fetch is complete
+        (an empty middle page is not treated as a stop signal)
+    """
+    pages = iter(
+        [
+            [{"s": "NYSE:FOO", "d": ["FOO", "Foo Inc."] + [None] * 18}],
+            [],  # empty middle page
+            [{"s": "NYSE:BAR", "d": ["BAR", "Bar Inc."] + [None] * 18}],
+        ],
+    )
+
+    def _respond(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"totalCount": 2500, "data": next(pages)})
+
+    expected = (2, True)
+
+    transport = httpx.MockTransport(_respond)
+
+    async with httpx.AsyncClient(transport=transport) as client:
+        actual_records, actual_complete = await _fetch_all_records(client)
+
+    assert (len(actual_records), actual_complete) == expected
+
+
 async def test_fetch_all_records_flags_incomplete_on_page_failure() -> None:
     """
     ARRANGE: first page reports two pages, the second page 500s
