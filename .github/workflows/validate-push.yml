@@ -3,12 +3,14 @@ name: validate-push
 on:
   push:
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 permissions:
   contents: read
 
 concurrency:
-  group: push-validation-${{ github.sha }}
+  group: validate-${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -22,6 +24,7 @@ jobs:
           fetch-depth: 0  # Full history for linear history check
 
       - name: Check for linear history
+        if: github.event_name == 'push'
         run: |
           # Check if the latest commit is a merge commit (non-linear history)
           if git log --oneline --merges -1 HEAD | grep -q .; then
@@ -49,26 +52,32 @@ jobs:
 
       - name: Run linting on Src
         run: |
-          uv run ruff check src --fix
-          uv run ruff format src
+          uv run ruff check src
+          uv run ruff format --check src
 
       - name: Run unit tests with coverage
         run: |
           uv run pytest -m unit --cov=equity_aggregator --cov-report=xml --cov-report=json --cov-fail-under=99
 
+      - name: Extract coverage percentage
+        id: coverage
+        run: |
+          pct=$(python -c "import json; print(f\"{json.load(open('coverage.json'))['totals']['percent_covered']:.0f}%\")")
+          echo "pct=$pct" >> "$GITHUB_OUTPUT"
+
       - name: Create coverage badge
-        if: success()
+        if: success() && github.event_name == 'push'
         uses: schneegans/dynamic-badges-action@v1.7.0
         with:
           auth: ${{ secrets.GIST_AUTH }}
           gistID: ce6ce2d7e3c247c34aba66dedcd7ede3
           filename: coverage-badge.json
           label: Coverage
-          message: ≥99%
+          message: ${{ steps.coverage.outputs.pct }}
           color: brightgreen
 
       - name: Coverage Summary
         run: |
           echo "## Test Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ All unit tests passed with ≥99% coverage requirement" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All unit tests passed (coverage: ${{ steps.coverage.outputs.pct }}, requirement ≥99%)" >> $GITHUB_STEP_SUMMARY
