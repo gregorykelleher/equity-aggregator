@@ -160,7 +160,7 @@ wheels = [
 
 [[package]]
 name = "equity-aggregator"
-version = "1.0.21"
+version = "1.0.22"
 source = { editable = "." }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
