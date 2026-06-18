@@ -3,6 +3,7 @@
 import os
 import sqlite3
 import tempfile
+from datetime import UTC, datetime
 
 import pytest
 
@@ -10,10 +11,24 @@ from equity_aggregator.storage._utils import (
     connect,
     get_data_store_path,
     ttl_seconds,
+    utc_today,
     validate_table_exists_with_data,
 )
 
 pytestmark = pytest.mark.unit
+
+
+def test_utc_today_returns_utc_iso_date() -> None:
+    """
+    ARRANGE: the current UTC date
+    ACT:     utc_today
+    ASSERT:  returns today's date in UTC as a YYYY-MM-DD string
+    """
+    expected = datetime.now(UTC).date().isoformat()
+
+    actual = utc_today()
+
+    assert actual == expected
 
 
 def test_ttl_seconds_returns_default_when_env_not_set() -> None:

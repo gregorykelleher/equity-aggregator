@@ -1,6 +1,5 @@
 # storage/data_store.py
 
-import datetime
 import logging
 import sqlite3
 from collections.abc import Callable, Iterable
@@ -11,6 +10,7 @@ from ._utils import (
     CANONICAL_EQUITY_IDENTITIES_TABLE,
     CANONICAL_EQUITY_SNAPSHOTS_TABLE,
     connect,
+    utc_today,
 )
 from .freshness import ensure_fresh_database
 
@@ -166,13 +166,13 @@ def save_canonical_equities(
         canonical_equities (Iterable[CanonicalEquity]): An iterable of CanonicalEquity
             objects to be saved to the database.
         snapshot_date (str | None, optional): The snapshot date in YYYY-MM-DD format.
-            Defaults to today's date.
+            Defaults to today's date (UTC).
 
     Returns:
         None
     """
     canonical_equities = list(canonical_equities)
-    date = snapshot_date or datetime.date.today().isoformat()
+    date = snapshot_date or utc_today()
 
     logger.info("Saving %d canonical equities to database", len(canonical_equities))
 
