@@ -9,13 +9,15 @@
 
 ## Description
 
-Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (Intrinio, LSEG, SEC, XETRA, Stock Analysis, TradingView), before enriching it with third-party market vendor data from enrichment feeds (Yahoo Finance and Global LEI Foundation) to produce a unified canonical dataset of unique equities.
+Equity Aggregator builds a single, clean, deduplicated catalogue of the world's public companies — each with a stable identifier and key financial metrics — assembled entirely from free, publicly available data sources.
 
-Altogether, this tool makes it possible to retrieve up-to-date information on over 18,000 equities from countries worldwide.
+In more technical terms, it collects and normalises raw equity data from discovery sources (Intrinio, SEC, Stock Analysis, TradingView, LSEG, XETRA), then enriches it with third-party market vendor data from enrichment feeds (Yahoo Finance and the Global LEI Foundation) to produce a unified, *canonical* dataset of unique equities. Here, "canonical" simply means one normalised, deduplicated record per company.
+
+Altogether, this makes it possible to retrieve up-to-date information on over 18,000 equities from markets worldwide.
 
 ## What kind of Equity Data is available?
 
-Equity Aggregator provides a comprehensive profile for each equity in its canonical collection, structured through validated schemas that ensure clean separation between essential identity metadata and extensive financial metrics:
+Equity Aggregator provides a structured profile for each equity in its canonical collection, defined through validated schemas that cleanly separate essential identity metadata from extensive financial metrics:
 
 ### Identity Metadata
 
@@ -44,7 +46,7 @@ The supplementary market and fundamental metrics, grouped into the following cat
 | Category | Fields |
 |----------|--------|
 | Market Data | `last_price`, `market_cap`, `currency`, `market_volume` |
-| Trading Venues | `mics`
+| Trading Venues | `mics` |
 | Price Performance | `fifty_two_week_min`, `fifty_two_week_max`, `performance_1_year` |
 | Share Structure | `shares_outstanding`, `share_float`, `dividend_yield` |
 | Ownership | `held_insiders`, `held_institutions`, `short_interest` |
@@ -66,7 +68,7 @@ A live view of the canonical dataset's scale, composition, market capitalisation
 
 ### Key Figures
 
-Headline measures of the dataset's scale, composition, market capitalisation, and internal consistency:
+The headline numbers for the latest snapshot:
 
 <!-- STATS:START -->
 | Metric | Value |
@@ -76,7 +78,7 @@ Headline measures of the dataset's scale, composition, market capitalisation, an
 | Industries | 255 |
 | Listing venues (MICs) | 10 |
 | Daily snapshots | 67 |
-| History since | 2026-02-16 |
+| History since | 16/02/2026 |
 | Aggregate market cap | $117.07T |
 | Largest market cap | $4.96T |
 | Median market cap | $291M |
@@ -136,7 +138,7 @@ pip install equity-aggregator
 
 ### Python API
 
-Equity Aggregator exposes a focused public API that enables seamless integration opportunities. The API automatically detects and downloads the latest canonical equity dataset from remote sources when needed, ensuring users always work with up-to-date data.
+Equity Aggregator exposes a small, focused public API for integration. It automatically detects and downloads the latest canonical equity dataset from remote sources when needed, so users always work with up-to-date data.
 
 #### Retrieving All Equities
 
@@ -156,7 +158,7 @@ for equity in equities[:3]:  # Show first 3
 
 **Example Output:**
 ```
-Retrieved 10000 canonical equities
+Retrieved 18056 canonical equities
 AAPL: APPLE INC
 MSFT: MICROSOFT CORP
 GOOGL: ALPHABET INC
@@ -200,8 +202,8 @@ print(f"Retrieved {len(snapshots)} snapshots")
 # Filter by date range (inclusive, YYYY-MM-DD)
 recent = retrieve_canonical_equity_history(
     "BBG000B9XRY4",
-    from_date="2025-01-01",
-    to_date="2025-01-31",
+    from_date="2026-03-01",
+    to_date="2026-03-31",
 )
 
 for snapshot in recent:
@@ -211,9 +213,9 @@ for snapshot in recent:
 **Example Output:**
 ```
 Retrieved 90 snapshots
-2025-01-01: 243.85
-2025-01-02: 245.00
-2025-01-03: 244.12
+2026-02-16: 243.85
+2026-02-17: 245.00
+2026-02-18: 244.12
 ```
 
 > [!NOTE]
@@ -251,7 +253,7 @@ Market Cap: 3500000000000
 
 ### CLI Usage
 
-Once installed, Equity Aggregator provides a comprehensive command-line interface for managing equity data operations. The CLI offers two main commands:
+Once installed, Equity Aggregator provides a command-line interface for managing equity data. The CLI offers two main commands:
 
 - **seed** - Aggregate and populate the local database with fresh equity data
 - **download** - Download the latest canonical equity database from remote repository
@@ -270,13 +272,13 @@ options:
   -q, --quiet           quiet mode - only show warnings and errors
 
 commands:
-  Available operations
+  available operations
 
   {seed,download}
     seed                aggregate enriched canonical equity data sourced from data feeds
     download            download latest canonical equity data from remote repository
 
-Use 'equity-aggregator <command> --help' for help
+use 'equity-aggregator <command> --help' for help
 ```
 
 #### Download Command
@@ -298,7 +300,7 @@ The `download` command retrieves the latest canonical equity database from GitHu
 
 #### Seed Command
 
-The `seed` command executes the complete equity aggregation pipeline, collecting raw data from discovery sources (LSEG, SEC, XETRA, Stock Analysis, TradingView), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
+The `seed` command executes the complete equity aggregation pipeline, collecting raw data from discovery sources (Intrinio, SEC, Stock Analysis, TradingView, LSEG, XETRA), enriching it with market data from enrichment feeds, and storing the processed results in the local database. This command runs the full transformation pipeline to create a fresh canonical equity dataset.
 
 This command requires that the following API keys are set prior:
 
@@ -333,171 +335,9 @@ Log files are also automatically written to the system-appropriate log directory
 
 This ensures consistent integration with the host operating system's data and log management practices.
 
-### Development Setup
+## Contributing
 
-Follow these steps to set up the development environment for the Equity Aggregator application.
-
-#### Prerequisites
-
-Before starting, ensure the following conditions have been met:
-
-- **Python 3.12+**: The application requires Python 3.12 or later
-- **uv**: Python package manager
-- **Git**: For version control
-- **Docker** (optional): For containerised development and deployment
-
-#### Environment Setup
-
-#### Clone the repository:
-
-```bash
-git clone <repository-url>
-cd equity-aggregator
-```
-
-#### Create and activate virtual environment:
-
-```bash
-# Create virtual environment with Python 3.12
-uv venv --python 3.12
-
-# Activate the virtual environment
-source .venv/bin/activate
-```
-
-#### Install dependencies:
-
-```bash
-# Install all dependencies and sync workspace
-uv sync --all-packages
-```
-
-#### Environment Variables
-
-The application requires API keys for external data sources. A template file `.env_example` is provided in the project root for guidance.
-
-#### Copy the example environment file:
-
-```bash
-cp .env_example .env
-```
-
-#### Configure API keys by editing `.env` and adding the following:
-
-#### Mandatory Keys:
-
-- `EXCHANGE_RATE_API_KEY` - Required for currency conversion
-  - Retrieve from: [ExchangeRate-API](https://exchangerate-api.com/)
-  - Used for converting equity prices to USD reference currency
-
-- `OPENFIGI_API_KEY` - Required for equity identification
-  - Retrieve from: [OpenFIGI](https://www.openfigi.com/api)
-  - Used for equity identification and deduplication
-
-#### Optional Keys:
-
-- `INTRINIO_API_KEY` - For Intrinio discovery feed
-  - Retrieve from: [Intrinio](https://intrinio.com/)
-  - Provides US equity data with comprehensive quote information
-
-- `GITHUB_TOKEN` - For increased GitHub API rate limits
-  - Retrieve from: [GitHub Settings](https://github.com/settings/tokens)
-  - Increases release download rate limits from 60/hour to 5,000/hour
-  - No special scopes required for public repositories
-
-#### Verify Installation
-
-This setup provides access to the full development environment with all dependencies, testing frameworks, and development tools configured.
-
-It should therefore be possible to verify correct operation by running the following commands using `uv`:
-
-```bash
-# Verify the application is properly installed
-uv run equity-aggregator --help
-
-# Run unit tests to confirm functionality
-uv run pytest -m unit
-
-# Check code formatting and linting
-uv run ruff check src
-
-# Test API key configuration
-uv run --env-file .env equity-aggregator seed
-```
-
-#### Running Tests
-
-Run the test suites using the following commands:
-
-```bash
-# Run all unit tests
-uv run pytest -m unit
-
-# Run with verbose output
-uv run pytest -m unit -v
-
-# Run with coverage reporting
-uv run pytest -m unit --cov=equity_aggregator --cov-report=term-missing
-
-# Run with detailed coverage and HTML report
-uv run pytest -vvv -m unit --cov=equity_aggregator --cov-report=term-missing --cov-report=html
-
-# Run live tests (requires API keys and internet connection)
-uv run pytest -m live
-
-# Run all tests
-uv run pytest
-```
-
-#### Code Quality and Linting
-
-The project uses `ruff` for static analysis, code formatting, and linting:
-
-```bash
-# Format code automatically
-uv run ruff format
-
-# Check for linting issues
-uv run ruff check
-
-# Fix auto-fixable linting issues
-uv run ruff check --fix
-
-# Check formatting without making changes
-uv run ruff format --check
-
-# Run linting on specific directory
-uv run ruff check src
-```
-
-> [!NOTE]
-> Ruff checks only apply to the `src` directory - tests are excluded from formatting and linting requirements.
-
-### Docker
-
-The Equity Aggregator project can optionally be containerised using Docker. The `docker-compose.yml` defines the equity-aggregator service.
-
-#### Docker Commands
-
-```bash
-# Build and run the container
-docker compose up --build
-
-# Run in background
-docker compose up -d
-
-# Stop and remove containers
-docker compose down
-
-# View container logs
-docker logs equity-aggregator
-
-# Execute commands in running container
-docker compose exec equity-aggregator bash
-```
-
-> [!NOTE]
-> The Docker setup uses named volumes for persistent database storage and automatically handles all directory creation and permissions.
+Contributions are welcome. For local development setup, environment-variable and API-key configuration, running the test suites, code-quality standards, and Docker usage, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Architecture
 
@@ -514,8 +354,8 @@ equity-aggregator/
 │   │   │   └── transforms/          # Transformation stages
 │   │   └── retrieval/               # Data download and retrieval
 │   ├── adapters/data_sources/       # External data integrations
-│   │   ├── discovery_feeds/         # Primary sources (Intrinio, LSEG, SEC, Stock Analysis, TradingView, XETRA)
-│   │   └── enrichment_feeds/        # Enrichment feed integrations (Yahoo Finance)
+│   │   ├── discovery_feeds/         # Primary sources (Intrinio, SEC, Stock Analysis, TradingView, LSEG, XETRA)
+│   │   └── enrichment_feeds/        # Enrichment feed integrations (Yahoo Finance, GLEIF)
 │   ├── schemas/                     # Data validation and types
 │   └── storage/                     # Database operations
 ├── data/                            # Database and cache
