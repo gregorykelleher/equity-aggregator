@@ -36,15 +36,14 @@ Raw Data Sources → Parse → Convert → Identify → Group → Enrich → Can
 
 ### Pipeline Stages
 
-#### 1. **Resolve**
-
-Orchestrates parallel data fetching from discovery feeds:
+The six transform stages below are fed by **Resolve**, which orchestrates
+parallel data fetching from the discovery feeds:
 
 - Fetches data from LSEG, SEC, Stock Analysis, TradingView, XETRA and Intrinio concurrently
 - Combines all feed data into a single stream for processing
 - Maintains feed source metadata for downstream processing
 
-#### 2. **Parse**
+#### 1. **Parse**
 
 Validates and structures raw feed data:
 
@@ -52,7 +51,7 @@ Validates and structures raw feed data:
 - Filters out invalid records early in the pipeline
 - Normalises data formats across different sources
 
-#### 3. **Convert**
+#### 2. **Convert**
 
 Standardises financial data to USD reference currency:
 
@@ -60,14 +59,14 @@ Standardises financial data to USD reference currency:
 - Converts prices while preserving original currency metadata
 - Handles currency conversion failures gracefully
 
-#### 4. **Identify**
+#### 3. **Identify**
 
 Enriches records with global identification metadata:
 
 - Queries OpenFIGI API for FIGI identifiers
 - Creates globally unique equity identities
 
-#### 5. **Group**
+#### 4. **Group**
 
 Groups equities by Share Class FIGI:
 
@@ -76,7 +75,7 @@ Groups equities by Share Class FIGI:
 - Each group represents the same equity from multiple discovery sources
 - Yields groups as `list[RawEquity]` for enrichment processing
 
-#### 6. **Enrich**
+#### 5. **Enrich**
 
 Fetches enrichment data and performs comprehensive single merge:
 
@@ -85,7 +84,7 @@ Fetches enrichment data and performs comprehensive single merge:
 - Performs single merge of all sources (discovery + enrichment) for optimal data quality
 - Applies controlled concurrency to enrichment feeds to respect API limits
 
-#### 7. **Canonicalise**
+#### 6. **Canonicalise**
 
 Converts to final canonical schema:
 
@@ -235,6 +234,7 @@ class LsegFeedData(BaseModel):
 - **dispatcher.py**: Command routing (seed, download)
 - **parser.py**: Command-line interface definition
 - **config.py**: Configuration management
+- **signals.py**: Graceful shutdown signal handling
 
 ### Domain Layer
 
@@ -253,4 +253,5 @@ class LsegFeedData(BaseModel):
 
 - **data_store.py**: SQLite database operations
 - **cache.py**: Caching for API responses
-- **export.py**: Data export functionality
+- **freshness.py**: Database staleness checks and refresh orchestration
+- **_utils.py**: Shared storage helpers (connection, paths, UTC dates)

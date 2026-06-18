@@ -99,7 +99,7 @@ async def test_api_client_fetches_data() -> None:
 source = ["src"]
 branch = true
 data_file = "data/.coverage"
-omit = ["*/__init__.py", "*/__main__.py", "*/logging_config.py"]
+omit = ["*/__init__.py", "*/__main__.py", "*/logging_config.py", "*/pipeline/runner.py"]
 
 [tool.coverage.report]
 show_missing = true

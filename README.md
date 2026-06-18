@@ -100,6 +100,8 @@ The number of canonical equities falling within each market capitalisation tier:
 
 ## Where does the Equity Data come from?
 
+Equity Aggregator draws on two complementary kinds of data feed. **Discovery feeds** are the primary market sources that establish the universe of equities and their core identifiers, while **enrichment feeds** layer supplementary market data and fundamentals on top to complete each canonical profile.
+
 ### Discovery Feeds
 
 Discovery feeds provide raw equity data from primary market sources:
@@ -107,10 +109,10 @@ Discovery feeds provide raw equity data from primary market sources:
 | Source | Coverage | Description |
 |----------|---------|-------------|
 | 🇺🇸 Intrinio | United States | Intrinio |
-| 🇬🇧 LSEG | International | London Stock Exchange Group |
 | 🇺🇸 SEC | United States | Securities and Exchange Commission |
 | 🇺🇸 Stock Analysis | International | Stock Analysis |
 | 🇺🇸 TradingView | International | TradingView |
+| 🇬🇧 LSEG | International | London Stock Exchange Group |
 | 🇩🇪 XETRA | International | Deutsche Börse electronic trading platform |
 
 ### Enrichment Feeds
@@ -173,7 +175,7 @@ apple_equity = retrieve_canonical_equity("BBG000B9XRY4")
 print(f"Company: {apple_equity.identity.name}")
 print(f"Symbol: {apple_equity.identity.symbol}")
 print(f"Market Cap: ${apple_equity.financials.market_cap:,.0f}")
-print(f"Currency: {apple_equity.pricing.currency}")
+print(f"Currency: {apple_equity.financials.currency}")
 ```
 
 **Example Output:**
@@ -219,7 +221,7 @@ Retrieved 90 snapshots
 
 #### Data Models
 
-All data is returned as type-safe Pydantic models, ensuring data validation and integrity. The `CanonicalEquity` model provides structured access to identity metadata, pricing information, and financial metrics.
+All data is returned as type-safe Pydantic models, ensuring data validation and integrity. The `CanonicalEquity` model provides structured access to identity metadata and financial metrics.
 
 ```python
 from equity_aggregator import retrieve_canonical_equity, CanonicalEquity
