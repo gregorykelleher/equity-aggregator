@@ -175,7 +175,9 @@ def _render_key_figures(
         connection,
         f"SELECT COUNT(DISTINCT snapshot_date) FROM {SNAPSHOTS_TABLE}",
     )
-    earliest = _scalar(connection, f"SELECT MIN(snapshot_date) FROM {SNAPSHOTS_TABLE}")
+    earliest = _humanise_date(
+        _scalar(connection, f"SELECT MIN(snapshot_date) FROM {SNAPSHOTS_TABLE}"),
+    )
     total = _humanise_usd(_market_cap_aggregate(connection, latest, "SUM"))
     largest = _humanise_usd(_market_cap_aggregate(connection, latest, "MAX"))
     median = _humanise_usd(_market_cap_median(connection, latest))
@@ -385,6 +387,19 @@ def _real(field: str) -> str:
         str: The CAST expression for use within a query.
     """
     return f"CAST(json_extract(payload, '$.{field}') AS REAL)"
+
+
+def _humanise_date(iso_date: str | None) -> str:
+    """
+    Reformat an ISO snapshot date into a human-readable DD/MM/YYYY string.
+
+    Returns:
+        str: The date as DD/MM/YYYY, or an empty string when none is present.
+    """
+    if not iso_date:
+        return ""
+    year, month, day = iso_date.split("-")
+    return f"{day}/{month}/{year}"
 
 
 def _humanise_usd(value: float) -> str:
