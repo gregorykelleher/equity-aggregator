@@ -1,9 +1,11 @@
-# Contributing to Equity Aggregator
+# Development
 
-Thanks for your interest in contributing. This guide covers setting up a local
-development environment, configuring API keys, running the test suites, the
-project's code-quality standards, and optional Docker usage. For an overview of
-what the project does and how to use it, see the [README](README.md).
+This guide covers setting up a local development environment for Equity
+Aggregator: installing dependencies, configuring API keys, running the test
+suites, the project's code-quality standards, and optional Docker usage. For an
+overview of what the project does and how to use it, see the
+[README](../README.md). For the test suites in detail, see [testing](testing.md);
+for the system design, see [architecture](architecture.md).
 
 ## Prerequisites
 

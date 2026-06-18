@@ -9,11 +9,12 @@
 
 ## Description
 
-Equity Aggregator builds a single, clean, deduplicated catalogue of the world's public companies — each with a stable identifier and key financial metrics — assembled entirely from free, publicly available data sources.
+Equity Aggregator is a financial data tool that collects and normalises raw equity data from discovery sources (Intrinio, LSEG, SEC, XETRA, Stock Analysis, TradingView), before enriching it with third-party market vendor data from enrichment feeds (Yahoo Finance and Global LEI Foundation) to produce a unified canonical dataset of unique equities.
 
-In more technical terms, it collects and normalises raw equity data from discovery sources (Intrinio, SEC, Stock Analysis, TradingView, LSEG, XETRA), then enriches it with third-party market vendor data from enrichment feeds (Yahoo Finance and the Global LEI Foundation) to produce a unified, *canonical* dataset of unique equities. Here, "canonical" simply means one normalised, deduplicated record per company.
+> [!NOTE]
+> **"Canonical"** here means a single, authoritative record per equity: each company appears exactly once, normalised to a consistent schema and reconciled (deduplicated) across every source that lists it.
 
-Altogether, this makes it possible to retrieve up-to-date information on over 18,000 equities from markets worldwide.
+Altogether, this tool makes it possible to retrieve up-to-date information on over 18,000 equities from countries worldwide.
 
 ## What kind of Equity Data is available?
 
@@ -102,7 +103,7 @@ The number of canonical equities falling within each market capitalisation tier:
 
 ## Where does the Equity Data come from?
 
-Equity Aggregator draws on two complementary kinds of data feed. **Discovery feeds** are the primary market sources that establish the universe of equities and their core identifiers, while **enrichment feeds** layer supplementary market data and fundamentals on top to complete each canonical profile.
+Equity Aggregator draws on two complementary kinds of data feed. Discovery feeds are the primary market sources that establish the universe of equities and their core identifiers, while enrichment feeds layer supplementary market data and fundamentals on top to complete each canonical profile.
 
 ### Discovery Feeds
 
@@ -335,97 +336,13 @@ Log files are also automatically written to the system-appropriate log directory
 
 This ensures consistent integration with the host operating system's data and log management practices.
 
-## Contributing
+## Documentation
 
-Contributions are welcome. For local development setup, environment-variable and API-key configuration, running the test suites, code-quality standards, and Docker usage, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Further documentation lives in the [`documentation/`](documentation) directory:
 
-## Architecture
-
-### Project Structure
-
-The codebase is organised following best practices, ensuring a clear separation between core domain logic, external adapters, and infrastructure components:
-
-```
-equity-aggregator/
-├── src/equity_aggregator/           # Main application source
-│   ├── cli/                         # Command-line interface
-│   ├── domain/                      # Core business logic
-│   │   ├── pipeline/                # Aggregation pipeline
-│   │   │   └── transforms/          # Transformation stages
-│   │   └── retrieval/               # Data download and retrieval
-│   ├── adapters/data_sources/       # External data integrations
-│   │   ├── discovery_feeds/         # Primary sources (Intrinio, SEC, Stock Analysis, TradingView, LSEG, XETRA)
-│   │   └── enrichment_feeds/        # Enrichment feed integrations (Yahoo Finance, GLEIF)
-│   ├── schemas/                     # Data validation and types
-│   └── storage/                     # Database operations
-├── data/                            # Database and cache
-├── tests/                           # Unit and integration tests
-├── docker-compose.yml               # Container configuration
-└── pyproject.toml                   # Project metadata and dependencies
-```
-
-### Project Dependencies (Production)
-
-The dependency listing is intentionally minimal, relying only on the following core packages:
-
-| Dependency | Use case |
-|------------|----------|
-| pydantic | Type-safe models and validation for data |
-| rapidfuzz | Fast fuzzy matching to reconcile data sourced by multiple data feeds |
-| httpx | HTTP client with HTTP/2 support for data feed retrieval |
-| openfigipy | OpenFIGI integration that anchors equities to a definitive identifier |
-| platformdirs | Consistent storage paths for caches, logs, and data stores on every OS |
-
-Keeping such a small set of dependencies reduces upgrade risk and maintenance costs, whilst still providing all the functionality required for comprehensive equity data aggregation and processing.
-
-### Data Transformation Pipeline
-
-The aggregation pipeline consists of six sequential transformation stages, each with a specific responsibility:
-
-1. **Parse**: Extract and validate raw equity data from discovery feed data
-2. **Convert**: Normalise currency values to USD reference currency using live exchange rates
-3. **Identify**: Attach definitive identification metadata (i.e. Share Class FIGI) via OpenFIGI
-4. **Group**: Group equities by Share Class FIGI, preserving all discovery feed sources
-5. **Enrich**: Fetch enrichment data and perform single comprehensive merge of all sources (discovery + enrichment)
-6. **Canonicalise**: Transform enriched data into the final canonical equity schema
-
-### Clean Architecture Layers
-
-The codebase adheres to clean architecture principles with distinct layers:
-
-- **Domain Layer** (`domain/`): Contains core business logic, pipeline orchestration, and transformation rules independent of external dependencies
-- **Adapter Layer** (`adapters/`): Implements interfaces for external systems including data feeds, APIs, and third-party services
-- **Infrastructure Layer** (`storage/`, `cli/`): Handles system concerns, regarding database operations and command-line tooling
-- **Schema Layer** (`schemas/`): Defines data contracts and validation rules using Pydantic models for type safety
-
-### Test Suites
-
-The project maintains two distinct test suites, each serving a specific purpose in the testing strategy:
-
-#### Unit Tests (`-m unit`)
-
-Unit tests provide comprehensive coverage of all internal application logic. These tests are fully isolated and do not make any external network calls, ensuring fast and deterministic execution. The suite contains over 1,000 test cases and executes in under 30 seconds, enforcing a **minimum coverage threshold of 99%** with the goal of maintaining **100% coverage** across all source code.
-
-Unit tests follow strict conventions:
-- **AAA Pattern**: All tests are structured using the Arrange-Act-Assert pattern for clarity and consistency
-- **Single Assertion**: Each test case contains exactly one assertion, ensuring focused and maintainable tests
-- **No Mocking**: Monkey-patching and Python mocking techniques (e.g. `monkeypatch`, `unittest.mock`) are strictly forbidden, promoting testable design through dependency injection and explicit interfaces
-
-#### Live Tests (`-m live`)
-
-Live tests serve as **sanity tests** that validate external API endpoints are available and responding correctly. These tests hit real external services to verify that:
-- Discovery and enrichment feed endpoints are accessible
-- API response schemas match expected Pydantic models
-- Authentication and rate limiting are functioning as expected
-
-Live tests act as an early warning system, catching upstream API changes or outages before they impact the main aggregation pipeline.
-
-#### Continuous Integration
-
-Both test suites are executed as part of the GitHub Actions CI pipeline:
-
-- **[validate-push.yml](.github/workflows/validate-push.yml)**: Runs unit tests with coverage enforcement on every push to master, ensuring code quality and the 99% coverage threshold are maintained
-- **[publish-build-release.yml](.github/workflows/publish-build-release.yml)**: Runs live sanity tests before executing the nightly aggregation pipeline, validating that all external APIs are operational before publishing a new release
+- **[Architecture](documentation/architecture.md)** — project structure, dependencies, the transformation pipeline, and the clean-architecture layers
+- **[Testing](documentation/testing.md)** — the unit and live test suites, conventions, and coverage configuration
+- **[Development](documentation/development.md)** — local setup, environment variables, running the tests, and Docker usage
 
 ## Limitations
 
