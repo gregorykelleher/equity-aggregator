@@ -13,6 +13,7 @@ from equity_aggregator.domain.pipeline.transforms.enrich import (
     FeedSpec,
     _enrich_equity_group,
     _enrich_from_feed,
+    _error_summary,
     _init_feed,
     _open_feeds,
     _process_stream,
@@ -50,6 +51,17 @@ class ErrorFeedData:
             def errors(self) -> list[dict[str, tuple[str]]]:
                 # mimic both currency and market_cap are invalid
                 return [{"loc": ("currency",)}, {"loc": ("market_cap",)}]
+
+        raise _ValidationError("validation failed")
+
+
+class ModelLevelErrorFeedData:
+    @staticmethod
+    def model_validate(record: dict[str, object]) -> "ModelLevelErrorFeedData":
+        class _ValidationError(Exception):
+            def errors(self) -> list[dict[str, object]]:
+                # model-level error (e.g. @required validator): loc is empty
+                return [{"loc": (), "msg": "name is required", "type": "value_error"}]
 
         raise _ValidationError("validation failed")
 
@@ -691,6 +703,61 @@ def test_validate_handles_error_feed() -> None:
     actual = _validate(raw_record, ErrorFeedData, "ErrorFeed", identifiers)
 
     assert actual is None
+
+
+def test_validate_handles_model_level_error_without_indexerror() -> None:
+    """
+    ARRANGE: model that raises a validation error with empty loc (model-level)
+    ACT:     call _validate
+    ASSERT:  returns None (no IndexError escapes to abort the stream)
+    """
+    raw_record = {"name": "X", "symbol": "X"}
+
+    identifiers = EquityIdentifiers(
+        symbol="X",
+        name="X",
+        isin=None,
+        cusip=None,
+        cik=None,
+        lei=None,
+        share_class_figi="BBG000BLNNH6",
+    )
+
+    actual = _validate(raw_record, ModelLevelErrorFeedData, "ErrorFeed", identifiers)
+
+    assert actual is None
+
+
+def test_error_summary_empty_loc_uses_message() -> None:
+    """
+    ARRANGE: Pydantic-like error whose only error has empty loc
+    ACT:     call _error_summary
+    ASSERT:  summary falls back to the error message (no IndexError)
+    """
+
+    class _FakeError(Exception):
+        def errors(self) -> list[dict[str, object]]:
+            return [{"loc": (), "msg": "name is required"}]
+
+    actual = _error_summary(_FakeError())
+
+    assert actual == "invalid name is required"
+
+
+def test_error_summary_field_loc_lists_field_name() -> None:
+    """
+    ARRANGE: Pydantic-like error with field-level loc entries
+    ACT:     call _error_summary
+    ASSERT:  summary lists the sorted field names (existing format preserved)
+    """
+
+    class _FakeError(Exception):
+        def errors(self) -> list[dict[str, object]]:
+            return [{"loc": ("market_cap",)}, {"loc": ("currency",)}]
+
+    actual = _error_summary(_FakeError())
+
+    assert actual == "invalid currency, market_cap"
 
 
 def test_to_usd_handles_converter_returning_none() -> None:
