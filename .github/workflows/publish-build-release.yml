@@ -93,31 +93,31 @@ jobs:
       - name: Compress data store for release
         run: gzip -k data/data_store/data_store.db
 
-      - name: Get latest log file
-        id: latest_log
+      - name: Stage release assets
         run: |
+          # Copy the timestamped log to a stable asset name so successive runs
+          # overwrite (clobber) it rather than accumulating one log per night.
           LATEST_LOG=$(ls -t data/logs/equity_aggregator_*.log | head -1)
-          echo "latest_log=$LATEST_LOG" >> $GITHUB_OUTPUT
-
-      - name: Delete existing release
-        run: |
-          gh release delete latest-build-release --yes || true
-          git push --delete origin latest-build-release || true
-        env:
-          GH_TOKEN: ${{ github.token }}
+          cp "$LATEST_LOG" data/logs/equity_aggregator_latest.log
 
       - name: Publish Latest Canonical Equities Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest-build-release
-          name: latest-build-release
-          body: "Latest automated build of canonical equities data"
-          make_latest: true
-          fail_on_unmatched_files: true
-          generate_release_notes: false
-          files: |
-            data/data_store/data_store.db.gz
-            ${{ steps.latest_log.outputs.latest_log }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Update the release in place — never delete it — so the published
+          # data_store.db.gz is always present (no download 404 window, and a
+          # cancelled run can't leave zero release).
+          if ! gh release view latest-build-release >/dev/null 2>&1; then
+            gh release create latest-build-release \
+              --title latest-build-release \
+              --notes "Latest automated build of canonical equities data" \
+              --latest
+          fi
+
+          gh release upload latest-build-release \
+            data/data_store/data_store.db.gz \
+            data/logs/equity_aggregator_latest.log \
+            --clobber
 
       - name: Commit updated coverage table
         run: |
