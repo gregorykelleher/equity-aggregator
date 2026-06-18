@@ -236,6 +236,32 @@ def test_to_analyst_rating_invalid_value() -> None:
     assert actual is None
 
 
+def test_to_analyst_rating_maps_strong_buy() -> None:
+    """
+    ARRANGE: Yahoo recommendationKey "strong_buy"
+    ACT:     to_analyst_rating
+    ASSERT:  maps to canonical "BUY" (not dropped to None)
+    """
+    value = "strong_buy"
+
+    actual = validators.to_analyst_rating(value)
+
+    assert actual == "BUY"
+
+
+def test_to_analyst_rating_maps_strong_sell() -> None:
+    """
+    ARRANGE: Yahoo recommendationKey "strong_sell"
+    ACT:     to_analyst_rating
+    ASSERT:  maps to canonical "SELL" (not dropped to None)
+    """
+    value = "strong_sell"
+
+    actual = validators.to_analyst_rating(value)
+
+    assert actual == "SELL"
+
+
 def test__parse_numeric_text_valid() -> None:
     """
     ARRANGE: numeric string with leading '+'
@@ -607,3 +633,13 @@ def test_to_snapshot_date_accepts_valid_date() -> None:
     actual = validators.to_snapshot_date("2025-01-15")
 
     assert actual == expected
+
+
+def test_to_snapshot_date_rejects_impossible_date() -> None:
+    """
+    ARRANGE: well-formed but impossible calendar date
+    ACT:     to_snapshot_date
+    ASSERT:  raises ValueError (regex shape alone would have accepted it)
+    """
+    with pytest.raises(ValueError):
+        validators.to_snapshot_date("2026-99-99")

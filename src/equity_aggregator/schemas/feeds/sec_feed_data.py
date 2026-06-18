@@ -14,7 +14,8 @@ class SecFeedData(BaseModel):
     Args:
         name (str): Company name, mapped from "name".
         symbol (str): Equity symbol, mapped from "symbol".
-        cik (str): Central Index Key, converted from int to 10-digit zero-padded string.
+        cik (str | None): Central Index Key, converted from int to 10-digit
+            zero-padded string, or None when the feed omits it.
         mics (list[str]): List of MIC codes; defaults to an empty list if missing.
 
     Returns:
@@ -22,7 +23,7 @@ class SecFeedData(BaseModel):
     """
 
     # Fields exactly match RawEquity's signature
-    cik: str
+    cik: str | None = None
     name: str
     symbol: str
     mics: list[str]
@@ -75,11 +76,13 @@ def convert_cik_to_str(raw: dict) -> dict:
 
     Returns:
         dict: A new dictionary with CIK converted to 10-digit zero-padded string
-            if present and not None. All other fields remain unchanged.
+            if present and not None, or None when absent. All other fields remain
+            unchanged.
     """
-    # Convert integer CIK to 10-digit zero-padded string
+    # Convert integer CIK to 10-digit zero-padded string; leave None as None
+    # (a missing CIK must not become the fabricated string "000000None")
     cik_value = raw.get("cik")
-    updates = {"cik": str(cik_value).zfill(10)}
+    cik = None if cik_value is None else str(cik_value).zfill(10)
 
     # Return new dict rather than mutating in place
-    return {**raw, **updates}
+    return {**raw, "cik": cik}
