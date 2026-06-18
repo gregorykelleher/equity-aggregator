@@ -17,6 +17,7 @@ from .validators import (
     to_mic,
     to_signed_decimal,
     to_snapshot_date,
+    to_symbol,
     to_unsigned_decimal,
     to_upper,
 )
@@ -28,6 +29,14 @@ UpperStrOpt = Annotated[str | None, BeforeValidator(to_upper)]
 UpperStrReq = Annotated[
     str | None,
     BeforeValidator(to_upper),
+    AfterValidator(require_non_empty),
+]
+
+# Required ticker symbol must be non-empty; punctuation is preserved (lossless)
+# so identifier lookups (e.g. OpenFIGI) receive the original symbol.
+SymbolStrReq = Annotated[
+    str | None,
+    BeforeValidator(to_symbol),
     AfterValidator(require_non_empty),
 ]
 

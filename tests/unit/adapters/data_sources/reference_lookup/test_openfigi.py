@@ -111,6 +111,17 @@ def test_to_query_record_falls_back_to_ticker() -> None:
     assert _to_query_record(equity)["idType"] == "TICKER"
 
 
+def test_to_query_record_ticker_uses_lossless_symbol() -> None:
+    """
+    ARRANGE: equity with no ISIN/CUSIP and a dotted symbol;
+    ACT: to_query_record;
+    ASSERT: idValue keeps the dot (BRK.B), not the mangled BRK B
+    """
+    equity = RawEquity(name="T", symbol="brk.b")
+
+    assert _to_query_record(equity)["idValue"] == "BRK.B"
+
+
 def test_to_query_record_sets_security_type_common_stock() -> None:
     """
     ARRANGE: any equity;

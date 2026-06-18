@@ -16,6 +16,7 @@ from .types import (
     LEIStrOpt,
     MICListOpt,
     SignedDecOpt,
+    SymbolStrReq,
     UnsignedDecOpt,
     UpperStrOpt,
     UpperStrReq,
@@ -69,7 +70,7 @@ class RawEquity(BaseModel):
 
     # raw metadata, required
     name: UpperStrReq = Field(..., description="Equity name, required.")
-    symbol: UpperStrReq = Field(..., description="Equity symbol, required.")
+    symbol: SymbolStrReq = Field(..., description="Equity symbol, required.")
 
     # identifiers, optional
     isin: ISINStrOpt = None
