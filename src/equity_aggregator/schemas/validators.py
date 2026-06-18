@@ -58,6 +58,35 @@ def to_upper(value: str | float | Decimal | None) -> str | None:
     return text.strip().upper()
 
 
+def to_symbol(value: str | float | Decimal | None) -> str | None:
+    """
+    Normalises a ticker symbol while preserving its punctuation.
+
+    Unlike to_upper, this keeps characters such as '.', '/' and '-' intact, so a
+    symbol like `BRK.B` survives as `BRK.B` rather than being mangled to `BRK B`.
+    Preserving the lossless form is required for downstream identifier lookups
+    (e.g. OpenFIGI TICKER queries), which need the original symbol.
+
+    - Returns None for None or blank input.
+    - Uppercases, trims, and collapses internal whitespace runs.
+
+    Args:
+        value: The input symbol to normalise, expected as a string or None.
+
+    Returns:
+        str | None: The uppercased symbol with punctuation preserved, or None if
+            input is blank.
+    """
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    return _SPACES.sub(" ", text).upper()
+
+
 def to_signed_decimal(
     value: str | float | Decimal | None,
     info: cs.ValidationInfo,

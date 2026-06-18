@@ -111,6 +111,22 @@ def test_isin_lowercase_is_uppercased() -> None:
     assert equity.isin == "US0378331005"
 
 
+def test_dotted_symbol_is_preserved_losslessly() -> None:
+    """
+    ARRANGE: share-class symbol with a dot
+    ACT:     construct RawEquity
+    ASSERT:  symbol keeps its punctuation (BRK.B, not BRK B) for OpenFIGI lookups
+    """
+    payload = {
+        "name": "BERKSHIRE HATHAWAY",
+        "symbol": "brk.b",
+    }
+
+    equity = RawEquity(**payload)
+
+    assert equity.symbol == "BRK.B"
+
+
 def test_invalid_currency_raises() -> None:
     """
     ARRANGE: invalid currency code

@@ -113,6 +113,56 @@ def test_to_upper_blank_string_optional() -> None:
     assert actual is None
 
 
+def test_to_symbol_preserves_dot() -> None:
+    """
+    ARRANGE: dotted share-class symbol
+    ACT:     to_symbol
+    ASSERT:  punctuation is preserved (not mangled to "BRK B")
+    """
+    value = "brk.b"
+
+    actual = validators.to_symbol(value)
+
+    assert actual == "BRK.B"
+
+
+def test_to_symbol_uppercases_plain_symbol() -> None:
+    """
+    ARRANGE: lowercase plain symbol with surrounding whitespace
+    ACT:     to_symbol
+    ASSERT:  returns trimmed, uppercased symbol
+    """
+    value = "  aapl  "
+
+    actual = validators.to_symbol(value)
+
+    assert actual == "AAPL"
+
+
+def test_to_symbol_blank_returns_none() -> None:
+    """
+    ARRANGE: blank string
+    ACT:     to_symbol
+    ASSERT:  returns None
+    """
+    value = "   "
+
+    actual = validators.to_symbol(value)
+
+    assert actual is None
+
+
+def test_to_symbol_none_returns_none() -> None:
+    """
+    ARRANGE: None input
+    ACT:     to_symbol
+    ASSERT:  returns None
+    """
+    actual = validators.to_symbol(None)
+
+    assert actual is None
+
+
 def test_to_unsigned_decimal_valid() -> None:
     """
     ARRANGE: US-style numeric string

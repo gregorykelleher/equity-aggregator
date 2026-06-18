@@ -18,6 +18,7 @@ from .types import (
     MICListOpt,
     SignedDecOpt,
     SnapshotDateStrOpt,
+    SymbolStrReq,
     UnsignedDecOpt,
     UpperStrOpt,
     UpperStrReq,
@@ -35,7 +36,7 @@ class EquityIdentity(BaseModel):
 
     Attributes:
         name (UpperStrReq): Full name of the equity.
-        symbol (UpperStrReq): Trading symbol for the equity.
+        symbol (SymbolStrReq): Trading symbol for the equity.
         share_class_figi (FIGIStrReq): Unique OpenFIGI identifier for the share class.
         isin (ISINStrOpt): Optional International Securities Identification Number.
         cusip (CUSIPStrOpt): Optional CUSIP identifier.
@@ -44,7 +45,7 @@ class EquityIdentity(BaseModel):
 
     Args:
         name (UpperStrReq): Full name of the equity, required.
-        symbol (UpperStrReq): Trading symbol, required.
+        symbol (SymbolStrReq): Trading symbol, required.
         share_class_figi (FIGIStrReq): Definitive OpenFIGI identifier, required.
         isin (ISINStrOpt): ISIN code, if available.
         cusip (CUSIPStrOpt): CUSIP code, if available.
@@ -59,7 +60,7 @@ class EquityIdentity(BaseModel):
 
     # required name and symbol
     name: UpperStrReq = Field(..., description="Equity name, required.")
-    symbol: UpperStrReq = Field(..., description="Equity symbol, required.")
+    symbol: SymbolStrReq = Field(..., description="Equity symbol, required.")
 
     # required share_class_figi is the definitive id uniquely identifying an equity.
     share_class_figi: FIGIStrReq = Field(
