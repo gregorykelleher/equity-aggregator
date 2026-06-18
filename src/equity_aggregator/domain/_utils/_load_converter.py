@@ -160,8 +160,13 @@ def _convert_to_usd(figure: Decimal, rate: Decimal) -> Decimal:
         figure (Decimal): The monetary value in the foreign currency.
         rate (Decimal): The FX rate, representing amount of foreign currency per 1 USD.
 
+    Note:
+        Quantises to four decimal places so that penny stocks and per-share
+        metrics retain sub-cent precision (e.g. 0.4¢ no longer collapses to
+        0.00).
+
     Returns:
-        Decimal: The equivalent value in USD, rounded to two decimal places.
+        Decimal: The equivalent value in USD, rounded to four decimal places.
 
     Raises:
         ValueError: If the FX rate is zero or negative.
@@ -169,4 +174,4 @@ def _convert_to_usd(figure: Decimal, rate: Decimal) -> Decimal:
     if rate <= 0:
         raise ValueError("FX rate must be positive")
 
-    return (figure / rate).quantize(Decimal("0.01"))
+    return (figure / rate).quantize(Decimal("0.0001"))

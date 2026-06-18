@@ -50,7 +50,7 @@ def test_eur_price_converted_correctly() -> None:
     """
     ARRANGE: 6.47 EUR, rate 0.8999 EUR per USD
     ACT:     converter(last_price)
-    ASSERT:  last_price == 7.19 USD
+    ASSERT:  last_price == 7.1897 USD
     """
     rates = {"EUR": Decimal("0.8999")}
 
@@ -65,7 +65,7 @@ def test_eur_price_converted_correctly() -> None:
 
     actual = convert(equity)
 
-    assert actual.last_price == Decimal("7.19")
+    assert actual.last_price == Decimal("7.1897")
 
 
 def test_eur_conversion_sets_currency_to_usd() -> None:
@@ -134,11 +134,11 @@ def test_none_currency_returns_same_object() -> None:
     assert actual is equity
 
 
-def test_rounding_precision_quantizes_to_two_decimal() -> None:
+def test_rounding_precision_quantizes_to_four_decimal() -> None:
     """
     ARRANGE: 1 EUR, rate 3 EUR per USD
     ACT:     converter(last_price)
-    ASSERT:  last_price == 0.33 USD
+    ASSERT:  last_price == 0.3333 USD
     """
     rates = {"EUR": Decimal("3")}
 
@@ -153,7 +153,29 @@ def test_rounding_precision_quantizes_to_two_decimal() -> None:
 
     actual = convert(equity)
 
-    assert actual.last_price == Decimal("0.33")
+    assert actual.last_price == Decimal("0.3333")
+
+
+def test_sub_cent_price_precision_preserved() -> None:
+    """
+    ARRANGE: 0.004 EUR penny-stock price, rate 1 EUR per USD
+    ACT:     converter(last_price)
+    ASSERT:  last_price retains sub-cent precision (0.0040, not 0.00)
+    """
+    rates = {"EUR": Decimal("1")}
+
+    convert = _build_usd_converter(rates)
+
+    equity = RawEquity(
+        name="PENNY",
+        symbol="PNY",
+        currency="EUR",
+        last_price=Decimal("0.004"),
+    )
+
+    actual = convert(equity)
+
+    assert actual.last_price == Decimal("0.0040")
 
 
 def test_preserve_name_and_symbol_after_conversion() -> None:
