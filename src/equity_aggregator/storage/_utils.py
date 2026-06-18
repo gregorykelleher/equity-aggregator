@@ -4,6 +4,7 @@ import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 from platformdirs import user_data_dir
@@ -30,6 +31,20 @@ def get_data_store_path() -> Path:
 
 
 DATA_STORE_PATH: Path = get_data_store_path()
+
+
+def utc_today() -> str:
+    """
+    Return today's date in UTC as an ISO YYYY-MM-DD string.
+
+    Snapshot stamping and freshness checks must agree on a single timezone;
+    using UTC (rather than the machine-local date) keeps a writer and a reader
+    in different timezones from disagreeing about which day it is.
+
+    Returns:
+        str: The current UTC date formatted as YYYY-MM-DD.
+    """
+    return datetime.now(UTC).date().isoformat()
 
 
 @contextmanager

@@ -1,6 +1,5 @@
 # storage/freshness.py
 
-import datetime
 import logging
 import sqlite3
 
@@ -9,6 +8,7 @@ from ._utils import (
     DATA_STORE_PATH,
     connect,
     ttl_seconds,
+    utc_today,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,14 +55,14 @@ def _is_database_stale() -> bool:
 
 def _latest_snapshot_is_stale() -> bool:
     """
-    Checks whether the latest snapshot date is before today.
+    Checks whether the latest snapshot date is before today (UTC).
 
     Returns:
-        bool: True if no snapshots exist or the latest is before today.
+        bool: True if no snapshots exist or the latest is before today (UTC).
     """
     with connect() as conn:
         latest = _get_latest_snapshot_date(conn)
-        return latest is None or latest < datetime.date.today().isoformat()
+        return latest is None or latest < utc_today()
 
 
 def _get_latest_snapshot_date(

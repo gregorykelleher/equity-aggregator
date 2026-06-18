@@ -11,6 +11,7 @@ from equity_aggregator.storage._utils import (
     CANONICAL_EQUITY_IDENTITIES_TABLE,
     CANONICAL_EQUITY_SNAPSHOTS_TABLE,
     connect,
+    utc_today,
 )
 from equity_aggregator.storage.data_store import (
     count_snapshots,
@@ -102,6 +103,27 @@ def test_save_equities_inserts_identity_rows() -> None:
     save_canonical_equities(equities)
 
     assert _count_rows(CANONICAL_EQUITY_IDENTITIES_TABLE) >= expected_row_count
+
+
+def test_save_equities_defaults_snapshot_date_to_utc_today() -> None:
+    """
+    ARRANGE: a CanonicalEquity saved without an explicit snapshot_date
+    ACT:     save_canonical_equities
+    ASSERT:  snapshot_date defaults to today's UTC date
+    """
+    figi = "BBG000UTC001"
+    equity = _create_canonical_equity(figi, "UTC EQUITY")
+
+    save_canonical_equities([equity])
+
+    with connect() as conn:
+        stored = conn.execute(
+            f"SELECT snapshot_date FROM {CANONICAL_EQUITY_SNAPSHOTS_TABLE} "
+            "WHERE share_class_figi = ?",
+            (figi,),
+        ).fetchone()[0]
+
+    assert stored == utc_today()
 
 
 def test_save_equities_inserts_snapshot_rows() -> None:
