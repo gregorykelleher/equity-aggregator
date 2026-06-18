@@ -97,7 +97,9 @@ class YFinanceFeedData(BaseModel):
             "currency": self.get("currency"),
             # currentPrice or regularMarketPrice
             # -> RawEquity.last_price
-            "last_price": self.get("currentPrice") or self.get("regularMarketPrice"),
+            "last_price": _first_present(
+                self.get("currentPrice"), self.get("regularMarketPrice")
+            ),
             # marketCap -> RawEquity.market_cap
             "market_cap": self.get("marketCap"),
             # fiftyTwoWeekLow -> RawEquity.fifty_two_week_min
@@ -115,7 +117,9 @@ class YFinanceFeedData(BaseModel):
                 else percent_to_decimal(self.get("dividendYield"))
             ),
             # volume or regularMarketVolume -> RawEquity.market_volume
-            "market_volume": self.get("volume") or self.get("regularMarketVolume"),
+            "market_volume": _first_present(
+                self.get("volume"), self.get("regularMarketVolume")
+            ),
             # heldPercentInsiders -> RawEquity.held_insiders
             "held_insiders": self.get("heldPercentInsiders"),
             # heldPercentInstitutions -> RawEquity.held_institutions
@@ -160,8 +164,9 @@ class YFinanceFeedData(BaseModel):
             # priceToBook -> RawEquity.price_to_book
             "price_to_book": self.get("priceToBook"),
             # trailingEps or epsTrailingTwelveMonths -> RawEquity.trailing_eps
-            "trailing_eps": self.get("trailingEps")
-            or self.get("epsTrailingTwelveMonths"),
+            "trailing_eps": _first_present(
+                self.get("trailingEps"), self.get("epsTrailingTwelveMonths")
+            ),
             # recommendationKey or averageAnalystRating -> RawEquity.analyst_rating
             "analyst_rating": self.get("recommendationKey")
             or self.get("averageAnalystRating"),
@@ -185,6 +190,20 @@ class YFinanceFeedData(BaseModel):
         # defer strict type validation to RawEquity
         strict=False,
     )
+
+
+def _first_present(*values: object) -> object:
+    """
+    Return the first value that is not None, preserving legitimate zeros.
+
+    Unlike `a or b`, this coalesces on presence rather than truthiness, so a
+    real `0` (e.g. zero volume or trailing EPS) is not discarded in favour of
+    the fallback.
+
+    Returns:
+        object: The first non-None value, or None if all are None.
+    """
+    return next((value for value in values if value is not None), None)
 
 
 def _is_primary(payload: dict[str, object]) -> bool:

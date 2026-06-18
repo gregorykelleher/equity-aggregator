@@ -95,3 +95,25 @@ def test_returns_none_for_invalid_type() -> None:
     actual = percent_to_decimal({"invalid": "object"})
 
     assert actual is None
+
+
+def test_returns_none_for_nan() -> None:
+    """
+    ARRANGE: NaN float
+    ACT:     convert to decimal
+    ASSERT:  returns None (non-finite must not reject the whole record)
+    """
+    actual = percent_to_decimal(float("nan"))
+
+    assert actual is None
+
+
+def test_returns_none_for_infinity() -> None:
+    """
+    ARRANGE: infinite float
+    ACT:     convert to decimal
+    ASSERT:  returns None
+    """
+    actual = percent_to_decimal(float("inf"))
+
+    assert actual is None

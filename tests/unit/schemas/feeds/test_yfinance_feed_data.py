@@ -213,6 +213,46 @@ def test_missing_regular_market_time_preserves_price_fields() -> None:
     assert actual.last_price == expected_price
 
 
+def test_zero_volume_is_preserved() -> None:
+    """
+    ARRANGE: payload with volume of 0 (a legitimate "no trades" value)
+    ACT:     construct YFinanceFeedData
+    ASSERT:  market_volume is 0, not discarded by falsy coalescing
+    """
+    raw = {
+        "longName": "Quiet Corp",
+        "underlyingSymbol": "QUIET",
+        "currency": "USD",
+        "currentPrice": 10.0,
+        "marketCap": 100,
+        "volume": 0,
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.market_volume == 0
+
+
+def test_zero_trailing_eps_is_preserved() -> None:
+    """
+    ARRANGE: payload with trailingEps of 0 (a legitimate break-even value)
+    ACT:     construct YFinanceFeedData
+    ASSERT:  trailing_eps is 0, not discarded by falsy coalescing
+    """
+    raw = {
+        "longName": "Breakeven Corp",
+        "underlyingSymbol": "EVEN",
+        "currency": "USD",
+        "currentPrice": 10.0,
+        "marketCap": 100,
+        "trailingEps": 0,
+    }
+
+    actual = YFinanceFeedData(**raw)
+
+    assert actual.trailing_eps == 0
+
+
 def test_malformed_regular_market_time_preserves_price_fields() -> None:
     """
     ARRANGE: payload with non-numeric regularMarketTime

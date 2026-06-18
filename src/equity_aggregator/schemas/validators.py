@@ -1,6 +1,7 @@
 # schemas/validators.py
 
 import re
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from pydantic_core import core_schema as cs
@@ -357,8 +358,16 @@ def to_snapshot_date(value: str | None) -> str | None:
 
     snapshot_date_pattern = r"^\d{4}-\d{2}-\d{2}$"
 
+    # Regex pins the strict dashed YYYY-MM-DD shape (rejecting ISO basic forms
+    # like "20260101"); date.fromisoformat then rejects impossible calendar
+    # dates such as "2026-99-99" that the pattern alone would accept.
     if not re.fullmatch(snapshot_date_pattern, text):
         raise ValueError(f"invalid snapshot date: {value!r}")
+
+    try:
+        date.fromisoformat(text)
+    except ValueError:
+        raise ValueError(f"invalid snapshot date: {value!r}") from None
 
     return text
 
@@ -383,9 +392,17 @@ def to_analyst_rating(value: str | float | Decimal | None) -> str | None:
         input is blank or unrecognised.
     """
     text = to_upper(value)
-    if text in {"BUY", "SELL", "HOLD"}:
-        return text
-    return None
+
+    # Yahoo recommendationKey reports strong_buy/strong_sell; map them to the
+    # canonical tokens rather than silently discarding them.
+    ratings = {
+        "BUY": "BUY",
+        "SELL": "SELL",
+        "HOLD": "HOLD",
+        "STRONG_BUY": "BUY",
+        "STRONG_SELL": "SELL",
+    }
+    return ratings.get(text)
 
 
 def _parse_numeric_text(value: str | float | Decimal | None) -> str | None:

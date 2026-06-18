@@ -112,3 +112,20 @@ def test_cik_already_zero_padded_string() -> None:
     actual = SecFeedData(**raw)
 
     assert actual.cik == "0000123456"
+
+
+def test_missing_cik_is_none() -> None:
+    """
+    ARRANGE: input omits 'cik'
+    ACT:     construct SecFeedData
+    ASSERT:  cik is None (not the fabricated string "000000None")
+    """
+    raw = {
+        "name": "Foo Inc",
+        "symbol": "FOO",
+        "mics": ["XNYS"],
+    }
+
+    actual = SecFeedData(**raw)
+
+    assert actual.cik is None
