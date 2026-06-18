@@ -1,15 +1,44 @@
-# Test Suite Documentation
+# Testing
 
-## Overview
+How the Equity Aggregator test suites are structured and run. For local
+development setup see [development](development.md); for the system design see
+[architecture](architecture.md); for what the project does and how to use it see
+the [README](../README.md).
 
-The equity aggregator test suite achieves 99% coverage without monkey-patching or mocking. It uses dependency injection and temporary data stores to create isolated, fast, and robust offline tests.
+The suite achieves 99% coverage without monkey-patching or mocking. It uses
+dependency injection and temporary data stores to create isolated, fast, and
+robust offline tests.
 
-## Architecture
+## Test Suites
 
-### Test Markers
+The project maintains two distinct test suites, each serving a specific purpose in the testing strategy.
 
-- **`unit`**: Component validation in isolation
-- **`live`**: Live endpoint integration (requires network)
+### Unit Tests (`-m unit`)
+
+Unit tests provide comprehensive coverage of all internal application logic. These tests are fully isolated and do not make any external network calls, ensuring fast and deterministic execution. The suite contains over 1,000 test cases and executes in under 30 seconds, enforcing a **minimum coverage threshold of 99%** with the goal of maintaining **100% coverage** across all source code.
+
+Unit tests follow strict conventions:
+- **AAA Pattern**: All tests are structured using the Arrange-Act-Assert pattern for clarity and consistency
+- **Single Assertion**: Each test case contains exactly one assertion, ensuring focused and maintainable tests
+- **No Mocking**: Monkey-patching and Python mocking techniques (e.g. `monkeypatch`, `unittest.mock`) are strictly forbidden, promoting testable design through dependency injection and explicit interfaces
+
+### Live Tests (`-m live`)
+
+Live tests serve as **sanity tests** that validate external API endpoints are available and responding correctly. These tests hit real external services to verify that:
+- Discovery and enrichment feed endpoints are accessible
+- API response schemas match expected Pydantic models
+- Authentication and rate limiting are functioning as expected
+
+Live tests act as an early warning system, catching upstream API changes or outages before they impact the main aggregation pipeline.
+
+### Continuous Integration
+
+Both test suites are executed as part of the GitHub Actions CI pipeline:
+
+- **[validate-push.yml](../.github/workflows/validate-push.yml)**: Runs unit tests with coverage enforcement on every push to master, ensuring code quality and the 99% coverage threshold are maintained
+- **[publish-build-release.yml](../.github/workflows/publish-build-release.yml)**: Runs live sanity tests before executing the nightly aggregation pipeline, validating that all external APIs are operational before publishing a new release
+
+## Running the Tests
 
 ```bash
 # Run unit tests
@@ -22,20 +51,19 @@ uv run pytest -m live
 uv run pytest -m unit --cov=equity_aggregator --cov-report=term-missing --cov-report=html
 ```
 
-### Infrastructure
+## Infrastructure
 
 The testing infrastructure is configured in `tests/conftest.py`, which provides essential fixtures and environment setup for isolated, reproducible testing. The configuration automatically creates temporary data stores and manages database lifecycle.
 
-#### Temporary Data Store
+### Temporary Data Store
 - Creates isolated `data_store` directory in `.pytest_cache`
 - Sets `DATA_STORE_DIR` environment variable
 - Ensures test isolation from production data
 
-#### Fresh Database
+### Fresh Database
 - `fresh_data_store` fixture runs before each test
 - Deletes existing `data_store.db`
 - Guarantees clean state
-
 
 ## Test Structure
 
@@ -90,7 +118,6 @@ async def test_api_client_fetches_data() -> None:
     # Assert: Verify expected result
     assert result["status"] == "success"
 ```
-
 
 ## Coverage Configuration
 
