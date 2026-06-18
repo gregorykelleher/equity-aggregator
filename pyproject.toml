@@ -1,6 +1,6 @@
 [project]
 name = "equity-aggregator"
-version = "1.0.29"
+version = "1.0.30"
 description = "Financial equity data aggregation toolkit"
 readme = "README.md"
 license = "MIT"
