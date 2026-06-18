@@ -396,13 +396,34 @@ def _validate(
         return RawEquity.model_validate(coerced)
 
     except Exception as e:
-        summary = (
-            f"invalid {', '.join(sorted(err['loc'][0] for err in e.errors()))}"
-            if hasattr(e, "errors")
-            else str(e)
-        )
-        _log_failure(feed_name, identifiers, summary)
+        _log_failure(feed_name, identifiers, _error_summary(e))
         return None
+
+
+def _error_summary(error: object) -> str:
+    """
+    Build a concise, log-friendly summary of a validation failure.
+
+    Pydantic field errors carry a non-empty `loc` (the field name); model-level
+    errors (e.g. a `@required` validator raising ValueError) carry `loc == ()`.
+    Building the summary defensively avoids an IndexError on empty `loc` that
+    would otherwise escape the caller's except block and abort the whole stream.
+
+    Args:
+        error: The exception raised during validation.
+
+    Returns:
+        str: "invalid <labels>" for Pydantic errors (field name when available,
+            else the error message), or str(error) for plain exceptions.
+    """
+    if not hasattr(error, "errors"):
+        return str(error)
+
+    labels = sorted(
+        str(err["loc"][0]) if err.get("loc") else (err.get("msg") or "validation")
+        for err in error.errors()
+    )
+    return f"invalid {', '.join(labels)}"
 
 
 async def _to_usd(
