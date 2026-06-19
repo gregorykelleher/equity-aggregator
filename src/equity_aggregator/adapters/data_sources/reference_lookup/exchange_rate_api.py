@@ -43,10 +43,11 @@ async def retrieve_conversion_rates(
 
     # fetch from API and validate
     api_key = _get_api_key()
-    url = _build_url(api_key)
+    url = _build_url()
 
-    # obtain an HTTP client if not provided
-    client = client or make_client()
+    # obtain an HTTP client if not provided; authenticate via Bearer header so
+    # the key never appears in the URL (and therefore never in error logs)
+    client = client or make_client(headers=_auth_headers(api_key))
 
     rates = await _get_rates(client, url)
 
@@ -73,17 +74,32 @@ def _get_api_key() -> str:
     return key
 
 
-def _build_url(api_key: str) -> str:
+def _build_url() -> str:
     """
     Constructs the API endpoint URL for retrieving the latest USD exchange rates.
 
-    Args:
-        api_key (str): The API key required to authenticate with the exchange rate API.
+    Note:
+        The API key is deliberately omitted from the URL and supplied via a
+        Bearer Authorization header instead (see _auth_headers), so the key
+        cannot leak into URL-based error logs.
 
     Returns:
         str: The fully formatted URL to access the latest USD exchange rates.
     """
-    return f"https://v6.exchangerate-api.com/v6/{api_key}/latest/USD"
+    return "https://v6.exchangerate-api.com/v6/latest/USD"
+
+
+def _auth_headers(api_key: str) -> dict[str, str]:
+    """
+    Builds the Bearer Authorization header for the Exchange Rate API.
+
+    Args:
+        api_key (str): The API key to authenticate with.
+
+    Returns:
+        dict[str, str]: Header mapping carrying the Bearer token.
+    """
+    return {"Authorization": f"Bearer {api_key}"}
 
 
 async def _get_rates(client: httpx.AsyncClient, url: str) -> dict[str, Decimal]:

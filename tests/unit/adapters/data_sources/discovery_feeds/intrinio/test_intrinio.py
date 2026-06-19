@@ -9,6 +9,7 @@ import pytest
 from equity_aggregator.adapters.data_sources.discovery_feeds.intrinio.intrinio import (
     _attach_quote,
     _attach_quotes_to_all,
+    _auth_headers,
     _deduplicate_by_share_class_figi,
     _fetch_all_companies,
     _fetch_all_securities,
@@ -74,6 +75,19 @@ def test_get_api_key_raises_when_not_set() -> None:
 
     with pytest.raises(ValueError, match="INTRINIO_API_KEY environment variable"):
         _get_api_key()
+
+
+def test_auth_headers_carries_bearer_token() -> None:
+    """
+    ARRANGE: api_key = 'KEY123'
+    ACT:     call _auth_headers
+    ASSERT:  Authorization header carries the Bearer token
+    """
+    expected = {"Authorization": "Bearer KEY123"}
+
+    actual = _auth_headers("KEY123")
+
+    assert actual == expected
 
 
 def test_deduplicate_by_share_class_figi_removes_duplicates() -> None:

@@ -57,12 +57,17 @@ def make_client(**overrides: object) -> AsyncClient:
         "User-Agent": "Mozilla/5.0",
     }
 
+    # Merge any header overrides on top of the defaults so callers can add
+    # headers (e.g. Authorization) without discarding the generic defaults.
+    header_overrides = overrides.pop("headers", {})
+    merged_headers = {**headers, **header_overrides}
+
     # Combine base parameters with any overrides provided
     base_params: dict[str, object] = {
         "http2": True,
         "transport": transport,
         "timeout": timeout,
-        "headers": headers,
+        "headers": merged_headers,
         **overrides,
     }
 

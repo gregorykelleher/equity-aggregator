@@ -26,22 +26,33 @@ class IntrinioSession:
         None
     """
 
-    __slots__ = ("_client", "_lock")
+    __slots__ = ("_client", "_lock", "_headers")
 
     # Limit HTTP/2 concurrent streams to prevent connection exhaustion
     _concurrent_streams: asyncio.Semaphore = asyncio.Semaphore(10)
 
-    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
         """
         Initialise IntrinioSession with optional HTTP client.
 
         Args:
             client (httpx.AsyncClient | None): Optional pre-configured HTTP client.
+            headers (Mapping[str, str] | None): Headers (e.g. a Bearer
+                Authorization header) reapplied to every client this session
+                creates, including those rebuilt after a connection reset.
 
         Returns:
             None
         """
-        self._client: httpx.AsyncClient = client or make_client()
+        self._headers: dict[str, str] = dict(headers or {})
+        self._client: httpx.AsyncClient = client or make_client(
+            headers=self._headers,
+        )
         self._lock: asyncio.Lock = asyncio.Lock()
 
     async def aclose(self) -> None:
@@ -186,7 +197,7 @@ class IntrinioSession:
                 return True  # Already reset by another task
 
             old_client = self._client
-            self._client = make_client()
+            self._client = make_client(headers=self._headers)
 
         await old_client.aclose()
         logger.debug(

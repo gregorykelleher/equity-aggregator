@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from equity_aggregator.adapters.data_sources.reference_lookup.exchange_rate_api import (
+    _auth_headers,
     _build_url,
     _get_api_key,
 )
@@ -19,10 +20,10 @@ def exchange_rate_response() -> httpx.Response:
     Fetch Exchange Rate API response once and share across all tests in this module.
     """
     api_key = _get_api_key()
-    url = _build_url(api_key)
+    url = _build_url()
 
     with httpx.Client() as client:
-        return client.get(url)
+        return client.get(url, headers=_auth_headers(api_key))
 
 
 def test_exchange_rate_api_endpoint_returns_ok(

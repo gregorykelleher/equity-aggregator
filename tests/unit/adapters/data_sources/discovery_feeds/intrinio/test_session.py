@@ -39,6 +39,17 @@ def test_init_creates_client_when_none_provided() -> None:
     assert session._client is not None
 
 
+def test_init_applies_headers_to_created_client() -> None:
+    """
+    ARRANGE: headers with a Bearer Authorization token
+    ACT:     create IntrinioSession without a client
+    ASSERT:  the created client carries the Authorization header
+    """
+    session = IntrinioSession(headers={"Authorization": "Bearer K"})
+
+    assert session._client.headers["authorization"] == "Bearer K"
+
+
 def test_init_uses_provided_client() -> None:
     """
     ARRANGE: pre-configured client

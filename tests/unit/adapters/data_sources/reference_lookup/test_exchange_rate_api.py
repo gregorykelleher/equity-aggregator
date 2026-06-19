@@ -7,6 +7,7 @@ import pytest
 
 from equity_aggregator.adapters.data_sources.reference_lookup.exchange_rate_api import (
     _assert_success,
+    _auth_headers,
     _build_url,
     _convert_rate,
     _fetch_and_validate,
@@ -19,17 +20,30 @@ from equity_aggregator.storage import load_cache, save_cache
 pytestmark = pytest.mark.unit
 
 
-def test_build_url_embeds_key_once() -> None:
+def test_build_url_excludes_api_key() -> None:
     """
     ARRANGE: api_key = 'ABC'
-    ACT:     call _build_url('ABC')
-    ASSERT:  returned URL contains exactly one occurrence of 'ABC'
+    ACT:     call _build_url()
+    ASSERT:  returned URL does not contain the API key (sent via Bearer header)
     """
     api_key = "ABC"
 
-    url = _build_url(api_key)
+    url = _build_url()
 
-    assert url.count(api_key) == 1
+    assert api_key not in url
+
+
+def test_auth_headers_carries_bearer_token() -> None:
+    """
+    ARRANGE: api_key = 'TOKEN'
+    ACT:     call _auth_headers
+    ASSERT:  Authorization header carries the Bearer token
+    """
+    expected = {"Authorization": "Bearer TOKEN"}
+
+    actual = _auth_headers("TOKEN")
+
+    assert actual == expected
 
 
 def test_convert_rate_produces_decimal() -> None:
