@@ -96,11 +96,11 @@ def test_usd_equities_pass_through_unchanged() -> None:
 
 def test_none_currency_pass_through_unchanged() -> None:
     """
-    ARRANGE: one equity with currency=None
+    ARRANGE: one non-monetary equity with currency=None
     ACT:     convert over that generator
     ASSERT:  same object returned
     """
-    equity = RawEquity(name="X", symbol="X", currency=None, last_price=Decimal("5"))
+    equity = RawEquity(name="X", symbol="X", currency=None)
 
     async def gen() -> AsyncGenerator[RawEquity, None]:
         yield equity

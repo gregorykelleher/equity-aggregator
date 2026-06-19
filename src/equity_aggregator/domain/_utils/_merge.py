@@ -115,7 +115,7 @@ def extract_identifiers(group: Sequence[RawEquity]) -> EquityIdentifiers:
     """
     Compute representative identifiers from a group of RawEquity records.
 
-    Uses the same resolution algorithms as merge() — mode for IDs,
+    Uses the same resolution algorithms as merge() - mode for IDs,
     fuzzy clustering for name, frequency for symbol.
 
     Args:

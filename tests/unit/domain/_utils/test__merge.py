@@ -194,12 +194,14 @@ def test_merge_divergent_prices_rejected() -> None:
             symbol="E",
             share_class_figi="FIGI00000001",
             last_price=Decimal("1"),
+            currency="USD",
         ),
         RawEquity(
             name="E",
             symbol="E",
             share_class_figi="FIGI00000001",
             last_price=Decimal("9"),
+            currency="USD",
         ),
     ]
 
@@ -222,6 +224,7 @@ def test_merge_large_duplicate_group_outlier_ignored() -> None:
             symbol="B",
             share_class_figi="FIGI00000001",
             last_price=Decimal(p),
+            currency="USD",
         )
         for p in last_prices
     ]
@@ -243,18 +246,21 @@ def test_merge_last_price_all_identical_values() -> None:
             symbol="S",
             share_class_figi="FIGI00000001",
             last_price=Decimal("7.77"),
+            currency="USD",
         ),
         RawEquity(
             name="S",
             symbol="S",
             share_class_figi="FIGI00000001",
             last_price=Decimal("7.77"),
+            currency="USD",
         ),
         RawEquity(
             name="S",
             symbol="S",
             share_class_figi="FIGI00000001",
             last_price=Decimal("7.77"),
+            currency="USD",
         ),
     ]
 
@@ -813,12 +819,14 @@ def test_merge_fifty_two_week_min_even_number_median() -> None:
             symbol="L",
             share_class_figi="FIGI00000001",
             fifty_two_week_min=Decimal("8"),
+            currency="USD",
         ),
         RawEquity(
             name="LOW",
             symbol="L",
             share_class_figi="FIGI00000001",
             fifty_two_week_min=Decimal("10"),
+            currency="USD",
         ),
     ]
 
@@ -839,12 +847,14 @@ def test_merge_fifty_two_week_max_even_number_median() -> None:
             symbol="H",
             share_class_figi="FIGI00000001",
             fifty_two_week_max=Decimal("22"),
+            currency="USD",
         ),
         RawEquity(
             name="HIGH",
             symbol="H",
             share_class_figi="FIGI00000001",
             fifty_two_week_max=Decimal("26"),
+            currency="USD",
         ),
     ]
 
@@ -1047,12 +1057,14 @@ def test_merge_revenue_per_share_even_number_median() -> None:
             symbol="R",
             share_class_figi="FIGI00000001",
             revenue_per_share=Decimal("4"),
+            currency="USD",
         ),
         RawEquity(
             name="RPS",
             symbol="R",
             share_class_figi="FIGI00000001",
             revenue_per_share=Decimal("6"),
+            currency="USD",
         ),
     ]
 
@@ -1151,12 +1163,14 @@ def test_merge_free_cash_flow_even_number_median() -> None:
             symbol="F",
             share_class_figi="FIGI00000001",
             free_cash_flow=Decimal("2"),
+            currency="USD",
         ),
         RawEquity(
             name="FCF",
             symbol="F",
             share_class_figi="FIGI00000001",
             free_cash_flow=Decimal("3"),
+            currency="USD",
         ),
     ]
 
@@ -1177,12 +1191,14 @@ def test_merge_operating_cash_flow_even_number_median() -> None:
             symbol="O",
             share_class_figi="FIGI00000001",
             operating_cash_flow=Decimal("4"),
+            currency="USD",
         ),
         RawEquity(
             name="OCF",
             symbol="O",
             share_class_figi="FIGI00000001",
             operating_cash_flow=Decimal("6"),
+            currency="USD",
         ),
     ]
 
@@ -1281,12 +1297,14 @@ def test_merge_total_debt_even_number_median() -> None:
             symbol="D",
             share_class_figi="FIGI00000001",
             total_debt=Decimal("2000000"),
+            currency="USD",
         ),
         RawEquity(
             name="DEBT",
             symbol="D",
             share_class_figi="FIGI00000001",
             total_debt=Decimal("3000000"),
+            currency="USD",
         ),
     ]
 
@@ -1307,12 +1325,14 @@ def test_merge_revenue_even_number_median() -> None:
             symbol="R",
             share_class_figi="FIGI00000001",
             revenue=Decimal("40"),
+            currency="USD",
         ),
         RawEquity(
             name="REV",
             symbol="R",
             share_class_figi="FIGI00000001",
             revenue=Decimal("60"),
+            currency="USD",
         ),
     ]
 
@@ -1333,12 +1353,14 @@ def test_merge_ebitda_even_number_median() -> None:
             symbol="E",
             share_class_figi="FIGI00000001",
             ebitda=Decimal("9"),
+            currency="USD",
         ),
         RawEquity(
             name="EBIT",
             symbol="E",
             share_class_figi="FIGI00000001",
             ebitda=Decimal("15"),
+            currency="USD",
         ),
     ]
 
@@ -1411,12 +1433,14 @@ def test_merge_trailing_eps_even_number_median() -> None:
             symbol="E",
             share_class_figi="FIGI00000001",
             trailing_eps=Decimal("1.00"),
+            currency="USD",
         ),
         RawEquity(
             name="EPS",
             symbol="E",
             share_class_figi="FIGI00000001",
             trailing_eps=Decimal("1.50"),
+            currency="USD",
         ),
     ]
 
@@ -1727,6 +1751,7 @@ def test_merge_price_range_filters_inconsistent_record() -> None:
             last_price=Decimal("76.23"),
             fifty_two_week_min=Decimal("40"),
             fifty_two_week_max=Decimal("43"),  # Inconsistent
+            currency="USD",
         ),
         RawEquity(
             name="TEST",
@@ -1735,6 +1760,7 @@ def test_merge_price_range_filters_inconsistent_record() -> None:
             last_price=Decimal("76.23"),
             fifty_two_week_min=Decimal("50"),
             fifty_two_week_max=Decimal("100"),
+            currency="USD",
         ),
         RawEquity(
             name="TEST",
@@ -1743,6 +1769,7 @@ def test_merge_price_range_filters_inconsistent_record() -> None:
             last_price=Decimal("76.23"),
             fifty_two_week_min=Decimal("45"),
             fifty_two_week_max=Decimal("110"),
+            currency="USD",
         ),
     ]
 
@@ -1765,6 +1792,7 @@ def test_merge_price_range_uses_consistent_last_price() -> None:
             last_price=Decimal("150"),
             fifty_two_week_min=Decimal("40"),
             fifty_two_week_max=Decimal("43"),  # Inconsistent
+            currency="USD",
         ),
         RawEquity(
             name="TEST",
@@ -1773,6 +1801,7 @@ def test_merge_price_range_uses_consistent_last_price() -> None:
             last_price=Decimal("76"),
             fifty_two_week_min=Decimal("50"),
             fifty_two_week_max=Decimal("100"),
+            currency="USD",
         ),
         RawEquity(
             name="TEST",
@@ -1781,6 +1810,7 @@ def test_merge_price_range_uses_consistent_last_price() -> None:
             last_price=Decimal("78"),
             fifty_two_week_min=Decimal("45"),
             fifty_two_week_max=Decimal("110"),
+            currency="USD",
         ),
     ]
 
@@ -1803,6 +1833,7 @@ def test_merge_price_range_fallback_nullifies_inverted_bounds() -> None:
             share_class_figi="FIGI00000001",
             fifty_two_week_min=Decimal("100"),
             fifty_two_week_max=Decimal("50"),
+            currency="USD",
         ),
         RawEquity(
             name="TEST",
@@ -1810,6 +1841,7 @@ def test_merge_price_range_fallback_nullifies_inverted_bounds() -> None:
             share_class_figi="FIGI00000001",
             fifty_two_week_min=Decimal("100"),
             fifty_two_week_max=Decimal("50"),
+            currency="USD",
         ),
     ]
 
@@ -2018,6 +2050,7 @@ def test_is_price_consistent_returns_false_when_last_price_none() -> None:
         last_price=None,
         fifty_two_week_min=Decimal("50"),
         fifty_two_week_max=Decimal("100"),
+        currency="USD",
     )
 
     assert _is_price_consistent(equity) is False
@@ -2036,6 +2069,7 @@ def test_is_price_consistent_returns_false_when_fifty_two_week_min_none() -> Non
         last_price=Decimal("75"),
         fifty_two_week_min=None,
         fifty_two_week_max=Decimal("100"),
+        currency="USD",
     )
 
     assert _is_price_consistent(equity) is False
@@ -2054,6 +2088,7 @@ def test_is_price_consistent_returns_false_when_fifty_two_week_max_none() -> Non
         last_price=Decimal("75"),
         fifty_two_week_min=Decimal("50"),
         fifty_two_week_max=None,
+        currency="USD",
     )
 
     assert _is_price_consistent(equity) is False
@@ -2072,6 +2107,7 @@ def test_is_price_consistent_slightly_below_min_within_tolerance() -> None:
         last_price=Decimal("47.50"),
         fifty_two_week_min=Decimal("50"),
         fifty_two_week_max=Decimal("100"),
+        currency="USD",
     )
 
     assert _is_price_consistent(equity) is True
@@ -2090,6 +2126,7 @@ def test_is_price_consistent_well_below_min_beyond_tolerance() -> None:
         last_price=Decimal("42.50"),
         fifty_two_week_min=Decimal("50"),
         fifty_two_week_max=Decimal("100"),
+        currency="USD",
     )
 
     assert _is_price_consistent(equity) is False
@@ -2108,6 +2145,7 @@ def test_is_price_consistent_returns_false_when_min_exceeds_max() -> None:
         last_price=Decimal("75"),
         fifty_two_week_min=Decimal("100"),
         fifty_two_week_max=Decimal("50"),
+        currency="USD",
     )
 
     assert _is_price_consistent(equity) is False

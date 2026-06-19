@@ -5,26 +5,11 @@ from collections.abc import Callable
 from decimal import Decimal
 
 from equity_aggregator.adapters import retrieve_conversion_rates
-from equity_aggregator.schemas.raw import RawEquity
+from equity_aggregator.schemas.raw import MONETARY_FIELDS, RawEquity
 
 logger = logging.getLogger(__name__)
 
 type RawEquityConverter = Callable[[RawEquity], RawEquity]
-
-# All monetary fields that should be converted to USD
-_MONETARY_FIELDS = [
-    "last_price",
-    "market_cap",
-    "fifty_two_week_min",
-    "fifty_two_week_max",
-    "revenue_per_share",
-    "free_cash_flow",
-    "operating_cash_flow",
-    "total_debt",
-    "revenue",
-    "ebitda",
-    "trailing_eps",
-]
 
 
 def _build_usd_converter_loader() -> Callable[[], RawEquityConverter]:
@@ -91,8 +76,12 @@ def _should_skip_conversion(equity: RawEquity) -> bool:
     Determines whether the conversion process should be skipped for a given equity.
 
     The function only skips conversion if the currency is not specified or if the
-    currency is already USD. This ensures that currency normalisation happens
-    even for records with no monetary values.
+    currency is already USD.
+
+    Note:
+        RawEquity guarantees that a None currency implies no monetary fields are
+        set (see RawEquity._require_currency_for_monetary_fields), so skipping a
+        currency-less record never leaves an unconverted monetary value behind.
 
     Args:
         equity (RawEquity): The equity object containing price fields and currency
@@ -144,7 +133,7 @@ def _build_field_updates(equity: RawEquity, rate: Decimal) -> dict[str, Decimal]
     """
     updates: dict[str, Decimal] = {}
 
-    for field_name in _MONETARY_FIELDS:
+    for field_name in MONETARY_FIELDS:
         field_value = getattr(equity, field_name)
         if field_value is not None:
             updates[field_name] = _convert_to_usd(field_value, rate)

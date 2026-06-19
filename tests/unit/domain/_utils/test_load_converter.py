@@ -114,7 +114,7 @@ def test_market_cap_converted_correctly() -> None:
 
 def test_none_currency_returns_same_object() -> None:
     """
-    ARRANGE: currency is None, last_price exists
+    ARRANGE: currency is None and no monetary fields are set
     ACT:     converter(equity)
     ASSERT:  object unchanged
     """
@@ -126,7 +126,6 @@ def test_none_currency_returns_same_object() -> None:
         name="NONE",
         symbol="NON",
         currency=None,
-        last_price=Decimal("10"),
     )
 
     actual = convert(equity)
