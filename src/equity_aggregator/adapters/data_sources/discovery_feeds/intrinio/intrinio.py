@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 
-from equity_aggregator.adapters.data_sources._utils import make_client
 from equity_aggregator.adapters.data_sources._utils._record_types import (
     EquityRecord,
     RecordStream,
@@ -51,9 +50,11 @@ async def fetch_equity_records(
             yield record
         return
 
-    _get_api_key()  # Validate API key is set before proceeding
+    # Validate the key is set and authenticate via a Bearer header so the key
+    # never appears in request URLs (and therefore never leaks into error logs).
+    api_key = _get_api_key()
 
-    session = session or IntrinioSession(make_client())
+    session = session or IntrinioSession(headers=_auth_headers(api_key))
 
     try:
         async for record in _stream_and_cache(session, cache_key=cache_key):
@@ -207,7 +208,7 @@ async def _fetch_companies_page(
         tuple[list[EquityRecord], str | None]: Tuple of (parsed records,
             next_page token).
     """
-    params = {"api_key": _get_api_key(), "page_size": str(_PAGE_SIZE)}
+    params = {"page_size": str(_PAGE_SIZE)}
 
     if next_page:
         params["next_page"] = next_page
@@ -237,10 +238,9 @@ async def _fetch_company_securities(
     """
     company_ticker = company.get("company_ticker")
     url = f"{_INTRINIO_COMPANIES_URL}/{company_ticker}/securities"
-    params = {"api_key": _get_api_key()}
 
     try:
-        response = await session.get(url, params=params)
+        response = await session.get(url)
         response.raise_for_status()
         return parse_securities_response(response.json())
     except Exception:
@@ -288,10 +288,9 @@ async def _fetch_quote(
         dict | None: Quote data dictionary, or None if fetch fails.
     """
     url = f"{_INTRINIO_SECURITIES_URL}/{share_class_figi}/quote"
-    params = {"api_key": _get_api_key()}
 
     try:
-        response = await session.get(url, params=params)
+        response = await session.get(url)
         response.raise_for_status()
         return response.json()
     except Exception:
@@ -317,3 +316,16 @@ def _get_api_key() -> str:
     if not api_key:
         raise ValueError("INTRINIO_API_KEY environment variable not set")
     return api_key
+
+
+def _auth_headers(api_key: str) -> dict[str, str]:
+    """
+    Builds the Bearer Authorization header for the Intrinio API.
+
+    Args:
+        api_key (str): The API key to authenticate with.
+
+    Returns:
+        dict[str, str]: Header mapping carrying the Bearer token.
+    """
+    return {"Authorization": f"Bearer {api_key}"}

@@ -11,6 +11,7 @@ from equity_aggregator.adapters.data_sources.discovery_feeds.intrinio._utils imp
 )
 from equity_aggregator.adapters.data_sources.discovery_feeds.intrinio.intrinio import (
     _INTRINIO_COMPANIES_URL,
+    _auth_headers,
 )
 from equity_aggregator.schemas.feeds import IntrinioFeedData
 
@@ -34,9 +35,13 @@ def intrinio_companies_response() -> httpx.Response:
     """
     Fetch Intrinio companies API response once and share across all tests.
     """
-    params = {"api_key": _get_api_key(), "page_size": "10"}
+    headers = _auth_headers(_get_api_key())
     with httpx.Client() as client:
-        return client.get(_INTRINIO_COMPANIES_URL, params=params)
+        return client.get(
+            _INTRINIO_COMPANIES_URL,
+            params={"page_size": "10"},
+            headers=headers,
+        )
 
 
 @pytest.fixture(scope="module")
@@ -52,7 +57,7 @@ def intrinio_security_record(intrinio_companies_response: httpx.Response) -> dic
     with httpx.Client() as client:
         securities_response = client.get(
             securities_url,
-            params={"api_key": _get_api_key()},
+            headers=_auth_headers(_get_api_key()),
         )
 
     security_records = parse_securities_response(securities_response.json())
