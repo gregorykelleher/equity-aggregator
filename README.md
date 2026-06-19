@@ -340,9 +340,9 @@ This ensures consistent integration with the host operating system's data and lo
 
 Further documentation lives in the [`documentation/`](documentation) directory:
 
-- **[Architecture](documentation/architecture.md)** — project structure, dependencies, the transformation pipeline, and the clean-architecture layers
-- **[Testing](documentation/testing.md)** — the unit and live test suites, conventions, and coverage configuration
-- **[Development](documentation/development.md)** — local setup, environment variables, running the tests, and Docker usage
+- **[Architecture](documentation/architecture.md)** - project structure, dependencies, the transformation pipeline, and the clean-architecture layers
+- **[Testing](documentation/testing.md)** - the unit and live test suites, conventions, and coverage configuration
+- **[Development](documentation/development.md)** - local setup, environment variables, running the tests, and Docker usage
 
 ## Limitations
 

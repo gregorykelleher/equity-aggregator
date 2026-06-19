@@ -140,7 +140,7 @@ def test_score_quote_substring_symbol_with_similar_name_is_not_rejected() -> Non
     ARRANGE: quote whose symbol is a superstring of the expected symbol
              AND whose name is similar (META/MET, MetLife/Meta Platforms)
     ACT:     call _score_quote
-    ASSERT:  total_score is non-zero — the symbol score alone cannot reject
+    ASSERT:  total_score is non-zero - the symbol score alone cannot reject
              these; the caller's min_score ranking ensures the exact match (MET)
              outscores the substring match (META)
 

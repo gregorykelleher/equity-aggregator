@@ -4,6 +4,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    model_validator,
 )
 
 from .types import (
@@ -20,6 +21,21 @@ from .types import (
     UnsignedDecOpt,
     UpperStrOpt,
     UpperStrReq,
+)
+
+# Currency-denominated fields: converted to USD and require a currency to be set.
+MONETARY_FIELDS: tuple[str, ...] = (
+    "last_price",
+    "market_cap",
+    "fifty_two_week_min",
+    "fifty_two_week_max",
+    "revenue_per_share",
+    "free_cash_flow",
+    "operating_cash_flow",
+    "total_debt",
+    "revenue",
+    "ebitda",
+    "trailing_eps",
 )
 
 
@@ -112,3 +128,33 @@ class RawEquity(BaseModel):
     analyst_rating: AnalystRatingStrOpt = None
     industry: UpperStrOpt = None
     sector: UpperStrOpt = None
+
+    @model_validator(mode="after")
+    def _require_currency_for_monetary_fields(self) -> "RawEquity":
+        """
+        Ensures a currency is present whenever a monetary field is set.
+
+        A monetary value with no currency cannot be converted to USD or compared
+        across sources; permitting it would let native-currency figures bypass FX
+        conversion and pool into USD medians on merge.
+
+        Returns:
+            RawEquity: The validated instance.
+
+        Raises:
+            ValueError: If any monetary field is set while currency is None.
+        """
+        if self.currency is not None:
+            return self
+
+        set_fields = [
+            name for name in MONETARY_FIELDS if getattr(self, name) is not None
+        ]
+
+        if set_fields:
+            raise ValueError(
+                f"currency is required when monetary fields are set: "
+                f"{', '.join(set_fields)}",
+            )
+
+        return self

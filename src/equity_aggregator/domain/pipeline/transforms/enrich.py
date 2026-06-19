@@ -297,7 +297,8 @@ async def _enrich_from_feed(
     if validated is None:
         return None
 
-    # Non-monetary feeds (e.g. GLEIF) have no currency - skip conversion
+    # A None currency guarantees no monetary fields are set (enforced by
+    # RawEquity), so non-monetary feeds (e.g. GLEIF) skip conversion safely.
     if validated.currency is None:
         _log_success(feed_name, identifiers, validated)
         return validated

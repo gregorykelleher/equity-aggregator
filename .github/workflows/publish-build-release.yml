@@ -104,7 +104,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Update the release in place — never delete it — so the published
+          # Update the release in place - never delete it - so the published
           # data_store.db.gz is always present (no download 404 window, and a
           # cancelled run can't leave zero release).
           if ! gh release view latest-build-release >/dev/null 2>&1; then

@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from equity_aggregator.schemas.raw import RawEquity
+from equity_aggregator.schemas.raw import MONETARY_FIELDS, RawEquity
 
 pytestmark = pytest.mark.unit
 
@@ -466,6 +466,7 @@ def test_last_price_accepts_str() -> None:
     payload = {
         "name": "ACME CORP",
         "symbol": "ACME",
+        "currency": "USD",
         "last_price": "123.45",
     }
 
@@ -483,6 +484,7 @@ def test_last_price_accepts_float() -> None:
     payload = {
         "name": "ACME CORP",
         "symbol": "ACME",
+        "currency": "USD",
         "last_price": 123.45,
     }
 
@@ -500,6 +502,7 @@ def test_last_price_accepts_int() -> None:
     payload = {
         "name": "ACME CORP",
         "symbol": "ACME",
+        "currency": "USD",
         "last_price": 123,
     }
 
@@ -517,6 +520,7 @@ def test_last_price_accepts_decimal() -> None:
     payload = {
         "name": "ACME CORP",
         "symbol": "ACME",
+        "currency": "USD",
         "last_price": Decimal("123.45"),
     }
 
@@ -702,3 +706,84 @@ def test_lei_rejects_invalid_format() -> None:
 
     with pytest.raises(ValidationError):
         RawEquity(**payload)
+
+
+def test_monetary_fields_all_exist_on_model() -> None:
+    """
+    ARRANGE: the hand-maintained MONETARY_FIELDS tuple
+    ACT:     compare against the model's fields
+    ASSERT:  every monetary field name is a real RawEquity field (no drift/typo)
+    """
+    assert set(MONETARY_FIELDS) <= set(RawEquity.model_fields)
+
+
+@pytest.mark.parametrize("monetary_field", MONETARY_FIELDS)
+def test_monetary_field_without_currency_raises(monetary_field: str) -> None:
+    """
+    ARRANGE: a single monetary field set while currency is None
+    ACT:     construct RawEquity
+    ASSERT:  raises ValidationError (currency required for monetary values)
+    """
+    payload = {
+        "name": "ACME CORP",
+        "symbol": "ACME",
+        "currency": None,
+        monetary_field: Decimal("10"),
+    }
+
+    with pytest.raises(ValidationError):
+        RawEquity(**payload)
+
+
+def test_monetary_field_with_currency_is_accepted() -> None:
+    """
+    ARRANGE: a monetary field set together with a valid currency
+    ACT:     construct RawEquity
+    ASSERT:  the monetary value is retained
+    """
+    payload = {
+        "name": "ACME CORP",
+        "symbol": "ACME",
+        "currency": "EUR",
+        "last_price": Decimal("10"),
+    }
+
+    actual = RawEquity(**payload)
+
+    assert actual.last_price == Decimal("10")
+
+
+def test_no_monetary_fields_without_currency_is_accepted() -> None:
+    """
+    ARRANGE: no monetary fields set and currency is None (e.g. a GLEIF record)
+    ACT:     construct RawEquity
+    ASSERT:  constructs cleanly with currency None
+    """
+    payload = {
+        "name": "ACME CORP",
+        "symbol": "ACME",
+        "currency": None,
+        "lei": "5493001KJTIIGC8Y1R12",
+    }
+
+    actual = RawEquity(**payload)
+
+    assert actual.currency is None
+
+
+def test_non_monetary_decimal_without_currency_is_accepted() -> None:
+    """
+    ARRANGE: a non-monetary decimal (a ratio) set while currency is None
+    ACT:     construct RawEquity
+    ASSERT:  accepted — only MONETARY_FIELDS require a currency
+    """
+    payload = {
+        "name": "ACME CORP",
+        "symbol": "ACME",
+        "currency": None,
+        "dividend_yield": Decimal("0.05"),
+    }
+
+    actual = RawEquity(**payload)
+
+    assert actual.dividend_yield == Decimal("0.05")
