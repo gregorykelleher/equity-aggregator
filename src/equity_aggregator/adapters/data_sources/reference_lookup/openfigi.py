@@ -91,9 +91,36 @@ async def fetch_equity_identification(
         client_factory or _make_openfigi_client,
     )
 
-    save_cache(cache_key, identities)
-    logger.info("Saved %d OpenFIGI identification records to cache.", len(identities))
+    if _has_any_identification(identities):
+        save_cache(cache_key, identities)
+        logger.info(
+            "Saved %d OpenFIGI identification records to cache.",
+            len(identities),
+        )
+    else:
+        logger.warning(
+            "OpenFIGI produced no identifications for %d equities; "
+            "skipping cache write.",
+            len(raw_equities),
+        )
+
     return identities
+
+
+def _has_any_identification(identities: Sequence[IdentificationRecord]) -> bool:
+    """
+    Determine whether a batch carries at least one real identification.
+
+    A real identification is any record with a non-None FIGI; the placeholder
+    record (None, None, None) does not count.
+
+    Args:
+        identities (Sequence[IdentificationRecord]): Resolved identification records.
+
+    Returns:
+        bool: True if at least one record carries a FIGI, else False.
+    """
+    return any(figi is not None for _, _, figi in identities)
 
 
 async def _resolve_identities(

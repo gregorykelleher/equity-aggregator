@@ -10,6 +10,7 @@ from equity_aggregator.adapters.data_sources.reference_lookup.openfigi import (
     _extract_indexed_record,
     _get_api_key,
     _get_query_index,
+    _has_any_identification,
     _is_valid_figi,
     _make_openfigi_client,
     _map_or_none,
@@ -468,6 +469,28 @@ async def test_map_or_none_returns_none_on_map_exception() -> None:
     assert await _map_or_none([RawEquity(name="A", symbol="A")], err_client) is None
 
 
+def test_has_any_identification_true_when_a_figi_present() -> None:
+    """
+    ARRANGE: records with one real FIGI among placeholders;
+    ACT: _has_any_identification;
+    ASSERT: True
+    """
+    identities = [(None, None, None), ("A plc", "A", "BBG000BLNNH6")]
+
+    assert _has_any_identification(identities) is True
+
+
+def test_has_any_identification_false_when_all_placeholders() -> None:
+    """
+    ARRANGE: records that are all placeholders;
+    ACT: _has_any_identification;
+    ASSERT: False
+    """
+    identities = [(None, None, None), (None, None, None)]
+
+    assert _has_any_identification(identities) is False
+
+
 async def test_fetch_equity_identification_returns_empty_on_no_inputs() -> None:
     """
     ARRANGE: empty input;
@@ -586,6 +609,51 @@ async def test_fetch_equity_identification_saves_to_cache_on_success() -> None:
     )
 
     assert load_cache(cache_key) == [("A plc", "A", "BBG000BLNNH6")]
+
+
+async def test_fetch_equity_identification_skips_cache_when_all_placeholders() -> None:
+    """
+    ARRANGE: systemic mapping failure (all-placeholder result);
+    ACT: fetch_equity_identification;
+    ASSERT: nothing written to cache (no poisoning for the 24h TTL)
+    """
+    cache_key = "openfigi_all_placeholders_no_cache"
+
+    await fetch_equity_identification(
+        [RawEquity(name="X", symbol="X"), RawEquity(name="Y", symbol="Y")],
+        cache_key=cache_key,
+        client_factory=lambda: _DummyClient(map_error=RuntimeError("boom")),
+    )
+
+    assert load_cache(cache_key) is None
+
+
+async def test_fetch_equity_identification_caches_partial_match() -> None:
+    """
+    ARRANGE: batch with one real identification and one genuine no-match;
+    ACT: fetch_equity_identification;
+    ASSERT: the full batch (including the placeholder) is cached
+    """
+    cache_key = "openfigi_partial_match_cache"
+
+    frame = _records_df(
+        [
+            {
+                "query_number": 0,
+                "shareClassFIGI": "BBG000BLNNH6",
+                "ticker": "A",
+                "name": "A plc",
+            },
+        ],
+    )
+
+    await fetch_equity_identification(
+        [RawEquity(name="A", symbol="A"), RawEquity(name="B", symbol="B")],
+        cache_key=cache_key,
+        client_factory=lambda: _DummyClient(frame=frame),
+    )
+
+    assert load_cache(cache_key) == [("A plc", "A", "BBG000BLNNH6"), (None, None, None)]
 
 
 async def test_fetch_equity_identification_uses_cache_when_present() -> None:
