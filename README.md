@@ -219,8 +219,16 @@ Retrieved 90 snapshots
 2026-02-18: 244.12
 ```
 
-> [!NOTE]
-> All retrieval functions work independently and automatically download the database if needed, so there's no requirement to call `retrieve_canonical_equities()` first.
+> [!TIP]
+> All retrieval functions work independently and download the database if needed, so there's no need to call `retrieve_canonical_equities()` first. They're synchronous too; to call one from inside a running event loop, offload it with `asyncio.to_thread` (the blocking lookup and any first-run download then run off the loop):
+>
+> ```python
+> import asyncio
+> from equity_aggregator import retrieve_canonical_equity
+>
+> async def main() -> None:
+>     equity = await asyncio.to_thread(retrieve_canonical_equity, "BBG000B9XRY4")
+> ```
 
 #### Data Models
 
