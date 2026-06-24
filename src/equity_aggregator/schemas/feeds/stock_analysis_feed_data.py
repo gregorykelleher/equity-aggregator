@@ -18,6 +18,7 @@ class StockAnalysisFeedData(BaseModel):
         symbol (str): Equity symbol, mapped from "s".
         cusip (str | None): CUSIP identifier, passed through unchanged.
         isin (str | None): ISIN identifier, passed through unchanged.
+        currency (str | None): Trading currency, fixed to "USD".
         market_cap (Decimal | None): Market capitalisation, mapped from "marketCap".
         last_price (Decimal | None): Last known price, mapped from "price".
         market_volume (Decimal | None): Trading volume, mapped from "volume".
@@ -40,6 +41,7 @@ class StockAnalysisFeedData(BaseModel):
     symbol: str
     cusip: str | None
     isin: str | None
+    currency: str | None
     market_cap: Decimal | None
     last_price: Decimal | None
     market_volume: Decimal | None
@@ -74,7 +76,9 @@ class StockAnalysisFeedData(BaseModel):
             "cusip": self.get("cusip"),
             # isin -> RawEquity.isin
             "isin": self.get("isin"),
-            # no CIK, FIGI, MICS or currency in Stock Analysis feed, so omitting
+            # feed is US "allstocks" only, so currency is always USD
+            "currency": "USD",
+            # no CIK, FIGI or MICS in Stock Analysis feed, so omitting
             # marketCap -> RawEquity.market_cap
             "market_cap": self.get("marketCap"),
             # price -> RawEquity.last_price

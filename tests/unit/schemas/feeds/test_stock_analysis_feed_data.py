@@ -6,8 +6,50 @@ import pytest
 from pydantic import ValidationError
 
 from equity_aggregator.schemas import StockAnalysisFeedData
+from equity_aggregator.schemas.raw import RawEquity
 
 pytestmark = pytest.mark.unit
+
+
+def test_currency_defaults_to_usd() -> None:
+    """
+    ARRANGE: raw data with no currency field
+    ACT:     construct StockAnalysisFeedData
+    ASSERT:  currency is set to USD
+    """
+    raw = {
+        "s": "FOO",
+        "n": "Foo Inc",
+        "cusip": None,
+        "isin": None,
+    }
+
+    actual = StockAnalysisFeedData(**raw)
+
+    assert actual.currency == "USD"
+
+
+def test_monetary_record_passes_raw_equity_validation() -> None:
+    """
+    ARRANGE: record with monetary fields but no source currency
+    ACT:     coerce through StockAnalysisFeedData into RawEquity
+    ASSERT:  RawEquity validates (currency supplied as USD)
+    """
+    raw = {
+        "s": "AAPL",
+        "n": "Apple Inc.",
+        "cusip": None,
+        "isin": None,
+        "marketCap": 159976000000,
+        "price": 200.50,
+        "revenue": 10000000,
+        "fcf": 5000000,
+        "ebitda": 2000000,
+    }
+
+    coerced = StockAnalysisFeedData(**raw).model_dump()
+
+    assert RawEquity.model_validate(coerced).currency == "USD"
 
 
 def test_strips_extra_fields() -> None:
