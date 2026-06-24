@@ -1,5 +1,6 @@
 # retrieval/test_retrieval.py
 
+import asyncio
 import contextlib
 import gzip
 import os
@@ -437,6 +438,21 @@ def test_download_canonical_equities_creates_database() -> None:
 
     db_bytes = _create_test_db()
     download_canonical_equities(_mock_github_client_db(db_bytes))
+
+    assert db_path.exists()
+
+
+async def test_download_runs_under_to_thread_in_running_loop() -> None:
+    """
+    ARRANGE: a running event loop (this async test), mock client, no local db
+    ACT:     offload the sync download to a worker thread via asyncio.to_thread
+    ASSERT:  data_store.db exists (the nested asyncio.run ran in the worker thread)
+    """
+    db_path = _DATA_STORE_PATH / "data_store.db"
+    db_path.unlink(missing_ok=True)
+    client = _mock_github_client_db(_create_test_db())
+
+    await asyncio.to_thread(download_canonical_equities, client)
 
     assert db_path.exists()
 
