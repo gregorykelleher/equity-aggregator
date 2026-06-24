@@ -192,6 +192,36 @@ def test_currency_invalid_pattern() -> None:
         TypeAdapter(CurrencyStrOpt).validate_python("US$")
 
 
+def test_currency_rejects_mixed_case_pence() -> None:
+    """
+    ARRANGE: Yahoo's pence sub-unit denomination "GBp"
+    ACT:     validate CurrencyStr
+    ASSERT:  raises ValidationError (not silently coerced to GBP)
+    """
+    with pytest.raises(ValidationError):
+        TypeAdapter(CurrencyStrOpt).validate_python("GBp")
+
+
+def test_currency_rejects_mixed_case_cents() -> None:
+    """
+    ARRANGE: Yahoo's cents sub-unit denomination "ZAc"
+    ACT:     validate CurrencyStr
+    ASSERT:  raises ValidationError (mixed-case rule generalises beyond GBP)
+    """
+    with pytest.raises(ValidationError):
+        TypeAdapter(CurrencyStrOpt).validate_python("ZAc")
+
+
+def test_currency_lowercase_normalises_to_upper() -> None:
+    """
+    ARRANGE: an all-lowercase real currency code
+    ACT:     validate CurrencyStr
+    ASSERT:  value normalises to uppercase (not mistaken for a sub-unit)
+    """
+    value = TypeAdapter(CurrencyStrOpt).validate_python("gbp")
+    assert value == "GBP"
+
+
 def test_non_empty_str_strips_whitespace() -> None:
     """
     ARRANGE: string with leading/trailing whitespace
