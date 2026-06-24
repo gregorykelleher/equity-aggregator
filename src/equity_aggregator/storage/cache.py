@@ -54,6 +54,9 @@ def _cache_get(conn: sqlite3.Connection, cache_name: str, key: str) -> object | 
         (cache_name, key),
     ).fetchone()
 
+    # pickle.loads is safe ONLY because payloads are produced locally and the
+    # published DB strips this table (see publish-build-release.yml). A downloaded
+    # cache would make this an RCE vector; switch to JSON if that ever changes.
     return pickle.loads(row[0]) if row else None
 
 

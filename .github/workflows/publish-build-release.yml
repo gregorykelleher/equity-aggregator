@@ -72,6 +72,9 @@ jobs:
           uv run equity-aggregator --verbose seed
 
       - name: Clean and compact data store
+        # Security-critical: object_cache holds pickled blobs (see cache.py). The
+        # published DB is downloaded onto users' machines, so a shipped cache would
+        # make pickle.loads an RCE vector. Never remove this step.
         run: |
           sqlite3 data/data_store/data_store.db \
             "DROP TABLE IF EXISTS object_cache; VACUUM;"
