@@ -337,6 +337,7 @@ def to_currency(value: str | float | Decimal | None) -> str | None:
 
     - Converts input to uppercase and trims using to_upper().
     - Accepts None or blank input as None.
+    - Rejects mixed-case sub-unit denominations (e.g. "GBp", "ZAc").
     - Ensures the result is exactly 3 uppercase A-Z letters.
 
     Args:
@@ -347,7 +348,8 @@ def to_currency(value: str | float | Decimal | None) -> str | None:
         str | None: The normalised 3-letter currency code, or None if input is blank.
 
     Raises:
-        ValueError: If the code is not exactly 3 A-Z letters.
+        ValueError: If the code is a sub-unit denomination or is not exactly 3
+            A-Z letters.
     """
     currency = to_upper(value)
 
@@ -355,6 +357,14 @@ def to_currency(value: str | float | Decimal | None) -> str | None:
 
     if currency is None:
         return None
+
+    # A mixed-case code (e.g. Yahoo's "GBp" pence, "ZAc" cents) is a sub-unit
+    # denomination, not an ISO-4217 currency: upper-casing would mask it as a
+    # real code (GBp -> GBP) and mislabel a price 1/100 of the major unit. Reject
+    # so the record is skipped rather than FX-converted 100x wrong.
+    raw = str(value).strip()
+    if any(char.islower() for char in raw) and any(char.isupper() for char in raw):
+        raise ValueError(f"sub-unit currency denomination not supported: {value!r}")
 
     if len(currency) != currency_code_length or not currency.isalpha():
         raise ValueError(f"invalid currency code: {value!r}")
