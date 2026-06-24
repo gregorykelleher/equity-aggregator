@@ -2,26 +2,49 @@
 
 import os
 import sys
+from collections.abc import Callable
 from types import FrameType
 
+# Standard Unix exit code for a process terminated by SIGINT (128 + SIGINT).
+CANCELLED_EXIT_CODE = 130
 
-def handle_sigint(signum: int, frame: FrameType | None) -> None:  # pragma: no cover
+
+def create_signal_handler() -> Callable[[int, FrameType | None], None]:
     """
-    Handle SIGINT (Ctrl+C) by exiting immediately.
+    Build a signal handler that escalates on a repeated signal.
 
-    When the user presses Ctrl+C, print a clean message and exit immediately
-    with status code 130 (standard Unix convention for SIGINT). Uses os._exit()
-    for immediate termination and redirects stderr to /dev/null to suppress
-    any process cleanup errors from the parent process manager.
+    The first SIGINT/SIGTERM raises SystemExit(130), allowing Python to unwind
+    the stack so that finally blocks and context managers run for a clean
+    shutdown. A second signal calls os._exit(130) for immediate, unconditional
+    termination should a graceful shutdown stall.
 
-    Args:
-        signum: The signal number (SIGINT).
-        frame: The current stack frame.
+    Returns:
+        Callable[[int, FrameType | None], None]: Handler suitable for
+            registration via signal.signal.
     """
-    print("\nOperation cancelled by user", file=sys.stderr)
-    sys.stderr.flush()
+    cancelling = False
 
-    # Redirect stderr to suppress further output during exit
+    def handle_signal(signum: int, frame: FrameType | None) -> None:
+        nonlocal cancelling
+
+        if cancelling:
+            _force_exit()  # pragma: no cover
+
+        cancelling = True
+        print("\nOperation cancelled by user", file=sys.stderr)
+        sys.stderr.flush()
+        raise SystemExit(CANCELLED_EXIT_CODE)
+
+    return handle_signal
+
+
+def _force_exit() -> None:  # pragma: no cover
+    """
+    Terminate the process immediately without running cleanup handlers.
+
+    Redirects stderr to /dev/null to suppress any cleanup errors emitted during
+    teardown, then exits with the standard SIGINT status code.
+    """
     try:
         devnull = os.open(os.devnull, os.O_WRONLY)
         os.dup2(devnull, sys.stderr.fileno())
@@ -29,4 +52,4 @@ def handle_sigint(signum: int, frame: FrameType | None) -> None:  # pragma: no c
     except OSError:
         pass
 
-    os._exit(130)
+    os._exit(CANCELLED_EXIT_CODE)
