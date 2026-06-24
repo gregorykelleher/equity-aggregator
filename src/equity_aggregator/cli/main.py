@@ -9,7 +9,7 @@ from equity_aggregator.logging_config import configure_logging
 from .config import determine_log_level
 from .dispatcher import dispatch_command
 from .parser import create_parser
-from .signals import handle_sigint
+from .signals import create_signal_handler
 
 
 def main(dispatcher: Callable[[Any], None] | None = None) -> None:
@@ -38,8 +38,11 @@ def main(dispatcher: Callable[[Any], None] | None = None) -> None:
     if dispatcher is None:
         dispatcher = dispatch_command
 
-    # Install signal handler for clean Ctrl+C handling
-    signal.signal(signal.SIGINT, handle_sigint)
+    # Install signal handlers so the first Ctrl+C / SIGTERM unwinds cleanly and
+    # a second forces an immediate exit.
+    handle_signal = create_signal_handler()
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
     # Create the argument parser with all CLI options and subcommands
     parser = create_parser()
