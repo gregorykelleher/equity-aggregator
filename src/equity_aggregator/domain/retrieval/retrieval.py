@@ -174,11 +174,17 @@ def _decompress_db(gz_path: Path, db_path: Path) -> None:
     """
     tmp_path = db_path.with_suffix(".db.tmp")
 
-    with gzip.open(gz_path, "rb") as gz_in, tmp_path.open("wb") as tmp_out:
-        while chunk := gz_in.read(65536):
-            tmp_out.write(chunk)
+    try:
+        with gzip.open(gz_path, "rb") as gz_in, tmp_path.open("wb") as tmp_out:
+            while chunk := gz_in.read(65536):
+                tmp_out.write(chunk)
 
-    os.replace(tmp_path, db_path)
+        os.replace(tmp_path, db_path)
+    finally:
+        # Remove the temp file if decompression failed mid-stream (corrupt
+        # archive, disk full); harmless no-op after a successful os.replace.
+        tmp_path.unlink(missing_ok=True)
+
     gz_path.unlink(missing_ok=True)
 
 

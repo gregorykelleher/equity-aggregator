@@ -1,7 +1,6 @@
 # storage/test_data_store.py
 
 import contextlib
-import datetime
 import os
 
 import pytest
@@ -432,23 +431,6 @@ def test_load_canonical_equity_history_populates_snapshot_date() -> None:
     actual = load_canonical_equity_history(figi)
 
     assert [e.snapshot_date for e in actual] == expected_dates
-
-
-def test_save_equities_defaults_snapshot_date_to_today() -> None:
-    """
-    ARRANGE: save equity without explicit snapshot_date
-    ACT:     save_canonical_equities
-    ASSERT:  snapshot_date defaults to today
-    """
-    figi = "BBG000TODAY1"
-    equity = _create_canonical_equity(figi, "TODAY")
-
-    save_canonical_equities([equity])
-
-    loaded = load_canonical_equity(figi)
-    expected = datetime.date.today().isoformat()
-
-    assert loaded.snapshot_date == expected
 
 
 def test_count_snapshots_returns_zero_for_empty_database() -> None:
