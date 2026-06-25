@@ -1,14 +1,18 @@
 # schemas/validators.py
 
+import logging
 import re
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from pydantic_core import core_schema as cs
+
+logger = logging.getLogger(__name__)
 
 _DOTTED_ABBREV = re.compile(r"(?:[A-Za-z]\.){2,}")
 _WORDS = re.compile(r"[^\w]+")
 _SPACES = re.compile(r"\s+")
+_NUMERIC_STRING = re.compile(r"-?\d+(\.\d+)?")
 
 
 def require_non_empty(value: str | None, info: cs.ValidationInfo) -> str:
@@ -446,13 +450,15 @@ def to_analyst_rating(value: str | float | Decimal | None) -> str | None:
 
 def _parse_numeric_text(value: str | float | Decimal | None) -> str | None:
     """
-    Normalises numeric text for Decimal conversion, rejecting invalid values.
+    Normalises numeric input for Decimal conversion, rejecting invalid values.
 
     - Returns None for None, blank input, or non-finite floats (NaN, Infinity).
-    - Uses Decimal parsing to validate strings, automatically rejecting
-      non-numeric text such as "n/a", "null", or "infinity".
-    - Normalises separators (e.g., "1,234.56" → "1234.56") before validation.
-    - Removes leading '+' for uniformity.
+    - Native numeric types (int, float, Decimal) are trusted and converted
+      directly, preserving scientific-notation forms (e.g. 1e+16) that Decimal
+      accepts but the strict string pattern would not.
+    - Strings are accepted only in plain dot-decimal form. Separator-formatted
+      strings (notably anything containing a comma) are rejected with a warning
+      rather than guessed at, since a lone comma is ambiguous.
 
     Args:
         value: The input value to normalise, expected as a string, float, Decimal,
@@ -462,66 +468,60 @@ def _parse_numeric_text(value: str | float | Decimal | None) -> str | None:
         str | None: The normalised numeric string ready for Decimal conversion,
         or None if the input is invalid or non-finite.
     """
-    # Reject None or non-finite floats
+    # Reject None or non-finite floats (NaN, Infinity)
     if value is None or (
         isinstance(value, float) and not -float("inf") < value < float("inf")
     ):
         return None
 
-    text = str(value).strip().lstrip("+")
-    if not text:
-        return None
+    # Trust native numeric types (feeds send JSON numbers). Convert directly so
+    # large values that stringify in scientific notation (e.g. 1e+16) are kept —
+    # Decimal accepts them, but the strict string pattern below would not.
+    if isinstance(value, (int, float, Decimal)):
+        text = str(value)
+        return text if _is_finite_decimal(text) else None
 
-    # Normalise separators and validate as a finite decimal
-    normalised_text = _convert_separators(text)
-    return normalised_text if _is_finite_decimal(normalised_text) else None
+    return _parse_numeric_string(value)
+
+
+def _parse_numeric_string(value: str) -> str | None:
+    """
+    Validates a string as plain dot-decimal, rejecting separator-formatted input.
+
+    Accepts only an optional leading sign followed by digits and at most one
+    dot-decimal portion. A comma is ambiguous (a lone comma was previously read
+    as a decimal point, turning "1,234" into 1.234 — a 1000x error), so any
+    non-dot-decimal string is rejected with a warning rather than guessed at.
+    Blank input returns None silently.
+
+    Args:
+        value (str): The candidate numeric string.
+
+    Returns:
+        str | None: The string if it is plain dot-decimal, otherwise None.
+    """
+    text = str(value).strip().lstrip("+")
+    if _NUMERIC_STRING.fullmatch(text):
+        return text
+
+    if text:
+        logger.warning("discarding non-dot-decimal numeric string: %r", value)
+    return None
 
 
 def _is_finite_decimal(text: str) -> bool:
     """
-    Validates whether a string represents a valid, finite decimal number.
+    Returns whether the text represents a finite Decimal value.
 
-    - Returns True if the string can be converted to a finite Decimal.
-    - Returns False for non-numeric text (e.g., "n/a", "null").
-    - Returns False for non-finite values (e.g., "Infinity", "NaN").
-
-    Args:
-        text (str): The string to validate as a decimal number.
-
-    Returns:
-        bool: True if the string is a valid finite decimal, False otherwise.
-    """
-    try:
-        return Decimal(text).is_finite()
-    except InvalidOperation:
-        return False
-
-
-def _convert_separators(text: str) -> str:
-    """
-    Converts numeric strings with mixed European/US separators to dot-decimal format.
-
-    Handles numbers with both commas and dots (e.g., "1,234.56" or "1.234,56"), as well
-    as numbers with only commas (e.g., "1234,56"). Removes thousands separators and
-    ensures the decimal separator is a dot.
+    Called only with the string form of a native int, float, or Decimal, which is
+    always a valid Decimal literal, so construction never raises. The check rejects
+    non-finite Decimal inputs (e.g. "NaN", "Infinity") that stringify to valid
+    literals but are not finite.
 
     Args:
-        text (str): The numeric string to normalise.
+        text (str): The string form of a native numeric value.
 
     Returns:
-        str: The normalised numeric string with a dot as the decimal separator.
+        bool: True if the value is a finite Decimal, False for NaN or Infinity.
     """
-    has_comma = "," in text
-    has_dot = "." in text
-
-    result = text
-    if has_comma and has_dot:
-        # US style (1,234.56) vs EU style (1.234,56)
-        if text.rfind(",") < text.rfind("."):
-            result = text.replace(",", "")
-        else:
-            result = text.replace(".", "").replace(",", ".", 1)
-    elif has_comma:
-        result = text.replace(",", ".", 1)
-
-    return result
+    return Decimal(text).is_finite()
