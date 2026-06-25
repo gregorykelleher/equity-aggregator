@@ -215,8 +215,9 @@ async def _enrich_equity_group(
     of all data points (discovery + enrichment).
 
     Note:
-        Exceptions are caught and logged so that a single group failure does
-        not cancel all other in-flight enrichment tasks within the TaskGroup.
+        Only expected data errors (ValueError) are caught, so one group failure
+        does not cancel the TaskGroup. Programming errors propagate rather than
+        masquerade as per-equity data loss.
 
     Args:
         discovery_sources: Discovery feed equities for this group.
@@ -228,7 +229,7 @@ async def _enrich_equity_group(
     """
     try:
         return await _enrich_and_merge(discovery_sources, feeds)
-    except Exception:
+    except ValueError:
         symbol = discovery_sources[0].symbol if discovery_sources else "?"
         logger.warning(
             "Failed to enrich/merge group for symbol=%s: skipping",
