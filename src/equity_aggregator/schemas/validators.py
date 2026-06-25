@@ -96,8 +96,11 @@ def to_signed_decimal(
     info: cs.ValidationInfo,
 ) -> Decimal | None:
     """
-    Converts a numeric string to a Decimal, accepting both EU and US formats.
-    Returns None for invalid input.
+    Converts a numeric value to a Decimal, returning None for invalid input.
+
+    Native numeric types (int, float, Decimal) are trusted directly; strings are
+    accepted only in plain dot-decimal form. Separator-formatted strings (notably
+    anything containing a comma) are rejected rather than guessed at.
 
     Args:
         value: The input value to convert, expected as a string or number.
@@ -153,7 +156,6 @@ def to_isin(value: str | float | Decimal | None) -> str | None:
 
     Args:
         value (str | float | Decimal | None): The input ISIN code.
-        info (cs.ValidationInfo): Validation context with field metadata.
 
     Returns:
         str | None: The normalised ISIN code, or None if input is blank.
@@ -184,7 +186,6 @@ def to_cusip(value: str | float | Decimal | None) -> str | None:
 
     Args:
         value (str | float | Decimal | None): The input CUSIP code.
-        info (cs.ValidationInfo): Validation context with field metadata.
 
     Returns:
         str | None: The normalised 9-character CUSIP code, or None if input is blank.
@@ -246,7 +247,6 @@ def to_figi(value: str | float | Decimal | None) -> str | None:
 
     Args:
         value (str | float | Decimal | None): The input FIGI code.
-        info (cs.ValidationInfo): Validation context with field metadata.
 
     Returns:
         str | None: The normalised 12-character FIGI code, or None if input is blank.
@@ -277,7 +277,6 @@ def to_mic(value: str | float | Decimal | None) -> str | None:
 
     Args:
         value (str | float | Decimal | None): The input MIC code.
-        info (cs.ValidationInfo): Validation context with field metadata.
 
     Returns:
         str | None: The normalised 4-character MIC code, or None if input is blank.
@@ -346,7 +345,6 @@ def to_currency(value: str | float | Decimal | None) -> str | None:
 
     Args:
         value (str | float | Decimal | None): The input currency code.
-        info (cs.ValidationInfo): Validation context with field metadata.
 
     Returns:
         str | None: The normalised 3-letter currency code, or None if input is blank.
@@ -428,7 +426,6 @@ def to_analyst_rating(value: str | float | Decimal | None) -> str | None:
 
     Args:
         value (str | float | Decimal | None): The analyst rating input.
-        info (cs.ValidationInfo): Validation context with field metadata.
 
     Returns:
         str | None: The canonical rating ("BUY", "SELL", or "HOLD"), or None if

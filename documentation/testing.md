@@ -163,7 +163,7 @@ tests/
 │   │   └── retrieval/         # Retrieval logic
 │   ├── schemas/               # Data validation
 │   └── storage/               # Database operations
-└── integration/               # Integration tests
+└── live/                      # Live tests (hit external APIs)
 ```
 
 ## Configuration Reference
