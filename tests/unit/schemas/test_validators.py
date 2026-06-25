@@ -177,18 +177,18 @@ def test_to_unsigned_decimal_valid() -> None:
     assert actual == Decimal("123.45")
 
 
-def test_to_unsigned_decimal_eu_format() -> None:
+def test_to_unsigned_decimal_separator_string_rejected() -> None:
     """
-    ARRANGE: EU-style numeric string
+    ARRANGE: separator-formatted numeric string
     ACT:     to_unsigned_decimal
-    ASSERT:  returns correct Decimal
+    ASSERT:  returns None
     """
     info = type("Info", (), {"field_name": "field"})()
     value = "1.234,56"
 
     actual = validators.to_unsigned_decimal(value, info)
 
-    assert actual == Decimal("1234.56")
+    assert actual is None
 
 
 def test_to_unsigned_decimal_decimal_input() -> None:
@@ -325,17 +325,17 @@ def test__parse_numeric_text_valid() -> None:
     assert actual == "123.45"
 
 
-def test__parse_numeric_text_thousands_sep() -> None:
+def test__parse_numeric_text_separator_string_rejected() -> None:
     """
-    ARRANGE: numeric string with thousands separator
+    ARRANGE: separator-formatted numeric string
     ACT:     _parse_numeric_text
-    ASSERT:  returns cleaned numeric string
+    ASSERT:  returns None
     """
     value = "1.234,56"
 
     actual = validators._parse_numeric_text(value)
 
-    assert actual == "1234.56"
+    assert actual is None
 
 
 def test__parse_numeric_text_none() -> None:
@@ -362,84 +362,6 @@ def test__parse_numeric_text_negative_preserved() -> None:
     assert validators._parse_numeric_text(value) == "-123.45"
 
 
-def test__convert_separators_us_style() -> None:
-    """
-    ARRANGE: US-style number with ',' thousands separator
-    ACT:     _convert_separators
-    ASSERT:  returns string without commas
-    """
-    value = "1,234.56"
-
-    actual = validators._convert_separators(value)
-
-    assert actual == "1234.56"
-
-
-def test__convert_separators_eu_style() -> None:
-    """
-    ARRANGE: EU-style number with '.' thousands and ',' decimal
-    ACT:     _convert_separators
-    ASSERT:  returns dot-decimal string
-    """
-    value = "1.234,56"
-
-    actual = validators._convert_separators(value)
-
-    assert actual == "1234.56"
-
-
-def test__convert_separators_only_comma() -> None:
-    """
-    ARRANGE: number with only comma as decimal
-    ACT:     _convert_separators
-    ASSERT:  returns dot-decimal string
-    """
-    value = "1234,56"
-
-    actual = validators._convert_separators(value)
-
-    assert actual == "1234.56"
-
-
-def test__convert_separators_no_sep() -> None:
-    """
-    ARRANGE: number with no separators
-    ACT:     _convert_separators
-    ASSERT:  returns string unchanged
-    """
-    value = "123456"
-
-    actual = validators._convert_separators(value)
-
-    assert actual == "123456"
-
-
-def test__convert_separators_us_large() -> None:
-    """
-    ARRANGE: large US-style number with multiple commas
-    ACT:     _convert_separators
-    ASSERT:  returns string without commas
-    """
-    value = "1,234,567.89"
-
-    actual = validators._convert_separators(value)
-
-    assert actual == "1234567.89"
-
-
-def test__convert_separators_eu_large() -> None:
-    """
-    ARRANGE: large EU-style number with multiple dots and one comma
-    ACT:     _convert_separators
-    ASSERT:  returns dot-decimal string
-    """
-    value = "1.234.567,89"
-
-    actual = validators._convert_separators(value)
-
-    assert actual == "1234567.89"
-
-
 def test__parse_numeric_text_only_plus_sign() -> None:
     """
     ARRANGE: string containing only '+'
@@ -451,6 +373,45 @@ def test__parse_numeric_text_only_plus_sign() -> None:
     actual = validators._parse_numeric_text(value)
 
     assert actual is None
+
+
+def test__parse_numeric_text_lone_comma_rejected() -> None:
+    """
+    ARRANGE: US-style thousands string with a lone comma
+    ACT:     _parse_numeric_text
+    ASSERT:  returns None
+    """
+    value = "1,234"
+
+    actual = validators._parse_numeric_text(value)
+
+    assert actual is None
+
+
+def test__parse_numeric_text_plain_dot_decimal_string_preserved() -> None:
+    """
+    ARRANGE: plain dot-decimal numeric string
+    ACT:     _parse_numeric_text
+    ASSERT:  value is preserved
+    """
+    value = "1234.56"
+
+    actual = validators._parse_numeric_text(value)
+
+    assert actual == "1234.56"
+
+
+def test__parse_numeric_text_large_scientific_decimal_preserved() -> None:
+    """
+    ARRANGE: large native Decimal that stringifies in scientific notation
+    ACT:     _parse_numeric_text
+    ASSERT:  value is kept (numeric types bypass the strict string pattern)
+    """
+    value = Decimal("1E+16")
+
+    actual = validators._parse_numeric_text(value)
+
+    assert Decimal(actual) == Decimal("1E+16")
 
 
 def test_to_mic_accepts_none() -> None:
