@@ -40,7 +40,7 @@ async def fetch_metadata(
         async with factory() as client:
             return await _fetch_metadata_with_client(client)
     except Exception as error:
-        logger.error("Failed to fetch GLEIF metadata: %s", error, exc_info=True)
+        logger.exception("Failed to fetch GLEIF metadata: %s", error)
         return None
 
 

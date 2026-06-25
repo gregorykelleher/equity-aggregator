@@ -18,5 +18,12 @@ ENV UV_ENV_FILE=".env"
 ENV DATA_STORE_DIR="/app/data/data_store"
 ENV LOG_DIR="/app/data/logs"
 
+# Run as a non-root user that owns /app (incl. the /app/data store and venv)
+RUN groupadd --system aggregator \
+    && useradd --system --gid aggregator --home-dir /app aggregator \
+    && mkdir -p /app/data \
+    && chown -R aggregator:aggregator /app
+USER aggregator
+
 # Aggregate and seed canonical equities database
 CMD ["uv", "run", "equity-aggregator", "seed"]
