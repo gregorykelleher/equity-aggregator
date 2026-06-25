@@ -3,7 +3,7 @@
 import copy
 import logging.config
 import os
-from datetime import date
+from datetime import UTC, datetime
 from pathlib import Path
 
 from platformdirs import user_log_dir
@@ -112,5 +112,6 @@ def _resolve_log_file() -> str:
         log_dir = Path(user_log_dir("equity-aggregator", "equity-aggregator"))
 
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / f"equity_aggregator_{date.today():%Y-%m-%d}.log"
+    today = datetime.now(UTC).date()
+    log_file = log_dir / f"equity_aggregator_{today:%Y-%m-%d}.log"
     return str(log_file)
