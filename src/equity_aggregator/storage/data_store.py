@@ -180,20 +180,23 @@ def save_canonical_equities(
         _init_tables(conn)
 
         conn.execute("BEGIN")
+        try:
+            conn.executemany(
+                f"INSERT OR REPLACE INTO {CANONICAL_EQUITY_IDENTITIES_TABLE} "
+                "(share_class_figi, payload) VALUES (?, ?)",
+                (_serialise_identity(e) for e in canonical_equities),
+            )
 
-        conn.executemany(
-            f"INSERT OR REPLACE INTO {CANONICAL_EQUITY_IDENTITIES_TABLE} "
-            "(share_class_figi, payload) VALUES (?, ?)",
-            (_serialise_identity(e) for e in canonical_equities),
-        )
+            conn.executemany(
+                f"INSERT OR REPLACE INTO {CANONICAL_EQUITY_SNAPSHOTS_TABLE} "
+                "(share_class_figi, snapshot_date, payload) VALUES (?, ?, ?)",
+                (_serialise_snapshot(e, date) for e in canonical_equities),
+            )
 
-        conn.executemany(
-            f"INSERT OR REPLACE INTO {CANONICAL_EQUITY_SNAPSHOTS_TABLE} "
-            "(share_class_figi, snapshot_date, payload) VALUES (?, ?, ?)",
-            (_serialise_snapshot(e, date) for e in canonical_equities),
-        )
-
-        conn.execute("COMMIT")
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
 
 
 def count_snapshots() -> int:
