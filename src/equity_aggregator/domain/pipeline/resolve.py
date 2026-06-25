@@ -111,12 +111,11 @@ async def _produce(
             await queue.put(FeedRecord(model, record))
             count += 1
     except Exception as error:
-        logger.error(
+        logger.exception(
             "Discovery feed %s failed after %d records: %s",
             feed_name,
             count,
             error,
-            exc_info=True,
         )
     else:
         _log_feed_outcome(feed_name, count)

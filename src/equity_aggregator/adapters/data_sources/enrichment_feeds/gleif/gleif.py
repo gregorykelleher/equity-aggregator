@@ -185,7 +185,7 @@ async def _download_and_cache(
     try:
         index = await download_and_build_index(client_factory=client_factory)
     except Exception as error:
-        logger.error("Failed to build GLEIF ISIN->LEI index: %s", error, exc_info=True)
+        logger.exception("Failed to build GLEIF ISIN->LEI index: %s", error)
         return None
 
     if index and cache_key:

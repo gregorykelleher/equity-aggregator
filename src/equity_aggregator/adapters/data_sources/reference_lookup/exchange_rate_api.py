@@ -145,10 +145,10 @@ async def _fetch_and_validate(client: httpx.AsyncClient, url: str) -> dict:
         response.raise_for_status()
         payload = response.json()
     except httpx.HTTPStatusError as e:
-        logger.error(f"HTTP error while fetching exchange rates: {e}")
+        logger.error("HTTP error while fetching exchange rates: %s", e)
         raise
     except Exception as e:
-        logger.error(f"Unexpected error while fetching exchange rates: {e}")
+        logger.error("Unexpected error while fetching exchange rates: %s", e)
         raise
 
     _assert_success(payload)
@@ -189,6 +189,6 @@ def _assert_success(payload: dict) -> None:
     if payload.get("result") != "success":
         error = payload.get("error-type", "Unknown error")
 
-        logger.error(f"Exchange Rate API error: {error}")
+        logger.error("Exchange Rate API error: %s", error)
 
         raise ValueError(f"Exchange Rate API error: {error}")

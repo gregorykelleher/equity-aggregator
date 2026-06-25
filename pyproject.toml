@@ -86,7 +86,7 @@ line-length = 88
 
 [tool.ruff.lint]
 select = [
-    "I", "E", "W", "C4", "FA", "RET", "COM", "FBT", "PYI", "F", "UP", "B", "SIM", "C90", "PL", "N", "ANN", "ASYNC"
+    "I", "E", "W", "C4", "FA", "RET", "COM", "FBT", "PYI", "F", "UP", "B", "SIM", "C90", "PL", "N", "ANN", "ASYNC", "G"
 ]
 ignore = ["COM812"]
 

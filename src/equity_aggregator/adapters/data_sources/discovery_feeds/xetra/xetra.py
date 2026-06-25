@@ -173,7 +173,7 @@ async def _produce_page(
             await queue.put(record)
 
     except Exception as error:
-        logger.error("Xetra page at offset %s failed: %s", offset, error, exc_info=True)
+        logger.exception("Xetra page at offset %s failed: %s", offset, error)
         raise
 
     finally:
@@ -231,11 +231,10 @@ async def _fetch_page(client: AsyncClient, offset: int) -> dict[str, object]:
         return response.json()
 
     except ValueError as error:
-        logger.error(
+        logger.exception(
             "Xetra JSON decode error at offset %s: %s",
             offset,
             error,
-            exc_info=True,
         )
         raise
 
