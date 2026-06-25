@@ -1,8 +1,8 @@
 # retrieval/retrieval.py
 
 import asyncio
-import gzip
 import logging
+import lzma
 import os
 from collections.abc import AsyncIterable
 from contextlib import asynccontextmanager
@@ -131,7 +131,7 @@ def download_canonical_equities(
     """
     Download the canonical equities database from GitHub.
 
-    Downloads the latest data_store.db.gz file from the GitHub release,
+    Downloads the latest data_store.db.xz file from the GitHub release,
     decompresses it, and atomically replaces the local database file.
 
     Args:
@@ -142,13 +142,13 @@ def download_canonical_equities(
         None
     """
     _DATA_STORE_PATH.mkdir(parents=True, exist_ok=True)
-    dest_path = _DATA_STORE_PATH / "data_store.db.gz"
+    dest_path = _DATA_STORE_PATH / "data_store.db.xz"
 
     async def _async_download() -> None:
         async with _open_client(client) as session:
             release = await _get_release_by_tag(session, _OWNER, _REPO, _TAG)
 
-            url = _asset_browser_url(release, "data_store.db.gz")
+            url = _asset_browser_url(release, "data_store.db.xz")
             logger.info("Downloading data store from GitHub release")
 
             await _stream_download(session, url, dest_path)
@@ -158,15 +158,15 @@ def download_canonical_equities(
     _decompress_db(dest_path, _DATA_STORE_PATH / "data_store.db")
 
 
-def _decompress_db(gz_path: Path, db_path: Path) -> None:
+def _decompress_db(xz_path: Path, db_path: Path) -> None:
     """
-    Decompress a gzipped database file and atomically place it.
+    Decompress an xz/lzma-compressed database file and atomically place it.
 
     Reads the compressed file, writes to a temporary file, then atomically
     replaces the target database file.
 
     Args:
-        gz_path (Path): Path to the gzip-compressed database file.
+        xz_path (Path): Path to the xz/lzma-compressed database file.
         db_path (Path): Final destination path for the decompressed database.
 
     Returns:
@@ -175,8 +175,8 @@ def _decompress_db(gz_path: Path, db_path: Path) -> None:
     tmp_path = db_path.with_suffix(".db.tmp")
 
     try:
-        with gzip.open(gz_path, "rb") as gz_in, tmp_path.open("wb") as tmp_out:
-            while chunk := gz_in.read(65536):
+        with lzma.open(xz_path, "rb") as xz_in, tmp_path.open("wb") as tmp_out:
+            while chunk := xz_in.read(65536):
                 tmp_out.write(chunk)
 
         os.replace(tmp_path, db_path)
@@ -185,7 +185,7 @@ def _decompress_db(gz_path: Path, db_path: Path) -> None:
         # archive, disk full); harmless no-op after a successful os.replace.
         tmp_path.unlink(missing_ok=True)
 
-    gz_path.unlink(missing_ok=True)
+    xz_path.unlink(missing_ok=True)
 
 
 @asynccontextmanager
