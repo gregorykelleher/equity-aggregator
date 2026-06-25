@@ -2,12 +2,13 @@
 
 import sys
 from argparse import Namespace
+from collections.abc import Callable
 
 from equity_aggregator.domain import download_canonical_equities as download
 from equity_aggregator.domain import seed_canonical_equities as seed
 
 
-def run_command(fn: callable) -> None:
+def run_command(fn: Callable[[], None]) -> None:
     """
     Execute a command function with exception handling.
 

@@ -2,6 +2,7 @@
 
 import logging
 import sqlite3
+from collections.abc import Callable
 
 from ._utils import (
     CANONICAL_EQUITY_SNAPSHOTS_TABLE,
@@ -14,13 +15,14 @@ from ._utils import (
 logger = logging.getLogger(__name__)
 
 
-def ensure_fresh_database(refresh_fn: callable = None) -> bool:
+def ensure_fresh_database(refresh_fn: Callable[[], object] | None = None) -> bool:
     """
     Ensure the database is fresh, refreshing if stale and refresh function provided.
 
     Args:
-        refresh_fn (callable, optional): Function to call if database is stale.
-            Should download/refresh the database (e.g., download_canonical_equities).
+        refresh_fn (Callable[[], object] | None): Function to call if database is
+            stale. Should download/refresh the database
+            (e.g., download_canonical_equities).
 
     Returns:
         bool: True if refresh was performed, False if database was already fresh.

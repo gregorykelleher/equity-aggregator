@@ -177,6 +177,7 @@ def test_load_canonical_equities_rehydrates_objects() -> None:
     ACT:     load_canonical_equities
     ASSERT:  loaded objects match original identities
     """
+    original_ttl = os.environ.get("CACHE_TTL_MINUTES")
     os.environ["CACHE_TTL_MINUTES"] = "60"
 
     equities = [
@@ -184,11 +185,14 @@ def test_load_canonical_equities_rehydrates_objects() -> None:
         _create_canonical_equity("BBG000BKQV61", "TWO"),
     ]
 
-    save_canonical_equities(equities)
-
-    loaded = load_canonical_equities()
-
-    os.environ["CACHE_TTL_MINUTES"] = "0"
+    try:
+        save_canonical_equities(equities)
+        loaded = load_canonical_equities()
+    finally:
+        if original_ttl is None:
+            del os.environ["CACHE_TTL_MINUTES"]
+        else:
+            os.environ["CACHE_TTL_MINUTES"] = original_ttl
 
     assert [equity.identity.share_class_figi for equity in loaded] == [
         "BBG000B9XRY4",
