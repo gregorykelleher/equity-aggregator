@@ -2,7 +2,7 @@
 
 import asyncio
 import contextlib
-import gzip
+import lzma
 import os
 import sqlite3
 import tempfile
@@ -95,8 +95,8 @@ def _mock_github_client_db(db_bytes: bytes = b"") -> httpx.AsyncClient:
     Creates a mock httpx.AsyncClient simulating GitHub release with a DB asset.
 
     This mock client intercepts requests to GitHub release endpoints and returns a
-    predefined JSON response containing data_store.db.gz as the asset. For all other
-    requests, it returns the provided content compressed with gzip.
+    predefined JSON response containing data_store.db.xz as the asset. For all other
+    requests, it returns the provided content compressed with xz/lzma.
 
     Args:
         db_bytes (bytes, optional): The raw database bytes to be compressed.
@@ -104,7 +104,7 @@ def _mock_github_client_db(db_bytes: bytes = b"") -> httpx.AsyncClient:
     Returns:
         httpx.AsyncClient: An asynchronous HTTP client with mock transport.
     """
-    gz = gzip.compress(db_bytes)
+    xz = lzma.compress(db_bytes)
 
     def handler(request: httpx.Request) -> httpx.Response:
         if "releases" in str(request.url):
@@ -113,13 +113,13 @@ def _mock_github_client_db(db_bytes: bytes = b"") -> httpx.AsyncClient:
                 json={
                     "assets": [
                         {
-                            "name": "data_store.db.gz",
+                            "name": "data_store.db.xz",
                             "browser_download_url": "https://x/f",
                         },
                     ],
                 },
             )
-        return httpx.Response(200, content=gz, headers={"Content-Length": str(len(gz))})
+        return httpx.Response(200, content=xz, headers={"Content-Length": str(len(xz))})
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
@@ -457,39 +457,39 @@ async def test_download_runs_under_to_thread_in_running_loop() -> None:
     assert db_path.exists()
 
 
-def test_decompress_db_creates_database_from_gz() -> None:
+def test_decompress_db_creates_database_from_xz() -> None:
     """
-    ARRANGE: gzipped database file
+    ARRANGE: xz-compressed database file
     ACT:     _decompress_db
     ASSERT:  decompressed database file exists with correct content
     """
     original = b"test database content"
-    gz_path = _DATA_STORE_PATH / "test_decompress.db.gz"
+    xz_path = _DATA_STORE_PATH / "test_decompress.db.xz"
     db_path = _DATA_STORE_PATH / "test_decompress.db"
 
-    with gzip.open(gz_path, "wb") as f:
+    with lzma.open(xz_path, "wb") as f:
         f.write(original)
 
-    _decompress_db(gz_path, db_path)
+    _decompress_db(xz_path, db_path)
 
     assert db_path.read_bytes() == original
 
 
-def test_decompress_db_removes_gz_file() -> None:
+def test_decompress_db_removes_xz_file() -> None:
     """
-    ARRANGE: gzipped database file
+    ARRANGE: xz-compressed database file
     ACT:     _decompress_db
-    ASSERT:  gz file is removed after decompression
+    ASSERT:  xz file is removed after decompression
     """
-    gz_path = _DATA_STORE_PATH / "test_cleanup.db.gz"
+    xz_path = _DATA_STORE_PATH / "test_cleanup.db.xz"
     db_path = _DATA_STORE_PATH / "test_cleanup.db"
 
-    with gzip.open(gz_path, "wb") as f:
+    with lzma.open(xz_path, "wb") as f:
         f.write(b"data")
 
-    _decompress_db(gz_path, db_path)
+    _decompress_db(xz_path, db_path)
 
-    assert not gz_path.exists()
+    assert not xz_path.exists()
 
 
 def test_get_github_headers_without_token() -> None:

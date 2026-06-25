@@ -294,7 +294,7 @@ use 'equity-aggregator <command> --help' for help
 
 The `download` command retrieves the latest canonical equity database from GitHub Releases, eliminating the need to run the full aggregation pipeline via `seed` locally. This command:
 
-- Downloads the compressed database (`data_store.db.gz`) from the latest nightly build
+- Downloads the compressed database (`data_store.db.xz`) from the latest nightly build
 - Decompresses and atomically replaces the local database
 - Provides access to 18,000+ equities with full historical snapshots
 
