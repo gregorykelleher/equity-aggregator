@@ -108,7 +108,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Update the release in place - never delete it - so the published
-          # data_store.db.gz is always present (no download 404 window, and a
+          # data_store.db.xz is always present (no download 404 window, and a
           # cancelled run can't leave zero release).
           if ! gh release view latest-build-release >/dev/null 2>&1; then
             gh release create latest-build-release \
@@ -121,10 +121,6 @@ jobs:
             data/data_store/data_store.db.xz \
             data/logs/equity_aggregator_latest.log \
             --clobber
-
-          # Remove the now-orphaned gzip asset left by the pre-xz pipeline.
-          # No-op once it has been deleted.
-          gh release delete-asset latest-build-release data_store.db.gz -y || true
 
       - name: Commit updated coverage table
         run: |
