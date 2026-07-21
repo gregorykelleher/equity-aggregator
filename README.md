@@ -74,17 +74,17 @@ The headline numbers for the latest snapshot:
 <!-- STATS:START -->
 | Metric | Value |
 |--------|------:|
-| Canonical equities | 18,466 |
+| Canonical equities | 18,481 |
 | Sectors | 35 |
 | Industries | 254 |
 | Listing venues (MICs) | 10 |
-| Daily snapshots | 94 |
+| Daily snapshots | 95 |
 | History since | 16/02/2026 |
-| Aggregate market cap | $657.84B |
-| Largest market cap | $262.79B |
-| Median market cap | $11.44B |
+| Aggregate market cap | $103.45T |
+| Largest market cap | $4.92T |
+| Median market cap | $536M |
 | Price within 52-week range | 100% |
-| Market cap within 25% of price × shares | 95% |
+| Market cap within 25% of price × shares | 94% |
 <!-- STATS:END -->
 
 ### Market Capitalisation Distribution
@@ -94,11 +94,11 @@ The number of canonical equities falling within each market capitalisation tier:
 <!-- CAPDIST:START -->
 | Cap tier | Canonical Equities |
 |----------|---------:|
-| Mega (> $200B) | 1 |
-| Large ($10B–$200B) | 9 |
-| Mid ($2B–$10B) | 2 |
-| Small ($300M–$2B) | 6 |
-| Micro (< $300M) | 2 |
+| Mega (> $200B) | 73 |
+| Large ($10B–$200B) | 931 |
+| Mid ($2B–$10B) | 1,177 |
+| Small ($300M–$2B) | 1,554 |
+| Micro (< $300M) | 2,705 |
 <!-- CAPDIST:END -->
 
 ## Where does the Equity Data come from?
