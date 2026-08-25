@@ -33,7 +33,7 @@ The essential metadata that uniquely identifies each equity, with live populatio
 | isin | International Securities Identification Number | 50% |
 | cusip | CUSIP identifier | 26% |
 | cik | Central Index Key for SEC filings | 40% |
-| lei | Legal Entity Identifier (ISO 17442) | 10% |
+| lei | Legal Entity Identifier (ISO 17442) | 36% |
 <!-- COVERAGE:END -->
 
 > [!NOTE]
@@ -74,16 +74,16 @@ The headline numbers for the latest snapshot:
 <!-- STATS:START -->
 | Metric | Value |
 |--------|------:|
-| Canonical equities | 18,861 |
+| Canonical equities | 18,870 |
 | Sectors | 35 |
-| Industries | 256 |
+| Industries | 254 |
 | Listing venues (MICs) | 9 |
-| Daily snapshots | 125 |
+| Daily snapshots | 126 |
 | History since | 16/02/2026 |
-| Aggregate market cap | $106.07T |
-| Largest market cap | $5.05T |
-| Median market cap | $490M |
-| Price within 52-week range | 99% |
+| Aggregate market cap | $113.70T |
+| Largest market cap | $5.16T |
+| Median market cap | $374M |
+| Price within 52-week range | 98% |
 | Market cap within 25% of price × shares | 94% |
 <!-- STATS:END -->
 
@@ -94,11 +94,11 @@ The number of canonical equities falling within each market capitalisation tier:
 <!-- CAPDIST:START -->
 | Cap tier | Canonical Equities |
 |----------|---------:|
-| Mega (> $200B) | 77 |
-| Large ($10B–$200B) | 955 |
-| Mid ($2B–$10B) | 1,163 |
-| Small ($300M–$2B) | 1,578 |
-| Micro (< $300M) | 2,810 |
+| Mega (> $200B) | 82 |
+| Large ($10B–$200B) | 1,079 |
+| Mid ($2B–$10B) | 1,253 |
+| Small ($300M–$2B) | 1,681 |
+| Micro (< $300M) | 3,563 |
 <!-- CAPDIST:END -->
 
 ## Where does the Equity Data come from?
